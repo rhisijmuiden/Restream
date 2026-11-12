@@ -33,8 +33,8 @@ export function Layout() {
     { to: '/accounts', label: t('nav.accounts'), icon: <Link2 size={18} /> },
     { to: '/events', label: t('nav.events'), icon: <CalendarClock size={18} /> },
     { to: '/recordings', label: t('nav.recordings'), icon: <CircleDot size={18} /> },
-    { to: '/analytics', label: t('nav.analytics'), icon: <BarChart3 size={18} />, soon: true },
-    { to: '/chat', label: t('nav.chat'), icon: <MessageSquare size={18} />, soon: true },
+    { to: '/analytics', label: t('nav.analytics'), icon: <BarChart3 size={18} /> },
+    { to: '/chat', label: t('nav.chat'), icon: <MessageSquare size={18} /> },
   ];
   const admin: Item[] = [
     { to: '/admin/users', label: t('nav.users'), icon: <Users size={18} />, admin: true },

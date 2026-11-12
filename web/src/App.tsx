@@ -10,7 +10,8 @@ import { AuthShell } from './pages/AuthShell';
 import { Dashboard } from './pages/Dashboard';
 import { Streams } from './pages/Streams';
 import { Destinations } from './pages/Destinations';
-import { ComingSoon } from './pages/ComingSoon';
+import { Analytics } from './pages/Analytics';
+import { Chat } from './pages/Chat';
 import { Accounts } from './pages/Accounts';
 import { Events } from './pages/Events';
 import { Recordings } from './pages/Recordings';
@@ -78,8 +79,8 @@ export function App() {
         <Route path="accounts" element={<Accounts />} />
         <Route path="events" element={<Events />} />
         <Route path="recordings" element={<Recordings />} />
-        <Route path="analytics" element={<ComingSoon titleKey="nav.analytics" phase={4} />} />
-        <Route path="chat" element={<ComingSoon titleKey="nav.chat" phase={4} />} />
+        <Route path="analytics" element={<Analytics />} />
+        <Route path="chat" element={<Chat />} />
         <Route path="account" element={<Account />} />
         <Route path="admin/users" element={admin(<Users />)} />
         <Route path="admin/mail" element={admin(<Mail />)} />

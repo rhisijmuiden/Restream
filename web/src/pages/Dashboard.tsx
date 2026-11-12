@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, CalendarClock, CircleDot, MonitorPlay, Plus, Radio, Settings2, Square, ExternalLink, Wrench, Link2 } from 'lucide-react';
+import { AlertTriangle, CalendarClock, Eye, Maximize2, CircleDot, MonitorPlay, Plus, Radio, Settings2, Square, ExternalLink, Wrench, Link2 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { api, type Destination, type Stream, type SystemInfo } from '../lib/api';
 import { useMe } from '../lib/auth';
@@ -12,6 +12,9 @@ import { clock, formatKbps, sinceSeconds, useStreams } from '../lib/streams';
 import { Button, Card, CopyButton, ErrorText, KeyValue } from '../components/ui';
 import { IngestBadge, OutputBadge, PlatformChip, Segmented, audioLabel, videoLabel } from '../components/media';
 import { WhepPlayer } from '../components/WhepPlayer';
+import { Audience, ChatList } from '../components/live';
+import { formatCount, useLive } from '../lib/live';
+import type { LiveDestination } from '../lib/api';
 
 function useNow(ms = 1000) {
   const [now, setNow] = useState(Date.now());
@@ -111,6 +114,8 @@ function StreamControl({ stream, canOperate, sys }: { stream: Stream; canOperate
   const anyLive = stream.destinations.some((d) => d.live);
   const onAir = stream.destinations.some((d) => d.status.state === 'live');
   const included = stream.destinations.filter((d) => d.enabled);
+  const liveData = useLive(stream.id);
+  const audience = new Map((liveData.data?.destinations ?? []).map((d) => [d.destinationId, d]));
 
   const live = useMutation({
     mutationFn: (on: boolean) => api(`/api/streams/${stream.id}/live`, { method: 'POST', body: { live: on } }),
@@ -184,13 +189,21 @@ function StreamControl({ stream, canOperate, sys }: { stream: Stream; canOperate
               </div>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
-                {stream.destinations.map((d) => <DestinationTile key={d.id} d={d} canOperate={canOperate} now={now} />)}
+                {stream.destinations.map((d) => <DestinationTile key={d.id} d={d} canOperate={canOperate} now={now} live={audience.get(d.id)} />)}
               </div>
             )}
           </Card>
         </div>
 
         <aside className="flex flex-col gap-6">
+          <Audience data={liveData.data} compact />
+          <Card
+            eyebrow={t('live.chat')}
+            actions={<Link to={`/chat?stream=${stream.id}`} className="flex items-center gap-1.5 text-sm"><Maximize2 size={14} /> {t('live.openChat')}</Link>}
+            className="flex h-[480px] flex-col"
+          >
+            <ChatList messages={liveData.chat} destinations={liveData.data?.destinations} className="flex-1" empty={liveData.data?.broadcast ? undefined : t('live.chatOffAir')} />
+          </Card>
           <NextEvent streamId={stream.id} />
           <Card eyebrow={t('dashboard.outputs')}>
             <div className="flex items-end gap-3">
@@ -285,8 +298,8 @@ function UrlRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function DestinationTile({ d, canOperate, now }: { d: Destination; canOperate: boolean; now: number }) {
-  const { t } = useTranslation();
+function DestinationTile({ d, canOperate, now, live }: { d: Destination; canOperate: boolean; now: number; live?: LiveDestination }) {
+  const { t, i18n } = useTranslation();
   const qc = useQueryClient();
   const toggle = useMutation({
     mutationFn: (on: boolean) => api(`/api/destinations/${d.id}/live`, { method: 'POST', body: { live: on } }),
@@ -312,6 +325,12 @@ function DestinationTile({ d, canOperate, now }: { d: Destination; canOperate: b
           {s.state === 'live' ? `${formatKbps(s.bitrateKbps)} · ${clock(sinceSeconds(s.since, now))}` : ''}
         </span>
       </div>
+      {live?.onAir && live.supported && (
+        <span className="flex items-center gap-1.5 text-xs text-fg-2" title={live.error ?? undefined}>
+          <Eye size={13} className={live.error ? 'text-warn' : 'text-accent'} />
+          <span className="font-mono tabular-nums">{formatCount(live.viewers, i18n.language)}</span> {t('live.viewers')}
+        </span>
+      )}
       {d.watchUrl && (
         <a href={d.watchUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-xs">{t('dashboard.watch')} <ExternalLink size={12} /></a>
       )}

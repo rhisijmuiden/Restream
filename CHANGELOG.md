@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.0 · Phase 4: live viewers, combined chat and statistics
+
+- **Live viewers** on the dashboard: total right now, the peak of this broadcast and a bar per destination; each destination tile shows its own count. Read every 30 seconds from YouTube (concurrent viewers), Facebook (`live_views`) and Twitch (Helix streams) for destinations on a connected account. Destinations with a typed stream key show "n/a".
+- **Combined chat**: YouTube live chat (including Super Chat amounts), Facebook comments on the live video and Twitch chat (read anonymously over IRC/WebSocket) in one list, on the dashboard and full screen on the Chat page. Filter per platform, stays at the newest message unless you scroll up. Read only; replying and moderating stays on the platforms.
+- **Analytics**: every broadcast is recorded automatically from the first destination on air until Stop (a reconnect within 10 minutes continues it), with duration, peak and average viewers, chat count, a viewer graph with the split per destination, the full chat and a CSV export (spreadsheet-safe). Administrators can delete a broadcast.
+- Facebook now also asks for `pages_read_user_content` (to read comments). Pages connected before 1.2.0 show "connect again" on the Accounts page.
+- YouTube chat is polled at most every 10 seconds (`LIVE_YOUTUBE_CHAT_MS`): each poll costs 5 of the 10,000 daily API units, about 1,800 units per broadcast hour. Other intervals: `LIVE_VIEWERS_MS`, `LIVE_FACEBOOK_CHAT_MS`, `LIVE_GRACE_MS`.
+
 ## 1.1.0 · Phase 3: embed, recording, connected accounts and events
 
 - **Embed player** at `/embed/<id>`: house-style player with live badge, title, volume, picture-in-picture and full screen; LL-HLS by default (hls.js or native), WebRTC with `?mode=webrtc` and automatic fallback to HLS; waits for the broadcast and starts by itself; English and Dutch. Copyable iframe code with autoplay, title and low-latency options and a preview in the console.

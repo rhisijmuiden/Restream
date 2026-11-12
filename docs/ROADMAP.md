@@ -40,7 +40,7 @@ Fase 0 t/m 2 vormen samen v1.0. Elke fase gaat eerst naar `test` en pas na akkoo
 - Accounts koppelen via OAuth (YouTube, Facebook, Twitch) naast losse streamkeys
 - Live events plannen, automatisch aanmelden bij de platforms en op tijd live gaan
 
-### Fase 4 · Statistieken en chat (P2)
+### Fase 4 · Statistieken en chat (P2) · klaar op `test` (v1.2.0)
 - Live kijkersaantallen per platform en in totaal op het dashboard
 - Samengevoegde chat van alle platforms in één venster
 - Overzicht per uitzending achteraf: piek, gemiddelde en duur
@@ -63,7 +63,7 @@ Fase 0 t/m 2 vormen samen v1.0. Elke fase gaat eerst naar `test` en pas na akkoo
 | LinkedIn Live | Na partnergoedkeuring | Na goedkeuring | Na goedkeuring | Na goedkeuring | 5 |
 | X | RTMP via Media Studio | Nee | Beperkt (betaalde API) | Beperkt | 5 |
 
-Fase 3 is gebouwd tegen YouTube Data API v3, Facebook Graph API v26.0 en Twitch Helix (gecontroleerd november 2026), maar nog niet met echte accounts getest. Kijkers en chat worden aan het begin van fase 4 gecontroleerd.
+Fase 3 en 4 zijn gebouwd tegen YouTube Data API v3, Facebook Graph API v26.0 en Twitch Helix/IRC (gecontroleerd november 2026), maar nog niet met echte accounts getest. Kijkers en chat werken alleen voor bestemmingen via een gekoppeld account. YouTube-chat kost 5 quota-eenheden per opvraging; met de standaard 10 seconden is dat ongeveer 1.800 eenheden per uur uitzending (dagquotum 10.000).
 
 ## Open punten
 

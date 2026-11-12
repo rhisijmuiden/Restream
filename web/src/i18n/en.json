@@ -355,7 +355,8 @@
     "event_stream_change": "The stream of an event cannot be changed.",
     "event_not_live": "This event is not live.",
     "event_cleanup_pending": "Restream is still removing this event from the platforms. Try again in a minute.",
-    "invalid_destination": "A chosen destination does not belong to this stream."
+    "invalid_destination": "A chosen destination does not belong to this stream.",
+    "broadcast_running": "This broadcast is still running."
   },
   "time": {
     "seconds": "{{n}}s",
@@ -764,7 +765,8 @@
     "redirectUri": "Redirect URL",
     "clientId": "Client ID / App ID",
     "clientSecret": "Client secret",
-    "secretKeep": "Leave empty to keep the stored secret."
+    "secretKeep": "Leave empty to keep the stored secret.",
+    "reconnectForChat": "Connect again to show the comments of this page in the live chat."
   },
   "events": {
     "title": "Events",
@@ -842,5 +844,58 @@
     "confirmDelete": "Delete the recording {{name}}? The file is removed from the server.",
     "titleLabel": "Title",
     "titleHint": "Also used as the file name of the download."
+  },
+  "live": {
+    "audience": "Live audience",
+    "peak": "Peak {{n}}",
+    "watchingNow": "watching now",
+    "viewers": "viewers",
+    "offAir": "Viewer counts appear here as soon as a destination is on air.",
+    "offAirShort": "Off air",
+    "noStatsHint": "Viewer counts and chat are read from destinations that use a connected account. Destinations with a typed stream key only send video.",
+    "na": "n/a",
+    "chat": "Live chat",
+    "openChat": "Full screen",
+    "filter": "Show chat per platform",
+    "chatEmpty": "No messages yet.",
+    "chatOffAir": "The chat of YouTube, Facebook and Twitch appears here while you are on air.",
+    "chatError": "Chat of {{name}} cannot be read",
+    "newMessages_one": "{{count}} new message",
+    "newMessages_other": "{{count}} new messages",
+    "toLatest": "Latest messages"
+  },
+  "chat": {
+    "title": "Combined chat",
+    "subtitle": "Messages from YouTube, Facebook and Twitch in one window, for the stream that is on air.",
+    "readOnly": "Restream shows the chat; replying and moderating is done on the platforms themselves. The chat is kept with the broadcast under Analytics."
+  },
+  "analytics": {
+    "title": "Analytics",
+    "subtitle": "Every broadcast with its duration, peak and average viewers, and the chat afterwards.",
+    "emptyTitle": "No broadcasts yet",
+    "emptyText": "A broadcast is recorded here automatically from the moment the first destination goes live until you stop.",
+    "broadcasts": "Broadcasts",
+    "onAirTotal": "Total on air",
+    "bestPeak": "Highest peak",
+    "avgOfAvg": "Average viewers",
+    "history": "Broadcasts",
+    "live": "Live",
+    "duration": "Duration",
+    "peak": "Peak",
+    "average": "Average",
+    "chatMessages": "Chat messages",
+    "viewersOverTime": "Viewers over time (all platforms)",
+    "noSamples": "Not enough viewer counts yet for a graph.",
+    "chartLabel": "Viewers over time: peak {{peak}}, average {{avg}}",
+    "total": "Total",
+    "perDestination": "Per destination",
+    "destination": "Destination",
+    "noStats": "No viewer counts (stream key)",
+    "chat": "Chat",
+    "exportCsv": "Export CSV",
+    "noChat": "No chat messages in this broadcast.",
+    "chatTruncated": "Showing the first 1,000 messages; the CSV export has all of them.",
+    "delete": "Delete",
+    "confirmDelete": "Delete this broadcast with its statistics and chat? Recordings are kept."
   }
 }
