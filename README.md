@@ -2,7 +2,7 @@
 
 Self-hosted stream multiplexer for Debian 13, installed with a single installer script on a bare server. Send one RTMP or SRT stream to the server, press **Go live**, and Restream distributes it to YouTube, Facebook, Twitch, Instagram, Kick, X and your own RTMP/SRT servers, each in its own bitrate and resolution.
 
-> Status: phase 1 (restreaming core) is done on the test channel: RTMP/SRT ingest with stream keys, destinations (YouTube, Facebook, Twitch, custom RTMP/SRT), Go live per stream and per destination with automatic reconnect, and HLS/WebRTC hotlink URLs. Phase 0 brought the installer, sign-in with 2FA and Microsoft 365, users, admin console, EN/NL and updates from the UI. Mail and backups follow in phase 2. See [docs/ROADMAP.md](docs/ROADMAP.md) (Dutch) and [CHANGELOG.md](CHANGELOG.md).
+> Status: v1.0 (phases 0 to 2) is on the test channel. Phase 2 added your own SMTP mail server with DKIM and notifications when streams, destinations or the media server fail, and encrypted full and incremental backups to SCP, FTPS or FTP with restore from that location. Phase 1 brought RTMP/SRT ingest, destinations, Go live and hotlinks; phase 0 the installer, 2FA and Microsoft 365 sign-in, users, EN/NL and updates from the UI. See [docs/ROADMAP.md](docs/ROADMAP.md) (Dutch) and [CHANGELOG.md](CHANGELOG.md).
 
 ## Install
 
@@ -26,6 +26,9 @@ Maintenance on the server:
 | `restream-cli reset-password --email <e>` | New temporary password for a user |
 | `restream-cli reset-2fa --email <e>` | User sets up 2FA again at next sign-in |
 | `restream-update [--channel production\|test]` | Update from the shell (same as the Updates page) |
+| `restream-cli backup [--full]` | Make a backup now (incremental when a chain exists) |
+| `restream-cli backups` | List the backups on the remote location |
+| `restream-cli restore --id <id> --yes` | Restore a backup (replaces database and recordings) |
 | `journalctl -u restream -f` | Application log (including the FFmpeg outputs) |
 | `journalctl -u restream-media -f` | Media server log (MediaMTX: ingest connections, playback) |
 
@@ -52,6 +55,26 @@ How it fits together: MediaMTX receives the ingest and asks Restream (`/api/inte
 ### How updates work
 
 The web console never runs privileged commands. When an administrator clicks **Install update** or switches channel, the app writes a small request file. A root-owned systemd path unit (`restream-updater.path`) picks it up and runs `deploy/update.sh`: fetch the branch, `npm ci`, build, migrate, restart, health check. If any step fails, the previous version is rebuilt and restored automatically. Progress and the log are shown live on the Updates page.
+
+### Mail server and notifications
+
+**Administration → Mail server**: enter your SMTP server with STARTTLS (587, required, TLS 1.2+), implicit TLS (465) or none (local relay only), sign-in and sender. **Test connection** connects and authenticates without sending; **Send test message** sends a real one. Under **DKIM signing** Restream generates a 2048-bit key and shows the TXT record (`<selector>._domainkey.<domain>`) to publish; once it is in DNS, switch signing on.
+
+Notifications go to all administrators (optional) and extra addresses, for: a stream losing its ingest while destinations are live (after 20 s), a destination failing three times in a row, the media server not answering for a minute (each with a follow-up when it recovers), backups failing or completing, updates installed or rolled back, and new versions on your channel. Every message is in the house style and in the default language of the instance; the last 50 are listed with their result.
+
+### Backups and restore
+
+**Administration → Backups**:
+
+1. Choose **SCP (SSH)** (recommended), **FTPS** (explicit, port 21), **FTPS implicit** (port 990) or **FTP**. For SCP, click **Generate key** and add the public key to `~/.ssh/authorized_keys` of the backup user; the host key is pinned at the first connection and a changed key is refused. FTPS verifies the certificate unless you switch that off.
+2. Set an **encryption passphrase** (12+ characters) and keep it in your password manager. Every backup is AES-256-GCM encrypted with a key derived from it (scrypt) before it leaves the server.
+3. **Save and test** writes and removes a probe file. Then switch on the **schedule**: a full backup daily, weekly or monthly, with incrementals in between (daily, every 6 hours or hourly), keeping the last *n* full backups with their incrementals.
+
+A backup contains the database (complete in every backup, it is small), `/etc/restream/restream.env` (with `APP_KEY`) and the files in `/var/lib/restream/recordings` and `assets`, which are incremental (GNU tar snapshots). On the remote each backup is `restream-<id>.rsbk` plus a readable `restream-<id>.json` manifest, uploaded last.
+
+**Restore** picks any backup on the location; for an incremental Restream downloads the full backup and every incremental up to it, checks the SHA-256 of each file, decrypts, saves a copy of the current database to `/var/lib/restream/backups/pre-restore`, and replaces the database and recordings in one go. The backup location configured on the server is kept. Everyone is signed out and signs in with the accounts from the backup.
+
+**Restore onto a new server**: install Restream, sign in with the new admin account, enter the same backup location and passphrase, and restore. Secrets in the backup (stream keys, 2FA secrets, passwords) are re-encrypted with the new server's `APP_KEY` automatically. A backup made by a newer Restream version is refused until the server is updated.
 
 ### Microsoft 365 sign-in
 
@@ -83,8 +106,8 @@ The media engine is off in development. To try streaming locally, run MediaMTX w
 
 Standard for every release:
 
-- Configurable SMTP mail server (TLS / STARTTLS)
-- Full and incremental backups to FTP, FTPS and SCP, with restore from the remote location
+- Configurable SMTP mail server (TLS / STARTTLS, DKIM) with notifications
+- Encrypted full and incremental backups to FTP, FTPS and SCP, with restore from the remote location
 - Info button with the current version, update check and update from the UI
 - `main` (production) and `test` release channels, switchable in the UI
 - English by default, Dutch translation included

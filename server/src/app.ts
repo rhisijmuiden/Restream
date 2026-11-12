@@ -17,8 +17,12 @@ import { settingsRoutes } from './routes/settings.js';
 import { streamRoutes } from './routes/streams.js';
 import { mediaRoutes } from './routes/media.js';
 import { MediaSupervisor } from './media/supervisor.js';
+import { mailRoutes } from './routes/mail.js';
+import { backupRoutes } from './routes/backups.js';
+import { Notifier } from './lib/notify.js';
+import { BackupService } from './backup/service.js';
 
-export async function buildApp(sql: Sql, opts: { logger?: boolean } = {}): Promise<FastifyInstance> {
+export async function buildApp(sql: Sql, opts: { logger?: boolean; background?: boolean } = {}): Promise<FastifyInstance> {
   const app = Fastify({
     logger: opts.logger === false ? false : { level: config.logLevel },
     trustProxy: '127.0.0.1',
@@ -60,7 +64,7 @@ export async function buildApp(sql: Sql, opts: { logger?: boolean } = {}): Promi
 
   app.setErrorHandler((err, req, reply) => {
     if (err instanceof ZodError) return reply.status(400).send({ error: 'validation', issues: err.issues });
-    if (err instanceof HttpError) return reply.status(err.status).send({ error: err.code });
+    if (err instanceof HttpError) return reply.status(err.status).send({ error: err.code, ...(err.detail ? { detail: err.detail } : {}) });
     const e = err as { statusCode?: number; code?: string; message?: string };
     if (e.statusCode && e.statusCode < 500) return reply.status(e.statusCode).send({ error: e.code ?? 'bad_request', message: e.message });
     req.log.error({ err }, 'unhandled error');
@@ -77,7 +81,18 @@ export async function buildApp(sql: Sql, opts: { logger?: boolean } = {}): Promi
   await app.register(streamRoutes, { sql, media });
   await app.register(mediaRoutes, { sql });
   if (config.media.enabled) app.addHook('onReady', async () => media.start());
-  app.addHook('onClose', async () => media.close());
+
+  // Mail notifications and scheduled backups run in the server process (not in tests unless asked).
+  const notifier = new Notifier(sql, media, app.log);
+  const backups = new BackupService(sql, app.log, notifier, () => media.nudge());
+  app.decorate('backups', backups);
+  app.decorate('notifier', notifier);
+  await app.register(mailRoutes, { sql });
+  await app.register(backupRoutes, { sql, backups });
+  if (opts.background ?? process.env.NODE_ENV === 'production') {
+    app.addHook('onReady', async () => { notifier.start(); await backups.start(); });
+  }
+  app.addHook('onClose', async () => { notifier.stop(); backups.stop(); await media.close(); });
 
   if (existsSync(config.webDist)) {
     await app.register(fastifyStatic, { root: config.webDist, wildcard: false, index: ['index.html'] });
@@ -87,4 +102,11 @@ export async function buildApp(sql: Sql, opts: { logger?: boolean } = {}): Promi
     });
   }
   return app;
+}
+
+declare module 'fastify' {
+  interface FastifyInstance {
+    backups: BackupService;
+    notifier: Notifier;
+  }
 }

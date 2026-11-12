@@ -27,7 +27,7 @@ Fase 0 t/m 2 vormen samen v1.0. Elke fase gaat eerst naar `test` en pas na akkoo
 - Go Live en Stop per stream en per output, bitrate per bestemming, automatisch herverbinden
 - Eigen afspeel-URL per stream (HLS en WebRTC) om te hotlinken
 
-### Fase 2 · Vaste beheerfuncties (P0)
+### Fase 2 · Vaste beheerfuncties (P0) · klaar op `test` (v1.0.0)
 - Eigen SMTP-server instellen (TLS en STARTTLS), testmail en meldingen bij uitval
 - Back-ups volledig en incrementeel naar ftp, ftps en scp, met restore vanaf de remote locatie
 - Updatecheck en updaten vanuit de UI, wisselen tussen productie en test

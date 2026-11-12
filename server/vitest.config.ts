@@ -15,6 +15,8 @@ export default defineConfig({
       UPDATE_REQUEST_DIR: path.join(tmp, 'req'),
       UPDATE_STATUS_DIR: path.join(tmp, 'status'),
       WEB_DIST: path.join(tmp, 'no-web'),
+      DATA_DIR: path.join(tmp, 'data'),
+      ENV_FILE: path.join(tmp, 'restream.env'),
     },
   },
 });

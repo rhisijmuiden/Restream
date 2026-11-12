@@ -16,6 +16,8 @@ import { Account } from './pages/Account';
 import { Settings } from './pages/Settings';
 import { Updates } from './pages/Updates';
 import { Audit } from './pages/Audit';
+import { Mail } from './pages/Mail';
+import { Backups } from './pages/Backups';
 import { useRefreshMe } from './lib/auth';
 import { Logo } from './components/ui';
 
@@ -76,8 +78,8 @@ export function App() {
         <Route path="chat" element={<ComingSoon titleKey="nav.chat" phase={4} />} />
         <Route path="account" element={<Account />} />
         <Route path="admin/users" element={admin(<Users />)} />
-        <Route path="admin/mail" element={admin(<ComingSoon titleKey="nav.mail" phase={2} />)} />
-        <Route path="admin/backups" element={admin(<ComingSoon titleKey="nav.backups" phase={2} />)} />
+        <Route path="admin/mail" element={admin(<Mail />)} />
+        <Route path="admin/backups" element={admin(<Backups />)} />
         <Route path="admin/updates" element={admin(<Updates />)} />
         <Route path="admin/settings" element={admin(<Settings />)} />
         <Route path="admin/audit" element={admin(<Audit />)} />

@@ -37,8 +37,8 @@ export function Layout() {
   ];
   const admin: Item[] = [
     { to: '/admin/users', label: t('nav.users'), icon: <Users size={18} />, admin: true },
-    { to: '/admin/mail', label: t('nav.mail'), icon: <Mail size={18} />, soon: true, admin: true },
-    { to: '/admin/backups', label: t('nav.backups'), icon: <DatabaseBackup size={18} />, soon: true, admin: true },
+    { to: '/admin/mail', label: t('nav.mail'), icon: <Mail size={18} />, admin: true },
+    { to: '/admin/backups', label: t('nav.backups'), icon: <DatabaseBackup size={18} />, admin: true },
     { to: '/admin/updates', label: t('nav.updates'), icon: <RefreshCw size={18} />, admin: true },
     { to: '/admin/settings', label: t('nav.settings'), icon: <Settings size={18} />, admin: true },
     { to: '/admin/audit', label: t('nav.audit'), icon: <ScrollText size={18} />, admin: true },

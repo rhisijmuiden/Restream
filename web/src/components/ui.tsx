@@ -157,6 +157,7 @@ export function ErrorText({ error }: { error: unknown }) {
   return (
     <p role="alert" className="rounded-xl border border-danger/40 bg-danger/10 px-3.5 py-2.5 text-sm text-danger">
       {i18n.exists(key) ? t(key) : t('errors.generic')}
+      {error instanceof ApiError && error.detail && <span className="mt-1 block font-mono text-xs break-words opacity-80">{error.detail}</span>}
     </p>
   );
 }
