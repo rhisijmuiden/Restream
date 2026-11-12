@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Restream live dashboard</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#070A12}
+a{color:#2EE6D6}a:hover{color:#8AF5EC}
+button{font-family:inherit}
+</style>
+</helmet>
+<div style="min-height: 1000px; display: flex; flex-wrap: wrap; background: #070A12; color: #E8ECF6; font-family: Inter, system-ui, sans-serif; font-size: 14px;">
+
+  <!-- Sidebar -->
+  <nav aria-label="Main menu" style="flex: 1 1 248px; max-width: 280px; box-sizing: border-box; padding: 24px 16px; background: #0B0F1A; border-right: 1px solid #1A2238; display: flex; flex-direction: column; gap: 24px;">
+    <div style="display: flex; align-items: center; gap: 12px; padding: 0 8px;">
+      <div style="width: 36px; height: 36px; border-radius: 10px; background: #2EE6D6; display: flex; align-items: center; justify-content: center;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#070A12" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h5M16 5l5 0M16 12h5M16 19h5M8 12l8-7M8 12h8M8 12l8 7"/></svg>
+      </div>
+      <div style="display: flex; flex-direction: column;">
+        <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 18px; letter-spacing: 0.02em;">RESTREAM</span>
+        <span style="font-size: 11px; color: #8A94AD; letter-spacing: 0.08em;">MULTIPLEX CONSOLE</span>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <span style="font-size: 11px; color: #8A94AD; letter-spacing: 0.12em; padding: 0 12px 6px;">BROADCAST</span>
+      <sc-for list="{{nav}}" as="item" hint-placeholder-count="7">
+        <a href="#" style="{{item.style}}">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{item.icon}}"/></svg>
+          <span style="flex-grow: 1;">{{item.label}}</span>
+          <sc-if value="{{item.badge}}" hint-placeholder-val="{{false}}"><span style="font-size: 11px; padding: 2px 8px; border-radius: 999px; background: #FF3D6E; color: #fff; font-weight: 600;">{{item.badge}}</span></sc-if>
+        </a>
+      </sc-for>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <span style="font-size: 11px; color: #8A94AD; letter-spacing: 0.12em; padding: 0 12px 6px;">ADMINISTRATION</span>
+      <sc-for list="{{admin}}" as="item" hint-placeholder-count="5">
+        <a href="#" style="display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; color: #B4BDD3; text-decoration: none;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{item.icon}}"/></svg>
+          <span>{{item.label}}</span>
+        </a>
+      </sc-for>
+    </div>
+
+    <div style="margin-top: auto; display: flex; flex-direction: column; gap: 12px; padding: 16px 8px 0; border-top: 1px solid #1A2238;">
+      <div role="group" aria-label="Release channel" style="display: flex; padding: 4px; border-radius: 10px; background: #111829; border: 1px solid #1E2740;">
+        <button style="flex: 1; min-height: 36px; border: 0; border-radius: 8px; background: #1C2540; color: #E8ECF6; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 6px;"><span style="width: 7px; height: 7px; border-radius: 50%; background: #3BE38A;"></span>Production</button>
+        <button style="flex: 1; min-height: 36px; border: 0; border-radius: 8px; background: transparent; color: #8A94AD; font-size: 12px; font-weight: 500;">Test</button>
+      </div>
+      <div style="display: flex; gap: 8px;">
+        <button aria-label="Info and updates" style="flex: 1; min-height: 44px; border-radius: 10px; border: 1px solid #1E2740; background: transparent; color: #E8ECF6; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 12px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>
+          Info · <span style="font-family: 'JetBrains Mono', monospace;">v1.0.0</span>
+        </button>
+        <button aria-label="Switch language" style="width: 64px; min-height: 44px; border-radius: 10px; border: 1px solid #1E2740; background: transparent; color: #B4BDD3; font-size: 12px; font-weight: 600;">EN · NL</button>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="width: 32px; height: 32px; border-radius: 50%; background: #1C2540; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #2EE6D6;">RH</div>
+        <div style="display: flex; flex-direction: column; flex-grow: 1;"><span style="font-size: 13px; font-weight: 500;">Reinder</span><span style="font-size: 11px; color: #8A94AD;">Administrator</span></div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main -->
+  <main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; padding: 24px 32px 40px; display: flex; flex-direction: column; gap: 24px;">
+
+    <!-- Top bar -->
+    <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px;">
+      <div style="display: flex; flex-direction: column; gap: 4px; flex-grow: 1;">
+        <span style="font-size: 12px; color: #8A94AD; letter-spacing: 0.08em;">STREAM · MAIN INGEST</span>
+        <h1 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 28px; letter-spacing: -0.01em;">Live control</h1>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; background: rgba(59,227,138,0.1); border: 1px solid rgba(59,227,138,0.35); font-size: 13px;">
+        <span style="width: 8px; height: 8px; border-radius: 50%; background: #3BE38A; box-shadow: 0 0 10px #3BE38A;"></span>
+        Ingest connected · SRT
+      </div>
+      <button onClick="{{toggleRec}}" style="{{recStyle}}">
+        <span style="{{recDot}}"></span>{{recLabel}}
+      </button>
+      <button onClick="{{toggleLive}}" style="{{liveStyle}}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{liveIcon}}"/></svg>
+        {{liveLabel}}
+      </button>
+    </header>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+
+      <!-- Left column -->
+      <div style="flex: 3 1 620px; min-width: 0; display: flex; flex-direction: column; gap: 24px;">
+
+        <!-- Preview -->
+        <section aria-label="Program preview" style="border-radius: 16px; background: #0D1220; border: 1px solid #1A2238; overflow: hidden;">
+          <div style="position: relative; aspect-ratio: 16 / 9; background-color: #05070D; background-image: linear-gradient(rgba(46,230,214,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(46,230,214,0.06) 1px, transparent 1px); background-size: 48px 48px; display: flex; align-items: center; justify-content: center;">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 10px; color: #4A5573;">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="15" height="14" rx="2"/><path d="M17 10l5-3v10l-5-3"/></svg>
+              <span style="font-size: 13px;">[Live preview of the incoming stream]</span>
+            </div>
+            <div style="position: absolute; top: 16px; left: 16px; display: flex; gap: 8px;">
+              <span style="{{onAirStyle}}">{{onAirLabel}}</span>
+              <span style="padding: 4px 10px; border-radius: 6px; background: rgba(7,10,18,0.75); border: 1px solid #1E2740; font-family: 'JetBrains Mono', monospace; font-size: 12px;">{{timecode}}</span>
+            </div>
+            <div style="position: absolute; top: 16px; right: 16px; padding: 4px 10px; border-radius: 6px; background: rgba(7,10,18,0.75); border: 1px solid #1E2740; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #B4BDD3;">1920×1080 · 60 fps</div>
+            <div aria-label="Audio levels" role="img" style="position: absolute; right: 16px; bottom: 16px; display: flex; gap: 4px; align-items: flex-end; height: 96px; padding: 8px; border-radius: 8px; background: rgba(7,10,18,0.75);">
+              <div style="width: 6px; height: 72px; border-radius: 3px; background: linear-gradient(to top, #3BE38A 60%, #FFB547 85%, #FF3D6E);"></div>
+              <div style="width: 6px; height: 64px; border-radius: 3px; background: linear-gradient(to top, #3BE38A 60%, #FFB547 85%, #FF3D6E);"></div>
+            </div>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); border-top: 1px solid #1A2238;">
+            <sc-for list="{{ingest}}" as="s" hint-placeholder-count="6">
+              <div style="padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; border-right: 1px solid #1A2238;">
+                <span style="font-size: 11px; color: #8A94AD; letter-spacing: 0.08em;">{{s.k}}</span>
+                <span style="font-family: 'JetBrains Mono', monospace; font-size: 15px;">{{s.v}}</span>
+              </div>
+            </sc-for>
+          </div>
+        </section>
+
+        <!-- Outputs -->
+        <section aria-label="Outputs" style="display: flex; flex-direction: column; gap: 14px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <h2 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 600; flex-grow: 1;">Destinations</h2>
+            <span style="font-size: 13px; color: #8A94AD;">{{activeCount}} of 6 enabled</span>
+            <button style="min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid #1E2740; background: #111829; color: #E8ECF6; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Add destination
+            </button>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px;">
+            <sc-for list="{{outputs}}" as="o" hint-placeholder-count="6">
+              <article style="{{o.card}}">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                  <div style="{{o.logo}}">{{o.short}}</div>
+                  <div style="display: flex; flex-direction: column; flex-grow: 1; min-width: 0;">
+                    <span style="font-weight: 600; font-size: 14px;">{{o.name}}</span>
+                    <span style="font-size: 12px; color: #8A94AD;">{{o.target}}</span>
+                  </div>
+                  <button onClick="{{o.toggle}}" aria-label="{{o.toggleLabel}}" style="{{o.switch}}"><span style="{{o.knob}}"></span></button>
+                </div>
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                  <span style="{{o.pill}}"><span style="{{o.dot}}"></span>{{o.status}}</span>
+                  <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #B4BDD3;">{{o.profile}}</span>
+                </div>
+                <div style="display: flex; align-items: baseline; justify-content: space-between; padding-top: 10px; border-top: 1px solid #1A2238;">
+                  <span style="font-size: 12px; color: #8A94AD;">Viewers</span>
+                  <span style="font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 600;">{{o.viewers}}</span>
+                </div>
+              </article>
+            </sc-for>
+          </div>
+        </section>
+      </div>
+
+      <!-- Right column -->
+      <aside style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 24px;">
+
+        <section aria-label="Total viewers" style="border-radius: 16px; background: #0D1220; border: 1px solid #1A2238; padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+          <span style="font-size: 12px; color: #8A94AD; letter-spacing: 0.08em;">TOTAL LIVE VIEWERS</span>
+          <span style="font-family: 'Space Grotesk', sans-serif; font-size: 48px; font-weight: 700; letter-spacing: -0.02em; color: #2EE6D6;">{{totalViewers}}</span>
+          <div style="display: flex; height: 8px; border-radius: 4px; overflow: hidden; gap: 2px; background: #111829;">
+            <div style="width: 57%; background: #FF4E45;"></div>
+            <div style="width: 28%; background: #4C8DFF;"></div>
+            <div style="width: 15%; background: #A970FF;"></div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px;">
+            <div style="display: flex; align-items: center; gap: 8px;"><span style="width: 8px; height: 8px; border-radius: 2px; background: #FF4E45;"></span><span style="flex-grow: 1; color: #B4BDD3;">YouTube</span><span style="font-family: 'JetBrains Mono', monospace;">{{vYt}}</span></div>
+            <div style="display: flex; align-items: center; gap: 8px;"><span style="width: 8px; height: 8px; border-radius: 2px; background: #4C8DFF;"></span><span style="flex-grow: 1; color: #B4BDD3;">Facebook</span><span style="font-family: 'JetBrains Mono', monospace;">{{vFb}}</span></div>
+            <div style="display: flex; align-items: center; gap: 8px;"><span style="width: 8px; height: 8px; border-radius: 2px; background: #A970FF;"></span><span style="flex-grow: 1; color: #B4BDD3;">Twitch</span><span style="font-family: 'JetBrains Mono', monospace;">{{vTw}}</span></div>
+          </div>
+        </section>
+
+        <section aria-label="Unified chat" style="border-radius: 16px; background: #0D1220; border: 1px solid #1A2238; display: flex; flex-direction: column;">
+          <div style="display: flex; align-items: center; gap: 8px; padding: 16px 20px; border-bottom: 1px solid #1A2238;">
+            <h2 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 16px; font-weight: 600; flex-grow: 1;">Unified chat</h2>
+            <span style="font-size: 12px; color: #8A94AD;">All platforms</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 14px; padding: 16px 20px; max-height: 420px; overflow-y: auto;">
+            <sc-for list="{{chat}}" as="m" hint-placeholder-count="6">
+              <div style="display: flex; gap: 10px;">
+                <span style="{{m.tag}}">{{m.p}}</span>
+                <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
+                  <span style="font-size: 12px; font-weight: 600; color: #B4BDD3;">{{m.user}}</span>
+                  <span style="font-size: 13px; line-height: 1.45;">{{m.text}}</span>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="padding: 12px 16px; border-top: 1px solid #1A2238; display: flex; gap: 8px;">
+            <label for="chat-reply" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">Reply to all platforms</label>
+            <input id="chat-reply" placeholder="Reply to all platforms…" style="flex-grow: 1; min-width: 0; min-height: 44px; box-sizing: border-box; padding: 0 14px; border-radius: 10px; border: 1px solid #1E2740; background: #070A12; color: #E8ECF6; font-size: 13px;">
+            <button aria-label="Send" style="width: 44px; min-height: 44px; border-radius: 10px; border: 0; background: #2EE6D6; color: #070A12; display: flex; align-items: center; justify-content: center;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12l16-8-6 16-2-7z"/></svg>
+            </button>
+          </div>
+        </section>
+
+        <section aria-label="Next scheduled event" style="border-radius: 16px; background: #0D1220; border: 1px solid #1A2238; padding: 20px; display: flex; flex-direction: column; gap: 10px;">
+          <span style="font-size: 12px; color: #8A94AD; letter-spacing: 0.08em;">NEXT SCHEDULED EVENT</span>
+          <span style="font-family: 'Space Grotesk', sans-serif; font-size: 17px; font-weight: 600;">[Event title]</span>
+          <span style="font-size: 13px; color: #B4BDD3;">Today · 19:30 · auto go-live</span>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+            <span style="font-size: 11px; padding: 3px 8px; border-radius: 6px; background: rgba(255,78,69,0.14); color: #FF8A84;">YouTube · scheduled</span>
+            <span style="font-size: 11px; padding: 3px 8px; border-radius: 6px; background: rgba(76,141,255,0.14); color: #8DB5FF;">Facebook · scheduled</span>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#2EE6D6","options":["#2EE6D6","#7C5CFF","#FFB547","#4C8DFF"]},"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { live: true, rec: true, on: { yt: true, fb: true, tw: true, ig: false, srt: true, kick: false } };
+  }
+  renderVals() {
+    const accent = this.props.accent ?? '#2EE6D6';
+    const live = this.state.live, rec = this.state.rec, on = this.state.on;
+    const navBase = 'display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; text-decoration: none; ';
+    const navItems = [
+      { label: 'Dashboard', icon: 'M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z', active: true, badge: live ? 'LIVE' : '' },
+      { label: 'Streams & keys', icon: 'M4 12h10M10 6l6 6-6 6M20 4v16' },
+      { label: 'Destinations', icon: 'M4 12h6M14 5h6M14 12h6M14 19h6M10 12l4-7M10 12l4 7' },
+      { label: 'Events', icon: 'M4 6h16v14H4zM4 10h16M9 3v5M15 3v5' },
+      { label: 'Recordings', icon: 'M12 4a8 8 0 1 0 0 16a8 8 0 1 0 0-16zM12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6z' },
+      { label: 'Analytics', icon: 'M4 20V10M10 20V4M16 20v-7M22 20H2' },
+      { label: 'Chat', icon: 'M4 5h16v11H9l-5 4z' }
+    ];
+    const nav = navItems.map(n => ({ ...n, style: navBase + (n.active ? 'background: #141C30; color: #E8ECF6; box-shadow: inset 2px 0 0 ' + accent + ';' : 'color: #B4BDD3;') }));
+    const admin = [
+      { label: 'Users & 2FA', icon: 'M9 11a4 4 0 1 0 0-8a4 4 0 1 0 0 8zM2 21c0-4 3-6 7-6s7 2 7 6M17 4a4 4 0 0 1 0 7M22 21c0-3-2-5-4-5.5' },
+      { label: 'Mail server', icon: 'M3 6h18v12H3zM3 7l9 7 9-7' },
+      { label: 'Backups', icon: 'M12 3c5 0 8 1.5 8 3s-3 3-8 3-8-1.5-8-3 3-3 8-3zM4 6v12c0 1.5 3 3 8 3s8-1.5 8-3V6M4 12c0 1.5 3 3 8 3s8-1.5 8-3' },
+      { label: 'Updates', icon: 'M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5' },
+      { label: 'Settings', icon: 'M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6zM12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2' }
+    ];
+    const defs = [
+      { id: 'yt', name: 'YouTube', target: 'Channel · OAuth linked', short: 'YT', color: '#FF4E45', profile: '1080p60 · 6.0 Mbps', viewers: 1284 },
+      { id: 'fb', name: 'Facebook Page', target: 'Page · OAuth linked', short: 'FB', color: '#4C8DFF', profile: '720p30 · 4.0 Mbps', viewers: 642 },
+      { id: 'tw', name: 'Twitch', target: 'Stream key', short: 'TW', color: '#A970FF', profile: '1080p60 · 6.0 Mbps', viewers: 318 },
+      { id: 'ig', name: 'Instagram', target: 'RTMPS key per session', short: 'IG', color: '#FF5FA2', profile: '720×1280 · 3.5 Mbps', viewers: 0 },
+      { id: 'srt', name: 'Studio backup', target: 'Custom SRT · caller', short: 'SRT', color: '#2EE6D6', profile: 'Passthrough', viewers: null },
+      { id: 'kick', name: 'Kick', target: 'Stream key', short: 'K', color: '#53FC18', profile: '1080p30 · 5.0 Mbps', viewers: 0 }
+    ];
+    const outputs = defs.map(d => {
+      const enabled = on[d.id];
+      const running = live && enabled;
+      const status = running ? 'Live' : (enabled ? 'Ready' : 'Off');
+      const sc = running ? '#FF3D6E' : (enabled ? '#3BE38A' : '#4A5573');
+      return {
+        ...d,
+        status,
+        viewers: d.viewers === null ? '—' : (running ? d.viewers.toLocaleString('en-US') : '—'),
+        card: 'border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 14px; background: #0D1220; border: 1px solid ' + (running ? 'rgba(255,61,110,0.35)' : '#1A2238') + ';' + (enabled ? '' : ' opacity: 0.6;'),
+        logo: 'width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-family: Space Grotesk, sans-serif; font-weight: 700; font-size: 13px; color: ' + d.color + '; background: #141C30; border: 1px solid #1E2740;',
+        pill: 'display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: ' + sc + ';',
+        dot: 'width: 7px; height: 7px; border-radius: 50%; background: ' + sc + ';' + (running ? ' box-shadow: 0 0 8px ' + sc + ';' : ''),
+        switch: 'position: relative; width: 44px; height: 26px; border-radius: 13px; border: 0; padding: 0; background: ' + (enabled ? accent : '#1E2740') + '; flex-shrink: 0;',
+        knob: 'position: absolute; top: 3px; left: ' + (enabled ? '21px' : '3px') + '; width: 20px; height: 20px; border-radius: 50%; background: ' + (enabled ? '#070A12' : '#8A94AD') + ';',
+        toggleLabel: (enabled ? 'Disable ' : 'Enable ') + d.name,
+        toggle: () => this.setState({ on: { ...this.state.on, [d.id]: !this.state.on[d.id] } })
+      };
+    });
+    const tagFor = c => 'flex-shrink: 0; width: 28px; height: 20px; border-radius: 5px; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; background: #141C30; color: ' + c + ';';
+    const chat = [
+      { p: 'YT', c: '#FF4E45', user: 'mark_v', text: 'Sound and picture are crystal clear tonight' },
+      { p: 'FB', c: '#4C8DFF', user: 'Anja de Vries', text: 'Watching from Hoorn, hello everyone!' },
+      { p: 'TW', c: '#A970FF', user: 'pixelpete', text: 'Is the recording available afterwards?' },
+      { p: 'YT', c: '#FF4E45', user: 'studio_noord', text: 'Can you switch to the wide shot?' },
+      { p: 'FB', c: '#4C8DFF', user: 'Kees B.', text: 'Great stream quality' },
+      { p: 'TW', c: '#A970FF', user: 'nightowl', text: 'gg, see you next week' }
+    ].map(m => ({ ...m, tag: tagFor(m.c) }));
+    const sum = (on.yt ? 1284 : 0) + (on.fb ? 642 : 0) + (on.tw ? 318 : 0);
+    return {
+      nav, admin, outputs, chat,
+      activeCount: Object.values(on).filter(Boolean).length,
+      totalViewers: live ? sum.toLocaleString('en-US') : '0',
+      vYt: live && on.yt ? '1,284' : '0', vFb: live && on.fb ? '642' : '0', vTw: live && on.tw ? '318' : '0',
+      ingest: [
+        { k: 'BITRATE', v: '6.2 Mbps' }, { k: 'CODEC', v: 'H.264 · AAC' }, { k: 'KEYFRAME', v: '2.0 s' },
+        { k: 'LATENCY', v: '120 ms' }, { k: 'DROPPED', v: '0' }, { k: 'UPTIME', v: '01:12:46' }
+      ],
+      timecode: live ? '01:12:46' : '00:00:00',
+      onAirLabel: live ? '● ON AIR' : 'STANDBY',
+      onAirStyle: 'padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; ' + (live ? 'background: #FF3D6E; color: #fff; box-shadow: 0 0 16px rgba(255,61,110,0.6);' : 'background: rgba(7,10,18,0.75); color: #B4BDD3; border: 1px solid #1E2740;'),
+      liveLabel: live ? 'End broadcast' : 'Go live',
+      liveIcon: live ? 'M6 6h12v12H6z' : 'M7 4l13 8-13 8z',
+      liveStyle: 'min-height: 48px; padding: 0 22px; border-radius: 12px; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 10px; cursor: pointer; ' + (live ? 'background: transparent; color: #FF6B8E; border: 1.5px solid #FF3D6E;' : 'background: ' + accent + '; color: #070A12; border: 0; box-shadow: 0 0 24px ' + accent + '66;'),
+      toggleLive: () => this.setState({ live: !this.state.live }),
+      recLabel: rec ? 'Recording · 00:41:09' : 'Record',
+      recDot: 'width: 10px; height: 10px; border-radius: 50%; ' + (rec ? 'background: #FF3D6E; box-shadow: 0 0 8px #FF3D6E;' : 'border: 2px solid #B4BDD3; box-sizing: border-box;'),
+      recStyle: 'min-height: 48px; padding: 0 18px; border-radius: 12px; border: 1px solid #1E2740; background: #111829; color: #E8ECF6; font-size: 14px; font-weight: 500; display: flex; align-items: center; gap: 10px; cursor: pointer;',
+      toggleRec: () => this.setState({ rec: !this.state.rec })
+    };
+  }
+}
+</script>
+</body>
+</html>
