@@ -19,6 +19,8 @@ const T = {
     backup: 'Backup', type: 'Type', size: 'Size', duration: 'Duration', target: 'Target', channel: 'Channel', version: 'Version', from: 'From', to: 'To', result: 'Result',
     full: 'full', incremental: 'incremental',
     streamDown: (s: string) => [`Stream "${s}" lost its ingest`, `The encoder stopped sending to "${s}" while destinations are live. Restream keeps the destinations ready and resumes as soon as the encoder reconnects.`],
+    streamBackup: (s: string) => [`Stream "${s}" switched to its backup feed`, `The main encoder stopped sending to "${s}". The backup feed took over, so the live destinations stay on air. Restream switches back once the main feed is stable again.`],
+    streamFallback: (s: string) => [`Stream "${s}" is showing its fallback image`, `No encoder is sending to "${s}". The live destinations show the fallback image until a feed comes back or the maximum time has passed.`],
     streamUp: (s: string) => [`Stream "${s}" is back`, `The encoder is sending to "${s}" again; the live destinations resume automatically.`],
     outputDown: (d: string) => [`Destination "${d}" keeps failing`, `Restream cannot keep the connection to "${d}" up and keeps retrying. Check the stream key and the platform.`],
     outputUp: (d: string) => [`Destination "${d}" is live again`, `The connection to "${d}" is up again.`],
@@ -41,6 +43,8 @@ const T = {
     backup: 'Back-up', type: 'Soort', size: 'Grootte', duration: 'Duur', target: 'Locatie', channel: 'Kanaal', version: 'Versie', from: 'Van', to: 'Naar', result: 'Resultaat',
     full: 'volledig', incremental: 'incrementeel',
     streamDown: (s: string) => [`Stream "${s}" heeft geen ingest meer`, `De encoder stuurt niets meer naar "${s}" terwijl er bestemmingen live staan. Restream houdt de bestemmingen klaar en gaat verder zodra de encoder weer verbindt.`],
+    streamBackup: (s: string) => [`Stream "${s}" is overgeschakeld op de reservefeed`, `De hoofdencoder stuurt niets meer naar "${s}". De reservefeed heeft het overgenomen, dus de live bestemmingen blijven in de lucht. Restream schakelt terug zodra de hoofdfeed weer stabiel is.`],
+    streamFallback: (s: string) => [`Stream "${s}" toont het fallback-beeld`, `Er stuurt geen encoder naar "${s}". De live bestemmingen tonen het fallback-beeld tot er weer een feed binnenkomt of de maximale tijd voorbij is.`],
     streamUp: (s: string) => [`Stream "${s}" is terug`, `De encoder stuurt weer naar "${s}"; de live bestemmingen gaan automatisch verder.`],
     outputDown: (d: string) => [`Bestemming "${d}" blijft mislukken`, `Restream krijgt de verbinding met "${d}" niet stabiel en blijft het proberen. Controleer de streamkey en het platform.`],
     outputUp: (d: string) => [`Bestemming "${d}" is weer live`, `De verbinding met "${d}" staat weer.`],
@@ -154,20 +158,25 @@ export class Notifier {
     const seen = new Set<string>();
     for (const st of streams) {
       const ingest = media.ingestState(st.id);
+      const source = media.sourceState(st.id).active;
       const live = dests.filter((d) => d.stream_id === st.id && d.live);
       const key = `stream:${st.id}`;
       seen.add(key);
       const since = new Date().toISOString().slice(11, 19);
-      // Stopping all outputs ends the incident without a "back" message.
+      // Stopping all outputs ends the incident without a "back" message. The mail says what is on air now: backup, fallback image or nothing.
       await this.edge(key, live.length > 0 && !ingest.online, 20_000,
-        () => this.send('streamDown', (t) => ({ title: t.streamDown(st.name)[0], intro: t.streamDown(st.name)[1], tone: 'danger', rows: [[t.stream, st.name], [t.since, `${since} UTC`]] }), s),
+        () => this.send('streamDown', (t) => {
+          const [title, intro] = media.sourceState(st.id).active === 'backup' ? t.streamBackup(st.name)
+            : media.sourceState(st.id).active === 'fallback' ? t.streamFallback(st.name) : t.streamDown(st.name);
+          return { title, intro, tone: source === 'backup' ? 'warn' : 'danger', rows: [[t.stream, st.name], [t.since, `${since} UTC`]] };
+        }, s),
         live.length ? () => this.send('streamDown', (t) => ({ title: t.streamUp(st.name)[0], intro: t.streamUp(st.name)[1], tone: 'ok', rows: [[t.stream, st.name]] }), s) : null);
 
       for (const d of dests.filter((x) => x.stream_id === st.id)) {
         const out = media.outputState(d.id);
         const dkey = `output:${d.id}`;
         seen.add(dkey);
-        const failing = d.live && ingest.online && out.state !== 'live' && out.attempts >= 3;
+        const failing = d.live && source !== 'none' && out.state !== 'live' && out.attempts >= 3;
         await this.edge(dkey, failing, 0,
           () => this.send('outputFailed', (t) => ({
             title: t.outputDown(d.name)[0], intro: t.outputDown(d.name)[1], tone: 'warn',

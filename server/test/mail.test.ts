@@ -93,6 +93,7 @@ describe('notifications', () => {
     const media = {
       mediamtxOnline: true,
       ingestState: () => ({ online }),
+      sourceState: () => ({ active: online ? 'main' : 'none' }),
       outputState: () => ({ state: 'waiting', attempts: 0, lastError: null }),
     } as unknown as MediaSupervisor;
     process.env.MEDIA_ENABLED = 'true';

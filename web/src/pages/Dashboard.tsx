@@ -10,7 +10,7 @@ import { formatBytes, formatDate, formatDuration } from '../lib/format';
 import { useEvents } from './Events';
 import { clock, formatKbps, sinceSeconds, useStreams } from '../lib/streams';
 import { Button, Card, CopyButton, ErrorText, KeyValue } from '../components/ui';
-import { IngestBadge, OutputBadge, PlatformChip, Segmented, audioLabel, videoLabel } from '../components/media';
+import { IngestBadge, OutputBadge, PlatformChip, Segmented, SourceBadge, audioLabel, videoLabel } from '../components/media';
 import { WhepPlayer } from '../components/WhepPlayer';
 import { Audience, ChatList } from '../components/live';
 import { formatCount, useLive } from '../lib/live';
@@ -110,7 +110,9 @@ function StreamControl({ stream, canOperate, sys }: { stream: Stream; canOperate
   const { t } = useTranslation();
   const qc = useQueryClient();
   const now = useNow();
-  const st = stream.status;
+  // While the backup feed is on air, the preview and the figures show the backup feed.
+  const onBackup = stream.source.active === 'backup';
+  const st = onBackup ? stream.source.backup : stream.status;
   const anyLive = stream.destinations.some((d) => d.live);
   const onAir = stream.destinations.some((d) => d.status.state === 'live');
   const included = stream.destinations.filter((d) => d.enabled);
@@ -131,7 +133,8 @@ function StreamControl({ stream, canOperate, sys }: { stream: Stream; canOperate
           <span className="eyebrow truncate">{t('dashboard.eyebrow', { name: stream.name })}</span>
           <h1 className="font-display text-3xl font-semibold tracking-tight">{t('dashboard.title')}</h1>
         </div>
-        <IngestBadge status={st} enabled={stream.enabled} />
+        <IngestBadge status={stream.status} enabled={stream.enabled} />
+        <SourceBadge source={stream.source} anyLive={anyLive} now={now} />
         <RecordButton stream={stream} canOperate={canOperate} now={now} />
         {canOperate && (anyLive ? (
           <Button variant="danger" onClick={stopAll} loading={live.isPending}><Square size={14} /> {t('dashboard.stopAll')}</Button>
@@ -157,7 +160,7 @@ function StreamControl({ stream, canOperate, sys }: { stream: Stream; canOperate
                   <span className="text-sm">{t('dashboard.previewEmpty')}</span>
                 </div>
               )}
-              <WhepPlayer url={`/api/preview/${stream.id}/whep`} active={st.online} sessionKey={st.since ?? ''} />
+              <WhepPlayer url={`/api/preview/${stream.id}${onBackup ? '~backup' : ''}/whep`} active={st.online} sessionKey={`${onBackup ? 'b' : 'm'}${st.since ?? ''}`} />
               <div className="pointer-events-none absolute top-4 left-4 flex items-center gap-2">
                 {onAir && <span className="rounded-md bg-live px-2 py-0.5 font-mono text-[11px] font-semibold tracking-wider text-white">{t('dashboard.onAir')}</span>}
                 <span className="rounded-md bg-bg/60 px-2 py-0.5 font-mono text-xs text-fg-2 backdrop-blur">{clock(sinceSeconds(st.since, now))}</span>
@@ -177,6 +180,9 @@ function StreamControl({ stream, canOperate, sys }: { stream: Stream; canOperate
             </div>
           </section>
           {st.overLimit && <Notice tone="danger" title={t('dashboard.overLimitTitle')} text={t('dashboard.overLimitText')} />}
+          {anyLive && stream.source.active === 'backup' && <Notice tone="info" title={t('failover.onBackupTitle')} text={t('failover.onBackupText', { seconds: stream.fallback.switchBackSeconds })} />}
+          {anyLive && stream.source.active === 'fallback' && <Notice tone="danger" title={t('failover.onFallbackTitle')} text={t('failover.onFallbackText')} />}
+          {anyLive && stream.source.fallbackExpired && stream.source.active === 'none' && <Notice tone="danger" title={t('failover.expiredTitle')} text={t('failover.expiredText', { minutes: stream.fallback.minutes })} />}
 
           <Card
             title={t('dashboard.destinations')}

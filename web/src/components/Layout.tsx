@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { clsx } from 'clsx';
 import {
   LayoutGrid, KeyRound, Share2, CalendarClock, CircleDot, BarChart3, MessageSquare, Link2,
-  Users, Mail, DatabaseBackup, RefreshCw, Settings, ScrollText, Info, LogOut, Menu, X,
+  Users, Mail, DatabaseBackup, RefreshCw, Settings, ScrollText, Info, LogOut, Menu, X, Webhook,
 } from 'lucide-react';
 import { api, type SystemInfo } from '../lib/api';
 import { useMe } from '../lib/auth';
@@ -41,6 +41,7 @@ export function Layout() {
     { to: '/admin/mail', label: t('nav.mail'), icon: <Mail size={18} />, admin: true },
     { to: '/admin/backups', label: t('nav.backups'), icon: <DatabaseBackup size={18} />, admin: true },
     { to: '/admin/updates', label: t('nav.updates'), icon: <RefreshCw size={18} />, admin: true },
+    { to: '/admin/integrations', label: t('nav.integrations'), icon: <Webhook size={18} />, admin: true },
     { to: '/admin/settings', label: t('nav.settings'), icon: <Settings size={18} />, admin: true },
     { to: '/admin/audit', label: t('nav.audit'), icon: <ScrollText size={18} />, admin: true },
   ].filter((i) => !i.admin || isAdmin);
