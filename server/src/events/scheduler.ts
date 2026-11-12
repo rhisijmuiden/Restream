@@ -1,5 +1,6 @@
 import type { FastifyBaseLogger } from 'fastify';
 import type { Sql } from '../db.js';
+import { bus } from '../lib/events.js';
 
 /** Scheduled events that were never started are closed this long after their (planned) end. */
 const MISSED_AFTER_MS = 6 * 3600_000;
@@ -55,10 +56,11 @@ export class EventScheduler {
   /** Puts the event's destinations live (they wait for the ingest when it is not there yet). */
   async startEvent(id: string): Promise<boolean> {
     const changed = await this.sql.begin(async (tx) => {
-      const [e] = await tx<{ id: string; stream_id: string; record: boolean }[]>`
+      const [e] = await tx<{ id: string; stream_id: string; record: boolean; title: string }[]>`
         UPDATE events SET status = 'live', started_at = now(), updated_at = now() WHERE id = ${id} AND status = 'scheduled'
-        RETURNING id, stream_id, record`;
+        RETURNING id, stream_id, record, title`;
       if (!e) return false;
+      bus.publish('event.started', { event: { id: e.id, title: e.title }, stream: { id: e.stream_id } });
       await tx`
         UPDATE destinations SET live = true, live_since = COALESCE(live_since, now()), updated_at = now()
         WHERE id IN (SELECT destination_id FROM event_targets WHERE event_id = ${id} AND status <> 'removed') AND NOT live`;
@@ -72,9 +74,10 @@ export class EventScheduler {
   /** Stops the event's destinations and the recording it started. */
   async stopEvent(id: string): Promise<boolean> {
     const changed = await this.sql.begin(async (tx) => {
-      const [e] = await tx<{ stream_id: string }[]>`
-        UPDATE events SET status = 'ended', ended_at = now(), updated_at = now() WHERE id = ${id} AND status = 'live' RETURNING stream_id`;
+      const [e] = await tx<{ stream_id: string; title: string }[]>`
+        UPDATE events SET status = 'ended', ended_at = now(), updated_at = now() WHERE id = ${id} AND status = 'live' RETURNING stream_id, title`;
       if (!e) return false;
+      bus.publish('event.ended', { event: { id, title: e.title }, stream: { id: e.stream_id } });
       await tx`
         UPDATE destinations SET live = false, live_since = NULL, updated_at = now()
         WHERE id IN (SELECT destination_id FROM event_targets WHERE event_id = ${id}) AND live`;

@@ -2,12 +2,12 @@ import { useState, type FormEvent, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { Eye, EyeOff, Pencil, Plus, Power, RotateCw, Trash2, ExternalLink } from 'lucide-react';
-import { api, type Stream } from '../lib/api';
+import { Eye, EyeOff, Pencil, Plus, Power, RotateCw, Trash2, ExternalLink, ShieldPlus, ImageUp } from 'lucide-react';
+import { api, ApiError, type Stream } from '../lib/api';
 import { useMe } from '../lib/auth';
 import { useStreams } from '../lib/streams';
 import { Button, Card, CopyButton, ErrorText, Field, Input, Modal, PageHeader, Toggle } from '../components/ui';
-import { IngestBadge } from '../components/media';
+import { IngestBadge, Segmented } from '../components/media';
 import { StreamEmbed } from '../components/StreamEmbed';
 import { inputClass } from '../components/ui';
 
@@ -172,6 +172,7 @@ function StreamCard({ s, role, onEdit }: { s: Stream; role: string; onEdit: () =
           )}
         </section>
       </div>
+      <div className="mt-6"><Failover s={s} canOperate={canOperate} /></div>
       {s.playbackEnabled && <div className="mt-6"><StreamEmbed s={s} canOperate={canOperate} /></div>}
       <div className="mt-6"><BroadcastDetails s={s} canOperate={canOperate} /></div>
     </Card>
@@ -220,6 +221,135 @@ function BroadcastDetails({ s, canOperate }: { s: Stream; canOperate: boolean })
           <p className="text-xs leading-relaxed text-fg-3">{t('streams.recordingHint')}</p>
         </div>
         <Toggle checked={s.autoRecord} disabled={!canOperate} onChange={(v) => save.mutate({ autoRecord: v })} label={t('streams.autoRecord')} />
+      </div>
+    </section>
+  );
+}
+
+/** Backup ingest (second key that takes over automatically) and the fallback image when no feed comes in. */
+function Failover({ s, canOperate }: { s: Stream; canOperate: boolean }) {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const refresh = () => qc.invalidateQueries({ queryKey: ['streams'] });
+  const [minutes, setMinutes] = useState(s.fallback.minutes);
+  const [switchBack, setSwitchBack] = useState(s.fallback.switchBackSeconds);
+  const sig = `${s.id}|${s.fallback.minutes}|${s.fallback.switchBackSeconds}`;
+  const [lastFor, setLastFor] = useState(sig);
+  if (sig !== lastFor) { setLastFor(sig); setMinutes(s.fallback.minutes); setSwitchBack(s.fallback.switchBackSeconds); }
+  const [imageVersion, setImageVersion] = useState(0);
+  const [saved, setSaved] = useState(false);
+
+  const backup = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      if (!enabled && !confirm(t('failover.confirmRemove'))) return;
+      if (enabled && s.backupIngest.configured && !confirm(t('failover.confirmRotate'))) return;
+      return api(`/api/streams/${s.id}/backup-key`, { method: 'POST', body: { enabled } });
+    },
+    onSettled: refresh,
+  });
+  const patch = useMutation({
+    mutationFn: (body: object) => api(`/api/streams/${s.id}`, { method: 'PATCH', body }),
+    onSuccess: () => { setSaved(true); setTimeout(() => setSaved(false), 2000); },
+    onSettled: refresh,
+  });
+  const image = useMutation({
+    mutationFn: async (file: File | null) => {
+      if (!file) return api(`/api/streams/${s.id}/fallback-image`, { method: 'DELETE' });
+      if (file.size > 8 * 1024 * 1024) throw new ApiError(413, 'image_too_large');
+      const res = await fetch(`/api/streams/${s.id}/fallback-image`, {
+        method: 'PUT', credentials: 'same-origin', headers: { 'x-restream': '1', 'content-type': file.type || 'image/png' }, body: file,
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new ApiError(res.status, data?.error ?? 'request_failed');
+      return data;
+    },
+    onSuccess: () => setImageVersion((v) => v + 1),
+    onSettled: refresh,
+  });
+
+  return (
+    <section className="grid gap-8 border-t border-line pt-6 lg:grid-cols-2">
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-3">
+            <h3 className="font-display text-base font-semibold">{t('failover.backupTitle')}</h3>
+            {s.backupIngest.configured && <IngestBadge status={s.source.backup} enabled={s.enabled} />}
+          </div>
+          <p className="text-xs leading-relaxed text-fg-3">{t('failover.backupHint', { seconds: s.fallback.switchBackSeconds })}</p>
+        </div>
+        {s.backupIngest.configured ? (
+          s.backupIngest.streamKey ? (
+            <>
+              <Row label={t('failover.backupKey')} hint={t('failover.backupKeyHint', { server: s.ingest.rtmpServer })}><CopyField value={s.backupIngest.streamKey} secret /></Row>
+              <Row label={t('streams.srtUrl')}><CopyField value={s.backupIngest.srtUrl!} secret /></Row>
+              {canOperate && (
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="secondary" onClick={() => backup.mutate(true)} loading={backup.isPending && backup.variables === true}><RotateCw size={15} /> {t('streams.rotate')}</Button>
+                  <Button variant="ghost" className="text-danger hover:text-danger" onClick={() => backup.mutate(false)} loading={backup.isPending && backup.variables === false}><Trash2 size={15} /> {t('failover.remove')}</Button>
+                </div>
+              )}
+            </>
+          ) : <p className="text-sm text-fg-3">{t('streams.keysHidden')}</p>
+        ) : canOperate ? (
+          <div><Button variant="secondary" onClick={() => backup.mutate(true)} loading={backup.isPending}><ShieldPlus size={15} /> {t('failover.create')}</Button></div>
+        ) : <p className="text-sm text-fg-3">{t('failover.none')}</p>}
+        {s.backupIngest.configured && (
+          <Field label={t('failover.switchBack')} hint={t('failover.switchBackHint')}>
+            {(id) => (
+              <div className="flex items-center gap-2">
+                <Input id={id} type="number" min={0} max={600} value={switchBack} onChange={(e) => setSwitchBack(Number(e.target.value))} disabled={!canOperate} className="max-w-32" />
+                <span className="text-sm text-fg-3">{t('failover.seconds')}</span>
+                {canOperate && switchBack !== s.fallback.switchBackSeconds && <Button variant="primary" onClick={() => patch.mutate({ switchBackSeconds: switchBack })} loading={patch.isPending}>{t('common.save')}</Button>}
+              </div>
+            )}
+          </Field>
+        )}
+        <ErrorText error={backup.error} />
+      </div>
+
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1">
+          <h3 className="font-display text-base font-semibold">{t('failover.fallbackTitle')}</h3>
+          <p className="text-xs leading-relaxed text-fg-3">{t('failover.fallbackHint')}</p>
+        </div>
+        <Segmented
+          className="self-start" label={t('failover.fallbackTitle')} value={s.fallback.mode}
+          onChange={(v) => { if (canOperate && (v !== 'image' || s.fallback.imageSet)) patch.mutate({ fallbackMode: v }); }}
+          options={[
+            { value: 'off', label: t('failover.modeOff') },
+            { value: 'standard', label: t('failover.modeStandard') },
+            ...(s.fallback.imageSet ? [{ value: 'image' as const, label: t('failover.modeImage') }] : []),
+          ]}
+        />
+        <div className="flex flex-wrap items-start gap-4">
+          <img
+            src={`/api/streams/${s.id}/fallback-image?v=${imageVersion}-${s.fallback.imageSet ? 1 : 0}`} alt={t('failover.previewAlt')}
+            className={`aspect-video w-56 rounded-xl border border-line bg-bg object-contain ${s.fallback.mode === 'off' ? 'opacity-40' : ''}`}
+          />
+          {canOperate && (
+            <div className="flex flex-col gap-2">
+              <label className="inline-flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-xl border border-line bg-surface-2 px-4 text-sm font-medium text-fg transition-colors hover:border-line-strong">
+                <ImageUp size={15} /> {s.fallback.imageSet ? t('failover.replaceImage') : t('failover.uploadImage')}
+                <input type="file" accept="image/png,image/jpeg" className="sr-only" onChange={(e) => { const file = e.target.files?.[0]; e.target.value = ''; if (file) image.mutate(file); }} />
+              </label>
+              {s.fallback.imageSet && <Button variant="ghost" onClick={() => image.mutate(null)} loading={image.isPending && image.variables === null}>{t('failover.removeImage')}</Button>}
+              <span className="max-w-56 text-xs leading-relaxed text-fg-3">{t('failover.imageHint')}</span>
+            </div>
+          )}
+        </div>
+        {s.fallback.mode !== 'off' && (
+          <Field label={t('failover.maxMinutes')} hint={t('failover.maxMinutesHint')}>
+            {(id) => (
+              <div className="flex items-center gap-2">
+                <Input id={id} type="number" min={1} max={720} value={minutes} onChange={(e) => setMinutes(Number(e.target.value))} disabled={!canOperate} className="max-w-32" />
+                <span className="text-sm text-fg-3">{t('failover.minutes')}</span>
+                {canOperate && minutes !== s.fallback.minutes && <Button variant="primary" onClick={() => patch.mutate({ fallbackMinutes: minutes })} loading={patch.isPending}>{t('common.save')}</Button>}
+              </div>
+            )}
+          </Field>
+        )}
+        {saved && <span className="text-sm text-ok">{t('common.saved')}</span>}
+        <ErrorText error={patch.error ?? image.error} />
       </div>
     </section>
   );

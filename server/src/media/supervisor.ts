@@ -6,12 +6,45 @@ import type { FastifyBaseLogger } from 'fastify';
 import type { Sql } from '../db.js';
 import { config } from '../config.js';
 import { decrypt } from '../lib/crypto.js';
-import { ffmpegArgs, parseProgress, recordArgs, redact, type OutputSpec } from './ffmpeg.js';
+import { fallbackArgs, ffmpegArgs, parseProgress, recordArgs, redact, type OutputSpec } from './ffmpeg.js';
+import { fallbackImagePath } from '../lib/fallback.js';
+import { bus } from '../lib/events.js';
 import { cleanupRecordings, recordingsDir } from '../lib/recordings.js';
 import { ingestPath, listPaths, type MtxPath, type MtxTrack } from './mediamtx.js';
 import type { Platform } from './platforms.js';
 
 export type OutputStateName = 'off' | 'waiting' | 'preparing' | 'connecting' | 'live' | 'reconnecting';
+
+/** Where the live destinations of a stream get their picture from. */
+export type SourceName = 'main' | 'backup' | 'fallback' | 'none';
+
+export interface SourceState {
+  active: SourceName;
+  since: string | null;
+  /** When the fallback image goes off air (only while it is on air). */
+  fallbackEndsAt: string | null;
+  /** True once the fallback image ran for its maximum time; cleared when a feed comes back. */
+  fallbackExpired: boolean;
+  backupConfigured: boolean;
+  backup: IngestState;
+}
+
+interface SourceTrack {
+  active: SourceName;
+  since: number;
+  /** Since when the main feed is online without interruption. */
+  mainSince: number | null;
+  fallbackStarted: number | null;
+  fallbackExpired: boolean;
+  /** Picture height the destinations last carried, used for the fallback image. */
+  height: number;
+}
+
+interface StreamRow {
+  id: string; name: string; ingest_key_enc: string; enabled: boolean; record: boolean; record_by: string | null; record_event: string | null;
+  backup_key_enc: string | null; fallback_mode: 'off' | 'standard' | 'image'; fallback_image: string | null;
+  fallback_minutes: number; switch_back_seconds: number;
+}
 
 export interface RecordingState {
   /** off: not asked; waiting: asked, no ingest yet; recording: writing a file. */
@@ -49,11 +82,13 @@ export interface OutputState {
 interface DestRow {
   id: string; stream_id: string; platform: Platform; server_url: string; stream_key_enc: string; passphrase_enc: string;
   mode: 'copy' | 'transcode'; video_bitrate: number; audio_bitrate: number; max_height: number; fps: number | null; live: boolean;
-  auth: 'key' | 'account'; remote_url_enc: string | null; prepare_error: string | null;
+  auth: 'key' | 'account'; remote_url_enc: string | null; prepare_error: string | null; orientation: 'landscape' | 'portrait'; name: string;
 }
 
 interface RecProc {
   child: ChildProcess;
+  /** The ingest path it records; a failover starts a new part. */
+  input: string;
   recordingId: string;
   file: string;
   startedAt: number;
@@ -76,9 +111,13 @@ interface Proc {
   secrets: string[];
   stderr: string[];
   lastBytes: { bytes: number; at: number } | null;
+  /** False for the fallback image. */
+  fromFeed: boolean;
+  /** Stopped to start again right away (other feed or settings). */
+  restart: boolean;
 }
 
-const offline: IngestState = { online: false, since: null, protocol: null, video: null, audio: null, bitrateKbps: null, readers: 0, overLimit: false };
+export const offline: IngestState = { online: false, since: null, protocol: null, video: null, audio: null, bitrateKbps: null, readers: 0, overLimit: false };
 const idle = (): OutputState => ({ state: 'off', since: null, bitrateKbps: null, fps: null, speed: null, attempts: 0, lastError: null });
 
 const protocolOf = (sourceType: string | undefined) =>
@@ -125,6 +164,15 @@ export class MediaSupervisor {
   private recState = new Map<string, RecordingState>();
   private writes = new Set<Promise<unknown>>();
   private lastCleanup = 0;
+  private backupIngest = new Map<string, IngestState>();
+  private sources = new Map<string, SourceTrack>();
+  private backupConfigured = new Set<string>();
+  /** Hash and source of the last launch per destination: a new source launches at once, without backoff. */
+  private launched = new Map<string, { hash: string; source: SourceName }>();
+  /** Frame rate a destination last carried from a feed, so the fallback image keeps it. */
+  private lastFps = new Map<string, number>();
+  /** What was last published on the event bus, to send only changes. */
+  private emitted = new Map<string, string>();
 
   constructor(private sql: Sql, private log: FastifyBaseLogger) {}
 
@@ -145,6 +193,19 @@ export class MediaSupervisor {
   }
 
   ingestState(streamId: string): IngestState { return this.ingest.get(streamId) ?? offline; }
+  sourceState(streamId: string): SourceState {
+    const t = this.sources.get(streamId);
+    const ends = t?.active === 'fallback' && t.fallbackStarted !== null ? this.fallbackLimit.get(streamId) : undefined;
+    return {
+      active: t?.active ?? 'none',
+      since: t ? new Date(t.since).toISOString() : null,
+      fallbackEndsAt: ends !== undefined && t?.fallbackStarted != null ? new Date(t.fallbackStarted + ends).toISOString() : null,
+      fallbackExpired: t?.fallbackExpired ?? false,
+      backupConfigured: this.backupConfigured.has(streamId),
+      backup: this.backupIngest.get(streamId) ?? offline,
+    };
+  }
+  private fallbackLimit = new Map<string, number>();
   outputState(destId: string): OutputState { return this.outputs.get(destId) ?? idle(); }
   recordingState(streamId: string): RecordingState {
     return this.recState.get(streamId) ?? { state: 'off', recordingId: null, since: null, sizeBytes: 0, durationSeconds: 0, lastError: null };
@@ -179,24 +240,62 @@ export class MediaSupervisor {
     }
     const byName = new Map(paths.map((p) => [p.name, p]));
 
-    const streams = await this.sql<{ id: string; name: string; ingest_key_enc: string; enabled: boolean; record: boolean; record_by: string | null; record_event: string | null }[]>`
-      SELECT id, name, ingest_key_enc, enabled, record, record_by, record_event FROM streams`;
+    const streams = await this.sql<StreamRow[]>`
+      SELECT id, name, ingest_key_enc, enabled, record, record_by, record_event, backup_key_enc,
+             fallback_mode, fallback_image, fallback_minutes, switch_back_seconds
+      FROM streams`;
     const keys = new Map<string, string>();
+    const backupKeys = new Map<string, string>();
     const seenPaths = new Set<string>();
+    const observe = (name: string, enabled: boolean) => {
+      seenPaths.add(name);
+      const p = byName.get(name);
+      const state = enabled ? ingestFromPath(p, this.bytes.get(name), now) : offline;
+      if (p) this.bytes.set(name, { bytes: p.inboundBytes ?? p.bytesReceived ?? 0, at: now });
+      else this.bytes.delete(name);
+      return state;
+    };
     for (const s of streams) {
       const key = decrypt(s.ingest_key_enc);
       keys.set(s.id, key);
-      const name = ingestPath(key);
-      seenPaths.add(name);
-      const p = byName.get(name);
-      const state = s.enabled ? ingestFromPath(p, this.bytes.get(name), now) : offline;
-      this.ingest.set(s.id, state);
-      if (p) this.bytes.set(name, { bytes: p.inboundBytes ?? p.bytesReceived ?? 0, at: now });
-      else this.bytes.delete(name);
+      this.ingest.set(s.id, observe(ingestPath(key), s.enabled));
+      if (s.backup_key_enc) {
+        const bkey = decrypt(s.backup_key_enc);
+        backupKeys.set(s.id, bkey);
+        this.backupConfigured.add(s.id);
+        this.backupIngest.set(s.id, observe(ingestPath(bkey), s.enabled));
+      } else {
+        this.backupConfigured.delete(s.id);
+        this.backupIngest.delete(s.id);
+      }
     }
     for (const id of [...this.ingest.keys()]) if (!keys.has(id)) this.ingest.delete(id);
+    for (const id of [...this.backupIngest.keys()]) if (!keys.has(id)) this.backupIngest.delete(id);
+    for (const id of [...this.backupConfigured]) if (!keys.has(id)) this.backupConfigured.delete(id);
 
-    for (const s of streams) this.reconcileRecording(s, keys.get(s.id)!, now);
+    const dests = await this.sql<DestRow[]>`
+      SELECT d.id, d.stream_id, d.name, d.platform, d.server_url, d.stream_key_enc, d.passphrase_enc, d.mode,
+             d.video_bitrate, d.audio_bitrate, d.max_height, d.fps, d.live, d.auth, d.remote_url_enc, d.prepare_error, d.orientation
+      FROM destinations d JOIN streams s ON s.id = d.stream_id`;
+    const ids = new Set(dests.map((d) => d.id));
+
+    // Which feed each stream's destinations carry: main, backup, the fallback image or nothing.
+    const inputs = new Map<string, { source: SourceName; path: string | null; ingest: IngestState; image: string | null }>();
+    for (const s of streams) {
+      const anyLive = dests.some((d) => d.stream_id === s.id && d.live);
+      const image = s.fallback_mode === 'off' ? null : fallbackImagePath(s.fallback_mode, s.fallback_image);
+      this.fallbackLimit.set(s.id, s.fallback_minutes * 60_000);
+      const track = this.pickSource(s, now, anyLive, !!image);
+      const main = this.ingest.get(s.id) ?? offline;
+      const backup = this.backupIngest.get(s.id) ?? offline;
+      const ingest = track.active === 'main' ? main : track.active === 'backup' ? backup : offline;
+      if (ingest.video?.height) track.height = Math.min(1080, ingest.video.height);
+      const key = track.active === 'main' ? keys.get(s.id)! : track.active === 'backup' ? backupKeys.get(s.id)! : null;
+      inputs.set(s.id, { source: track.active, path: key ? ingestPath(key) : null, ingest, image: track.active === 'fallback' ? image : null });
+    }
+    for (const id of [...this.sources.keys()]) if (!keys.has(id)) { this.sources.delete(id); this.fallbackLimit.delete(id); }
+
+    for (const s of streams) this.reconcileRecording(s, inputs.get(s.id)!, now);
     for (const id of [...this.recs.keys()]) if (!keys.has(id)) this.stopRecording(id);
     for (const id of [...this.recState.keys()]) if (!keys.has(id) && !this.recs.has(id)) this.recState.delete(id);
     if (now - this.lastCleanup > 3600_000) {
@@ -205,16 +304,10 @@ export class MediaSupervisor {
     }
     for (const name of [...this.bytes.keys()]) if (!seenPaths.has(name)) this.bytes.delete(name);
 
-    const dests = await this.sql<DestRow[]>`
-      SELECT d.id, d.stream_id, d.platform, d.server_url, d.stream_key_enc, d.passphrase_enc, d.mode,
-             d.video_bitrate, d.audio_bitrate, d.max_height, d.fps, d.live, d.auth, d.remote_url_enc, d.prepare_error
-      FROM destinations d JOIN streams s ON s.id = d.stream_id`;
-    const ids = new Set(dests.map((d) => d.id));
-
     for (const d of dests) {
-      const ingest = this.ingest.get(d.stream_id) ?? offline;
-      const key = keys.get(d.stream_id)!;
-      const want = d.live && ingest.online;
+      const input = inputs.get(d.stream_id)!;
+      const ingest = input.ingest;
+      const want = d.live && input.source !== 'none';
       const proc = this.procs.get(d.id);
       const out = this.outputs.get(d.id) ?? idle();
 
@@ -225,42 +318,128 @@ export class MediaSupervisor {
         streamKey: viaAccount ? '' : d.stream_key_enc ? decrypt(d.stream_key_enc) : '',
         passphrase: d.passphrase_enc ? decrypt(d.passphrase_enc) : '',
         mode: d.mode, videoBitrate: d.video_bitrate, audioBitrate: d.audio_bitrate, maxHeight: d.max_height, fps: d.fps,
+        orientation: d.orientation,
       };
       const src = { videoCodec: ingest.video?.codec ?? null, audioCodec: ingest.audio?.codec ?? null };
-      const hash = JSON.stringify([spec, src, key]);
+      const hash = JSON.stringify([spec, src, input.source, input.path, input.image]);
 
       if (proc && (!want || proc.hash !== hash)) {
-        this.stop(d.id);
+        // A changed setting or another feed: the output comes back at once, so it shows as connecting, not as stopped.
+        this.stop(d.id, want);
         continue;
       }
       if (!d.live) {
-        if (!proc) { this.outputs.set(d.id, idle()); this.nextAttempt.delete(d.id); }
+        if (!proc) { this.outputs.set(d.id, idle()); this.nextAttempt.delete(d.id); this.launched.delete(d.id); }
         continue;
       }
       if (viaAccount && !d.remote_url_enc) {
         if (!proc) this.outputs.set(d.id, { ...idle(), state: 'preparing', lastError: d.prepare_error });
         continue;
       }
-      if (!ingest.online) {
+      if (input.source === 'none') {
         if (!proc) this.outputs.set(d.id, { ...idle(), state: 'waiting', attempts: 0, lastError: out.lastError });
         this.nextAttempt.delete(d.id);
+        this.launched.delete(d.id);
         continue;
       }
-      if (!proc && now >= (this.nextAttempt.get(d.id) ?? 0)) {
-        this.launch(d.id, `${config.media.rtspUrl}/${ingestPath(key)}`, spec, src, hash);
+      if (proc) continue;
+      // A switch to another feed is not a failure: launch at once and start counting attempts again.
+      const prev = this.launched.get(d.id);
+      const switched = !prev || prev.source !== input.source;
+      if (switched && prev) this.outputs.set(d.id, { ...out, attempts: 0 });
+      if (switched || now >= (this.nextAttempt.get(d.id) ?? 0)) {
+        this.launched.set(d.id, { hash, source: input.source });
+        if (input.source === 'fallback') {
+          const track = this.sources.get(d.stream_id)!;
+          this.launch(d.id, fallbackArgs(input.image!, spec, { height: track.height, fps: this.lastFps.get(d.id) ?? 30 }), spec, hash, null);
+        } else {
+          this.launch(d.id, ffmpegArgs(`${config.media.rtspUrl}/${input.path}`, spec, src), spec, hash, input.path);
+        }
       }
     }
 
     for (const id of [...this.procs.keys()]) if (!ids.has(id)) this.stop(id);
     for (const id of [...this.outputs.keys()]) if (!ids.has(id) && !this.procs.has(id)) this.outputs.delete(id);
+    for (const id of [...this.launched.keys()]) if (!ids.has(id)) this.launched.delete(id);
+    this.publishChanges(streams, dests);
   }
 
-  private launch(id: string, input: string, spec: OutputSpec, src: { videoCodec: string | null; audioCodec: string | null }, hash: string) {
+  /** Chooses the feed for a stream: main, else backup, else (after a feed was on air) the fallback image for a limited time. */
+  private pickSource(s: StreamRow, now: number, anyLive: boolean, hasImage: boolean): SourceTrack {
+    const t = this.sources.get(s.id) ?? { active: 'none' as SourceName, since: now, mainSince: null, fallbackStarted: null, fallbackExpired: false, height: 1080 };
+    const mainOn = (this.ingest.get(s.id) ?? offline).online;
+    const backupOn = (this.backupIngest.get(s.id) ?? offline).online;
+    t.mainSince = mainOn ? (t.mainSince ?? now) : null;
+    let next: SourceName;
+    // Back from the backup to the main feed only once the main feed is stable, so a flapping encoder does not cause a switch every few seconds.
+    if (mainOn && (t.active !== 'backup' || !backupOn || now - t.mainSince! >= s.switch_back_seconds * 1000)) next = 'main';
+    else if (backupOn) next = 'backup';
+    else if (s.enabled && anyLive && hasImage && !t.fallbackExpired && t.active !== 'none') next = 'fallback';
+    else next = 'none';
+
+    if (next === 'fallback') {
+      t.fallbackStarted ??= now;
+      if (now - t.fallbackStarted >= s.fallback_minutes * 60_000) { next = 'none'; t.fallbackExpired = true; t.fallbackStarted = null; }
+    } else {
+      t.fallbackStarted = null;
+      if (next !== 'none' || !anyLive) t.fallbackExpired = false;
+    }
+    if (next !== t.active) {
+      if (t.active !== 'none' || next !== 'none') this.log.info({ stream: s.id, from: t.active, to: next }, 'stream source changed');
+      t.active = next;
+      t.since = now;
+    }
+    this.sources.set(s.id, t);
+    return t;
+  }
+
+  /** Publishes ingest, source and output changes on the event bus (webhooks). */
+  private publishChanges(streams: StreamRow[], dests: DestRow[]) {
+    const change = (key: string, value: string) => {
+      const prev = this.emitted.get(key);
+      this.emitted.set(key, value);
+      return prev;
+    };
+    const seen = new Set<string>();
+    for (const s of streams) {
+      const stream = { id: s.id, name: s.name };
+      for (const [input, st] of [['main', this.ingest.get(s.id)], ['backup', this.backupIngest.get(s.id)]] as const) {
+        const key = `ingest:${input}:${s.id}`;
+        seen.add(key);
+        const on = st?.online ? 'on' : 'off';
+        const prev = change(key, on);
+        if (prev !== undefined && prev !== on) {
+          bus.publish(on === 'on' ? 'stream.ingest.started' : 'stream.ingest.stopped', { stream, input, protocol: st?.protocol ?? null });
+        } else if (prev === undefined && on === 'on') {
+          bus.publish('stream.ingest.started', { stream, input, protocol: st?.protocol ?? null });
+        }
+      }
+      const skey = `source:${s.id}`;
+      seen.add(skey);
+      const active = this.sources.get(s.id)?.active ?? 'none';
+      const prev = change(skey, active);
+      if (prev !== undefined && prev !== active) bus.publish('stream.source.changed', { stream, from: prev, to: active });
+    }
+    const names = new Map(streams.map((s) => [s.id, s.name]));
+    for (const d of dests) {
+      const key = `output:${d.id}`;
+      seen.add(key);
+      const out = this.outputState(d.id);
+      const prev = change(key, out.state) ?? 'off';
+      if (prev === out.state) continue;
+      const data = { stream: { id: d.stream_id, name: names.get(d.stream_id) ?? '' }, destination: { id: d.id, name: d.name, platform: d.platform } };
+      if (out.state === 'live') bus.publish('output.live', { ...data, source: this.sources.get(d.stream_id)?.active ?? 'main' });
+      else if (out.state === 'reconnecting' && prev === 'live') bus.publish('output.reconnecting', { ...data, attempts: out.attempts, error: out.lastError });
+      else if (out.state === 'off' && prev !== 'off') bus.publish('output.stopped', data);
+    }
+    for (const key of [...this.emitted.keys()]) if (!seen.has(key)) this.emitted.delete(key);
+  }
+
+  private launch(id: string, args: string[], spec: OutputSpec, hash: string, inputPath: string | null) {
     const prev = this.outputs.get(id) ?? idle();
-    const args = ffmpegArgs(input, spec, src);
-    const secrets = [spec.streamKey, spec.passphrase, encodeURIComponent(spec.streamKey), encodeURIComponent(spec.passphrase), input.split('/').pop() ?? ''];
+    const secrets = [spec.streamKey, spec.passphrase, encodeURIComponent(spec.streamKey), encodeURIComponent(spec.passphrase), inputPath?.split('/').pop() ?? ''];
     const child = spawn(config.media.ffmpegPath, args, { stdio: ['ignore', 'pipe', 'pipe'] });
-    const proc: Proc = { child, hash, startedAt: Date.now(), stopping: false, secrets, stderr: [], lastBytes: null };
+    const proc: Proc = { child, hash, startedAt: Date.now(), stopping: false, secrets, stderr: [], lastBytes: null, fromFeed: inputPath !== null, restart: false };
     this.procs.set(id, proc);
     this.outputs.set(id, { ...prev, state: prev.attempts > 0 ? 'reconnecting' : 'connecting', since: null, bitrateKbps: null, fps: null, speed: null });
 
@@ -298,6 +477,10 @@ export class MediaSupervisor {
       kbps = Math.round(((p.totalBytes - proc.lastBytes.bytes) * 8) / (now - proc.lastBytes.at));
     }
     if (p.totalBytes !== null) proc.lastBytes = { bytes: p.totalBytes, at: now };
+    if (proc.fromFeed && p.fps) {
+      const std = [25, 30, 50, 60].reduce((a, b) => (Math.abs(b - p.fps!) < Math.abs(a - p.fps!) ? b : a));
+      this.lastFps.set(id, std);
+    }
     const cur = this.outputs.get(id) ?? idle();
     const flowing = (p.totalBytes ?? 0) > 0;
     // A connection that stays up for a minute resets the backoff.
@@ -316,7 +499,7 @@ export class MediaSupervisor {
     const cur = this.outputs.get(id) ?? idle();
     const lastError = proc.stderr.filter((l) => !/^\s*(frame|size)=/.test(l)).slice(-1)[0] ?? (code !== 0 ? `FFmpeg exited with code ${code ?? signal}` : null);
     if (proc.stopping) {
-      this.outputs.set(id, { ...cur, state: 'off', since: null, bitrateKbps: null, fps: null, speed: null });
+      this.outputs.set(id, { ...cur, state: proc.restart ? 'connecting' : 'off', since: null, bitrateKbps: null, fps: null, speed: null });
       this.nudge();
       return;
     }
@@ -327,10 +510,11 @@ export class MediaSupervisor {
     this.log.warn({ destination: id, code, signal, attempts, lastError }, 'output stopped, reconnecting');
   }
 
-  private stop(id: string) {
+  private stop(id: string, restart = false) {
     const proc = this.procs.get(id);
     if (!proc || proc.stopping) return;
     proc.stopping = true;
+    proc.restart = restart;
     proc.child.kill('SIGTERM');
     const t = setTimeout(() => proc.child.kill('SIGKILL'), 4000);
     t.unref();
@@ -350,20 +534,22 @@ export class MediaSupervisor {
   // -------------------------------------------------------------------------------------------
   // Recordings
 
-  private reconcileRecording(s: { id: string; name: string; enabled: boolean; record: boolean; record_by: string | null; record_event: string | null }, key: string, now: number) {
-    const ingest = this.ingest.get(s.id) ?? offline;
-    const want = s.enabled && s.record && ingest.online;
+  private reconcileRecording(s: StreamRow, input: { path: string | null; ingest: IngestState }, now: number) {
+    const ingest = input.ingest;
+    // Records whichever feed is on air (main or backup), never the fallback image.
+    const want = s.enabled && s.record && ingest.online && input.path !== null;
     const proc = this.recs.get(s.id);
     const cur = this.recordingState(s.id);
-    if (proc && !want) { this.stopRecording(s.id); return; }
+    if (proc && (!want || proc.input !== input.path)) { this.stopRecording(s.id); return; }
     if (proc) return;
     if (!s.record) { this.recState.set(s.id, { ...cur, state: 'off', recordingId: null, since: null, sizeBytes: 0, durationSeconds: 0 }); return; }
     if (!want) { this.recState.set(s.id, { ...cur, state: 'waiting', recordingId: null, since: null, sizeBytes: 0, durationSeconds: 0 }); return; }
     if (now < (this.nextAttempt.get(`rec:${s.id}`) ?? 0)) return;
-    this.startRecording(s, key, ingest);
+    this.startRecording(s, input.path!, ingest);
   }
 
-  private startRecording(s: { id: string; name: string; record_by: string | null; record_event: string | null }, key: string, ingest: IngestState) {
+  private startRecording(s: { id: string; name: string; record_by: string | null; record_event: string | null }, inputPath: string, ingest: IngestState) {
+    const key = inputPath.split('/').pop()!;
     const dir = recordingsDir();
     try {
       mkdirSync(dir, { recursive: true });
@@ -381,17 +567,18 @@ export class MediaSupervisor {
     const src = { videoCodec: ingest.video?.codec ?? null, audioCodec: ingest.audio?.codec ?? null };
     const video = ingest.video ? `${ingest.video.codec}${ingest.video.width ? ` ${ingest.video.width}x${ingest.video.height}` : ''}` : null;
     const audio = ingest.audio?.codec ?? null;
-    const args = recordArgs(`${config.media.rtspUrl}/${ingestPath(key)}`, src, path.join(dir, file));
+    const args = recordArgs(`${config.media.rtspUrl}/${inputPath}`, src, path.join(dir, file));
     const child = spawn(config.media.ffmpegPath, args, { stdio: ['ignore', 'pipe', 'pipe'] });
     const inserted = this.sql`
       INSERT INTO recordings (id, stream_id, stream_name, event_id, title, file, video, audio, started_by)
       VALUES (${id}, ${s.id}, ${s.name}, ${s.record_event},
               COALESCE((SELECT title FROM events WHERE id = ${s.record_event}), ''), ${file}, ${video}, ${audio}, ${s.record_by})`.then(() => null);
     this.track(inserted);
-    const proc: RecProc = { child, recordingId: id, file, startedAt: Date.now(), stopping: false, stderr: [], bytes: 0, outTimeUs: 0, inserted };
+    const proc: RecProc = { child, input: inputPath, recordingId: id, file, startedAt: Date.now(), stopping: false, stderr: [], bytes: 0, outTimeUs: 0, inserted };
     this.recs.set(s.id, proc);
     this.recState.set(s.id, { state: 'recording', recordingId: id, since: new Date().toISOString(), sizeBytes: 0, durationSeconds: 0, lastError: null });
     this.log.info({ stream: s.id, recording: id }, 'recording started');
+    bus.publish('recording.started', { stream: { id: s.id, name: s.name }, recording: { id } });
 
     let buf = '';
     child.stdout!.setEncoding('utf8');
@@ -431,6 +618,9 @@ export class MediaSupervisor {
       UPDATE recordings SET status = ${ok ? 'finished' : 'failed'}, size_bytes = ${size}, duration_seconds = ${Math.floor(proc.outTimeUs / 1e6)},
              error = ${error}, ended_at = now()
       WHERE id = ${proc.recordingId}`));
+    bus.publish('recording.finished', {
+      stream: { id: streamId }, recording: { id: proc.recordingId, status: ok ? 'finished' : 'failed', sizeBytes: size, durationSeconds: Math.floor(proc.outTimeUs / 1e6), error },
+    });
     const cur = this.recordingState(streamId);
     this.recState.set(streamId, { state: 'off', recordingId: null, since: null, sizeBytes: 0, durationSeconds: 0, lastError: ok ? null : error ?? cur.lastError });
     if (!proc.stopping) {

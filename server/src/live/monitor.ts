@@ -8,6 +8,7 @@ import {
 import type { MediaSupervisor } from '../media/supervisor.js';
 import { closeBroadcast } from './stats.js';
 import { TwitchChat } from './twitchChat.js';
+import { bus } from '../lib/events.js';
 
 export type ChatState = 'off' | 'connecting' | 'on' | 'error' | 'unsupported';
 
@@ -139,6 +140,7 @@ export class LiveMonitor {
         if (b && (!mine.some((d) => d.live) || now - b.last_live_at.getTime() > config.live.graceMs)) {
           await closeBroadcast(this.sql, b.id);
           this.log.info({ stream: s.id, broadcast: b.id }, 'broadcast ended');
+          await this.publishEnded(b.id);
         }
         continue;
       }
@@ -153,6 +155,7 @@ export class LiveMonitor {
         b = row;
         this.lastSample = 0;
         this.log.info({ stream: s.id, broadcast: b.id }, 'broadcast started');
+        bus.publish('broadcast.started', { broadcast: { id: b.id, title: ev?.title || s.title || s.name, eventId: ev?.id ?? null }, stream: { id: s.id, name: s.name } });
       } else {
         await this.sql`UPDATE broadcasts SET last_live_at = now() WHERE id = ${b.id}`;
       }
@@ -191,6 +194,16 @@ export class LiveMonitor {
       this.lastSample = now;
       await this.sample(airing.filter((a) => a.account));
     }
+  }
+
+  private async publishEnded(id: string) {
+    const [b] = await this.sql<{ id: string; title: string; stream_id: string | null; stream_name: string; started_at: Date; ended_at: Date; peak_viewers: number; avg_viewers: number; chat_messages: number }[]>`
+      SELECT id, title, stream_id, stream_name, started_at, ended_at, peak_viewers, avg_viewers, chat_messages FROM broadcasts WHERE id = ${id}`;
+    if (!b) return;
+    bus.publish('broadcast.ended', {
+      broadcast: { id: b.id, title: b.title, startedAt: b.started_at, endedAt: b.ended_at, peakViewers: b.peak_viewers, avgViewers: b.avg_viewers, chatMessages: b.chat_messages },
+      stream: { id: b.stream_id, name: b.stream_name },
+    });
   }
 
   /** Reads all viewer counts at once and stores them as one sample per broadcast. */

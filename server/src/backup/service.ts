@@ -12,6 +12,7 @@ import { audit } from '../lib/audit.js';
 import { formatBytes, type Notifier } from '../lib/notify.js';
 import { ArchiveError, decryptFile, encryptFile, run, sha256File } from './archive.js';
 import { openRemote, RemoteError, type Remote } from './remote.js';
+import { bus } from '../lib/events.js';
 
 export type BackupType = 'full' | 'incremental';
 export type Trigger = 'manual' | 'schedule' | 'cli';
@@ -325,6 +326,7 @@ export class BackupService {
       await this.sql`UPDATE backup_jobs SET status = 'success', step = 'done', size_bytes = ${size}, finished_at = now() WHERE id = ${job}`;
       await this.step(job, 'done', `Backup ${id} completed in ${Math.round((Date.now() - started) / 1000)} s`);
       await audit(this.sql, null, 'backup.completed', { id, type, size });
+      bus.publish('backup.finished', { backup: { id, type, status: 'success', sizeBytes: size, durationSeconds: Math.round((Date.now() - started) / 1000) } });
       void this.notifier?.send('backupSucceeded', (t) => ({
         title: t.backupOk(id)[0], intro: t.backupOk(id)[1], tone: 'ok',
         rows: [[t.backup, id], [t.type, t[type]], [t.size, formatBytes(size)], [t.duration, `${Math.round((Date.now() - started) / 1000)} s`], [t.target, `${s.backup.target.protocol}://${s.backup.target.host}`]],
@@ -335,6 +337,7 @@ export class BackupService {
       this.log.error({ err, job }, 'backup failed');
       await this.step(job, 'failed', `FAILED: ${msg}`);
       await this.sql`UPDATE backup_jobs SET status = 'failed', error = ${msg}, finished_at = now() WHERE id = ${job}`;
+      bus.publish('backup.finished', { backup: { id: id || null, type, status: 'failed', error: msg.slice(0, 300) } });
       void this.notifier?.send('backupFailed', (t) => ({
         title: t.backupFail(id || '…')[0], intro: t.backupFail(id || '…')[1], tone: 'danger',
         rows: [[t.type, t[type]], [t.target, `${s.backup.target.protocol}://${s.backup.target.host}`], [t.error, msg.slice(0, 200)]],

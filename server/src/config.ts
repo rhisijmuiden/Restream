@@ -51,6 +51,14 @@ export const config = {
     srtPort: Number(process.env.SRT_PORT ?? 8890),
     pollMs: Number(process.env.MEDIA_POLL_MS ?? 2000),
   },
+  webhooks: {
+    /**
+     * Webhooks never call this machine itself (MediaMTX's API, PostgreSQL) or link-local addresses (cloud metadata).
+     * Tests switch this on to reach their receiver on 127.0.0.1.
+     */
+    allowLoopback: bool(process.env.WEBHOOKS_ALLOW_LOOPBACK, false),
+    timeoutMs: Number(process.env.WEBHOOKS_TIMEOUT_MS ?? 10_000),
+  },
   live: {
     /** How often viewer counts are read from the platforms (and stored as a sample). */
     viewersMs: Number(process.env.LIVE_VIEWERS_MS ?? 30_000),

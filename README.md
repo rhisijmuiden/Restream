@@ -2,7 +2,7 @@
 
 Self-hosted stream multiplexer for Debian 13, installed with a single installer script on a bare server. Send one RTMP or SRT stream to the server, press **Go live**, and Restream distributes it to YouTube, Facebook, Twitch, Instagram, Kick, X and your own RTMP/SRT servers, each in its own bitrate and resolution.
 
-> Status: v1.2 (phases 0 to 4) is on the test channel. Phase 4 added live viewer counts per platform, one combined YouTube/Facebook/Twitch chat and statistics per broadcast. Phase 3 added the embeddable player (optionally only on your own websites or with signed links), one-click recording with downloads, connected YouTube/Facebook/Twitch accounts via OAuth, and scheduled events that are announced on the platforms. v1.0 (phases 0 to 2) brought ingest, destinations, hotlinks, the installer, 2FA, mail, backups and updates. See [docs/ROADMAP.md](docs/ROADMAP.md) (Dutch) and [CHANGELOG.md](CHANGELOG.md).
+> Status: v1.3 (phases 0 to 5, the whole roadmap) is on the test channel. Phase 5 added Instagram, Kick, X and LinkedIn with presets per platform, a backup feed that takes over automatically plus a fallback image, and API keys and webhooks for other projects. Phase 4 added live viewer counts per platform, one combined YouTube/Facebook/Twitch chat and statistics per broadcast. Phase 3 added the embeddable player (optionally only on your own websites or with signed links), one-click recording with downloads, connected YouTube/Facebook/Twitch accounts via OAuth, and scheduled events that are announced on the platforms. v1.0 (phases 0 to 2) brought ingest, destinations, hotlinks, the installer, 2FA, mail, backups and updates. See [docs/ROADMAP.md](docs/ROADMAP.md) (Dutch) and [CHANGELOG.md](CHANGELOG.md).
 
 ## Install
 
@@ -44,9 +44,9 @@ Maintenance on the server:
 ## Streaming
 
 1. **Streams & keys** → **New stream**. You get an RTMP server (`rtmp://<host>/live`), a stream key, and an SRT address (`srt://<host>:8890?streamid=publish:live/<key>`). Only connections with a valid key of an enabled stream are accepted; **New stream key** revokes the old one and disconnects the encoder.
-2. **Destinations** → **Add destination**: YouTube, Facebook (RTMPS), Twitch, or any RTMP(S) or SRT server. Stream keys and SRT passphrases are stored encrypted and never sent back to the browser.
+2. **Destinations** → **Add destination**: YouTube, Facebook (RTMPS), Twitch, Instagram, Kick, X, LinkedIn, or any RTMP(S) or SRT server. Each platform has a preset (server, bitrate, maximum resolution and frame rate, keyframe interval, audio sample rate); Instagram, X and LinkedIn start in transcode mode, Instagram in portrait 9:16 (the middle of the picture is cut out). Instagram, X and LinkedIn hand out a new server URL and key per broadcast, so paste them in before you go live; LinkedIn Live needs LinkedIn's approval. Stream keys and SRT passphrases are stored encrypted and never sent back to the browser.
    - **Passthrough** (default) sends the ingest unchanged: no extra CPU. Set a 2-second keyframe interval in your encoder.
-   - **Transcode** re-encodes for that destination with its own bitrate, resolution (1080p/720p/480p) and frame rate, H.264 + AAC with 2-second keyframes. Roughly 1 to 2 CPU cores per 1080p output.
+   - **Transcode** re-encodes for that destination with its own bitrate, resolution (1080p/720p/480p) and frame rate, H.264 + AAC at a constant bitrate with the keyframe interval the platform asks for (2 s, X 3 s). Roughly 1 to 2 CPU cores per 1080p output.
 3. On the dashboard, **Go live** starts every destination marked "In Go live"; each destination also has its own Go live / Stop. Outputs that drop are restarted with backoff (2 to 30 seconds), and outputs that are live wait for the ingest and start by themselves when it comes back, also after a server restart.
 4. **Hotlink**: each stream has public HLS (`https://<host>/live/<id>/index.m3u8`) and WebRTC/WHEP (`https://<host>/live/<id>/whep`) URLs plus ready-made player pages. The id is separate from the stream key, and playback can be switched off per stream.
 
@@ -54,6 +54,8 @@ Maintenance on the server:
 6. **Record**: the Record button on the dashboard writes the ingest to a fragmented MP4 in `/var/lib/restream/recordings` (no re-encoding; playable even after a power cut). Recordings are listed under **Recordings** to watch in the browser or download, with automatic clean-up after a chosen number of days. A stream can record automatically on Go live, and events can record themselves. Backups include the recordings.
 7. **Connected accounts**: under **Accounts** an administrator registers the OAuth app of YouTube (Google Cloud), Facebook (Meta) and Twitch once, using the redirect URL shown there; operators then connect channels and pages. A destination "via connected account" needs no stream key: on Go live Restream creates the broadcast (YouTube: reusable stream + broadcast with auto start/stop; Facebook: live video on the page; Twitch: fetches the stream key and sets the title) and ends it on Stop.
 8. **Events**: plan a broadcast with title, description, start and end. Destinations on connected accounts are announced right away (YouTube scheduled broadcast, Facebook scheduled live video, Twitch schedule segment); at the start Restream puts the destinations live (they wait for the encoder), optionally records, and stops at the end. Changes and cancellations are pushed to the platforms.
+9. **Backup feed and fallback image** (Streams & keys): **Create backup key** gives a second key for a backup encoder or a second line. When the main feed drops, the live destinations switch to the backup feed by themselves (a reconnect of a second or two on the platforms) and switch back once the main feed has been stable for a set time (default 10 s). When no feed comes in at all, the destinations show a fallback image with silence (the standard "We'll be right back" image or your own PNG/JPEG) for at most a set time (default 30 min), so the platforms keep the broadcast open. Recordings follow the feed that is on air. The hotlink and embed player keep showing the main feed.
+10. **API and webhooks** (Administration → API & webhooks): API keys (`Authorization: Bearer rsk_…`) with a role for other projects, and webhooks that POST signed JSON for events such as `stream.source.changed`, `output.live` and `broadcast.ended`, with retries and a delivery log. See [docs/API.md](docs/API.md).
 
 How it fits together: MediaMTX receives the ingest and asks Restream (`/api/internal/mediamtx/auth`, local only) whether the key is valid. Each live destination is one FFmpeg process that reads the local RTSP feed from MediaMTX and publishes to the platform. Public playback goes through Restream, which maps the playback id to the stream, so MediaMTX itself only listens on 127.0.0.1 apart from the ingest and WebRTC media ports. Restream v1 supports up to 1080p50; the dashboard warns when the ingest is larger.
 
@@ -65,7 +67,7 @@ The web console never runs privileged commands. When an administrator clicks **I
 
 **Administration → Mail server**: enter your SMTP server with STARTTLS (587, required, TLS 1.2+), implicit TLS (465) or none (local relay only), sign-in and sender. **Test connection** connects and authenticates without sending; **Send test message** sends a real one. Under **DKIM signing** Restream generates a 2048-bit key and shows the TXT record (`<selector>._domainkey.<domain>`) to publish; once it is in DNS, switch signing on.
 
-Notifications go to all administrators (optional) and extra addresses, for: a stream losing its ingest while destinations are live (after 20 s), a destination failing three times in a row, the media server not answering for a minute (each with a follow-up when it recovers), backups failing or completing, updates installed or rolled back, and new versions on your channel. Every message is in the house style and in the default language of the instance; the last 50 are listed with their result.
+Notifications go to all administrators (optional) and extra addresses, for: a stream losing its main feed while destinations are live (after 20 s; the message says whether the backup feed or the fallback image took over), a destination failing three times in a row, the media server not answering for a minute (each with a follow-up when it recovers), backups failing or completing, updates installed or rolled back, and new versions on your channel. Every message is in the house style and in the default language of the instance; the last 50 are listed with their result.
 
 ### Backups and restore
 
@@ -100,12 +102,7 @@ Create a first user with `node server/dist/cli.js create-admin --email you@examp
 
 The media engine is off in development. To try streaming locally, run MediaMTX with `deploy/mediamtx/mediamtx.yml` (replace `__PUBLIC_HOST__` with `127.0.0.1`), install FFmpeg, and start the server with `MEDIA_ENABLED=true`.
 
-## Planned features
-
-- Live viewer counts per platform and a unified chat (phase 4)
-- Instagram, LinkedIn, Kick and X, backup ingest with failover, API and webhooks (phase 5)
-
-Standard for every release:
+## Standard for every release
 
 - Configurable SMTP mail server (TLS / STARTTLS, DKIM) with notifications
 - Encrypted full and incremental backups to FTP, FTPS and SCP, with restore from the remote location

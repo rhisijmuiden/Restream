@@ -8,6 +8,9 @@ import { ZodError } from 'zod';
 import { config } from './config.js';
 import type { Sql } from './db.js';
 import { loadSession } from './lib/session.js';
+import { apiKeyForbidden, loadApiKey } from './lib/apiKeys.js';
+import { integrationRoutes } from './routes/integrations.js';
+import { WebhookDispatcher } from './lib/webhooks.js';
 import { HttpError } from './lib/guards.js';
 import { authRoutes } from './routes/auth.js';
 import { ssoRoutes } from './routes/sso.js';
@@ -62,11 +65,20 @@ export async function buildApp(sql: Sql, opts: { logger?: boolean; background?: 
 
   app.decorateRequest('session', null);
   app.decorateRequest('user', null);
+  app.decorateRequest('apiKey', null);
 
   app.addHook('onRequest', async (req) => {
     if (!req.url.startsWith('/api/')) return;
     // Called by MediaMTX on this machine; the route itself refuses anything that is not local.
     if (req.url.startsWith('/api/internal/')) return;
+    // Other projects use an API key. No cookies are involved, so the CSRF header is not needed.
+    const authz = req.headers.authorization;
+    if (authz?.toLowerCase().startsWith('bearer ')) {
+      await loadApiKey(sql, req, authz.slice(7).trim());
+      if (!req.user) throw new HttpError(401, 'invalid_api_key');
+      if (apiKeyForbidden(req.method, req.url)) throw new HttpError(403, 'not_allowed_with_api_key');
+      return;
+    }
     // CSRF defence in depth (cookies are SameSite=Strict): state changing calls need a custom header,
     // which browsers only send from same-origin scripts.
     if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && req.headers['x-restream'] !== '1') {
@@ -115,12 +127,15 @@ export async function buildApp(sql: Sql, opts: { logger?: boolean; background?: 
   const backups = new BackupService(sql, app.log, notifier, () => media.nudge());
   app.decorate('backups', backups);
   app.decorate('notifier', notifier);
+  const webhooks = new WebhookDispatcher(sql, app.log);
+  app.decorate('webhooks', webhooks);
+  await app.register(integrationRoutes, { sql, webhooks });
   await app.register(mailRoutes, { sql });
   await app.register(backupRoutes, { sql, backups });
   if (opts.background ?? process.env.NODE_ENV === 'production') {
-    app.addHook('onReady', async () => { notifier.start(); await backups.start(); provisioner.start(); scheduler.start(); live.start(); });
+    app.addHook('onReady', async () => { notifier.start(); await backups.start(); provisioner.start(); scheduler.start(); live.start(); webhooks.start(); });
   }
-  app.addHook('onClose', async () => { notifier.stop(); backups.stop(); scheduler.stop(); provisioner.stop(); await live.stop(); await media.close(); });
+  app.addHook('onClose', async () => { await webhooks.stop(); notifier.stop(); backups.stop(); scheduler.stop(); provisioner.stop(); await live.stop(); await media.close(); });
 
   if (existsSync(config.webDist)) {
     await app.register(fastifyStatic, { root: config.webDist, wildcard: false, index: ['index.html'] });
@@ -140,5 +155,6 @@ declare module 'fastify' {
     scheduler: EventScheduler;
     media: MediaSupervisor;
     live: LiveMonitor;
+    webhooks: WebhookDispatcher;
   }
 }
