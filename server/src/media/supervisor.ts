@@ -6,11 +6,11 @@ import type { FastifyBaseLogger } from 'fastify';
 import type { Sql } from '../db.js';
 import { config } from '../config.js';
 import { decrypt } from '../lib/crypto.js';
-import { fallbackArgs, ffmpegArgs, parseProgress, recordArgs, redact, type OutputSpec } from './ffmpeg.js';
+import { fallbackArgs, ffmpegArgs, parseProgress, previewArgs, recordArgs, redact, type OutputSpec } from './ffmpeg.js';
 import { fallbackImagePath } from '../lib/fallback.js';
 import { bus } from '../lib/events.js';
 import { cleanupRecordings, recordingsDir } from '../lib/recordings.js';
-import { ingestPath, listPaths, type MtxPath, type MtxTrack } from './mediamtx.js';
+import { ingestPath, listPaths, previewPath, type MtxPath, type MtxTrack } from './mediamtx.js';
 import type { Platform } from './platforms.js';
 
 export type OutputStateName = 'off' | 'waiting' | 'preparing' | 'connecting' | 'live' | 'reconnecting';
@@ -173,6 +173,8 @@ export class MediaSupervisor {
   private lastFps = new Map<string, number>();
   /** What was last published on the event bus, to send only changes. */
   private emitted = new Map<string, string>();
+  /** Light console previews by feed key: run while someone watches (see previewArgs). */
+  private previews = new Map<string, { child: ChildProcess; lastWanted: number; stopping: boolean }>();
 
   constructor(private sql: Sql, private log: FastifyBaseLogger) {}
 
@@ -239,6 +241,7 @@ export class MediaSupervisor {
       this.mediamtxOnline = false;
     }
     const byName = new Map(paths.map((p) => [p.name, p]));
+    this.reconcilePreviews(byName, now);
 
     const streams = await this.sql<StreamRow[]>`
       SELECT id, name, ingest_key_enc, enabled, record, record_by, record_event, backup_key_enc,
@@ -527,8 +530,67 @@ export class MediaSupervisor {
     const waits = [...this.procs.values(), ...this.recs.values()].map((p) => new Promise<void>((r) => { p.child.once('close', () => r()); }));
     for (const id of [...this.procs.keys()]) this.stop(id);
     for (const id of [...this.recs.keys()]) this.stopRecording(id);
+    for (const key of [...this.previews.keys()]) this.stopPreview(key);
     await Promise.race([Promise.all(waits), new Promise((r) => setTimeout(r, 5000))]);
     await Promise.all([...this.writes]);
+  }
+
+  // -------------------------------------------------------------------------------------------
+  // Light console preview
+
+  /**
+   * Starts the light preview of a feed (or keeps it running) and waits until MediaMTX has it.
+   * Returns the MediaMTX path, or null when the feed is offline or the preview did not come up.
+   */
+  async ensurePreview(key: string): Promise<string | null> {
+    const out = previewPath(key);
+    let p = this.previews.get(key);
+    if (p && !p.stopping) {
+      p.lastWanted = Date.now();
+    } else {
+      const input = `${config.media.rtspUrl}/${ingestPath(key)}`;
+      const child = spawn(config.media.ffmpegPath, previewArgs(input, `${config.media.rtspUrl}/${out}`), { stdio: ['ignore', 'ignore', 'pipe'] });
+      p = { child, lastWanted: Date.now(), stopping: false };
+      const proc = p;
+      this.previews.set(key, proc);
+      let err = '';
+      child.stderr!.setEncoding('utf8');
+      child.stderr!.on('data', (c: string) => { err = (err + c).slice(-2000); });
+      child.on('error', (e) => { err += e.message; });
+      child.on('close', (code) => {
+        if (this.previews.get(key) === proc) this.previews.delete(key);
+        if (!proc.stopping) this.log.warn({ code, stderr: redact(err.trim().split('\n').slice(-3).join(' | '), [key]) }, 'preview encoder stopped');
+      });
+    }
+    const until = Date.now() + 10_000;
+    while (Date.now() < until && this.previews.has(key)) {
+      try {
+        const path = (await listPaths()).find((x) => x.name === out);
+        if (path && (path.online ?? path.ready)) return out;
+      } catch { /* MediaMTX briefly unreachable */ }
+      await new Promise((r) => setTimeout(r, 300));
+    }
+    return null;
+  }
+
+  /** Keeps previews alive while they have readers (or were asked for recently) and their feed is online. */
+  private reconcilePreviews(byName: Map<string, MtxPath>, now: number) {
+    for (const [key, p] of this.previews) {
+      const feed = byName.get(ingestPath(key));
+      const prev = byName.get(previewPath(key));
+      if ((prev?.readers?.length ?? 0) > 0) p.lastWanted = now;
+      if (!feed || !(feed.online ?? feed.ready) || now - p.lastWanted > 20_000) this.stopPreview(key);
+    }
+  }
+
+  private stopPreview(key: string) {
+    const p = this.previews.get(key);
+    if (!p || p.stopping) return;
+    p.stopping = true;
+    p.child.kill('SIGTERM');
+    const t = setTimeout(() => p.child.kill('SIGKILL'), 3000);
+    t.unref();
+    p.child.once('close', () => clearTimeout(t));
   }
 
   // -------------------------------------------------------------------------------------------

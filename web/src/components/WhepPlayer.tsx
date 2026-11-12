@@ -4,22 +4,28 @@ import { Volume2, VolumeX } from 'lucide-react';
 import type HlsType from 'hls.js/light';
 
 /**
- * Console preview. Starts with low-latency WebRTC (WHEP) and falls back to LL-HLS when WebRTC cannot play the feed:
- * MediaMTX refuses H264 with B-frames over WebRTC (the OBS x264 default), and WebRTC carries no AAC audio.
- * HLS also works where UDP is blocked. `url` is the same-origin WHEP endpoint; HLS is served next to it.
+ * Console preview, in order of preference:
+ * 1. WebRTC (WHEP) of the feed itself: real time, but MediaMTX refuses H264 with B-frames (the OBS x264 default).
+ * 2. WebRTC of the light preview the server encodes on demand without B-frames (`<id>~lite`), with Opus sound.
+ * 3. LL-HLS of the feed: a few seconds delay, but also works where UDP is blocked.
+ * A feed with AAC audio (most encoders) starts at 2, because WebRTC cannot carry AAC and the preview would be silent.
+ * `url` is the same-origin WHEP endpoint of the feed (`/api/preview/<id>/whep`); the others are derived from it.
  */
-export function WhepPlayer({ url, active, sessionKey }: { url: string; active: boolean; sessionKey: string }) {
+export function WhepPlayer({ url, active, sessionKey, audioCodec = null }: { url: string; active: boolean; sessionKey: string; audioCodec?: string | null }) {
   const { t } = useTranslation();
   const video = useRef<HTMLVideoElement>(null);
   const [muted, setMuted] = useState(true);
   const [playing, setPlaying] = useState(false);
-  const [mode, setMode] = useState<'webrtc' | 'hls'>('webrtc');
+  // WebRTC carries Opus (and G.711) audio only; other audio needs the light preview, which encodes Opus.
+  const first = !audioCodec || /opus|g711/i.test(audioCodec) ? 'webrtc' : 'lite';
+  const [mode, setMode] = useState<'webrtc' | 'lite' | 'hls'>(first);
 
-  // A new feed (or stream) tries WebRTC again.
-  useEffect(() => { setMode('webrtc'); }, [url, sessionKey]);
+  // A new feed (or stream) starts over.
+  useEffect(() => { setMode(first); }, [url, sessionKey, first]);
 
   useEffect(() => {
-    if (!active || mode !== 'webrtc') { if (!active) setPlaying(false); return; }
+    if (!active || mode === 'hls') { if (!active) setPlaying(false); return; }
+    const whep = mode === 'lite' ? url.replace(/\/whep$/, '~lite/whep') : url;
     let stopped = false;
     let pc: RTCPeerConnection | null = null;
     let session: string | null = null;
@@ -34,7 +40,7 @@ export function WhepPlayer({ url, active, sessionKey }: { url: string; active: b
       if (session) fetch(session, { method: 'DELETE', headers: { 'x-restream': '1' } }).catch(() => {});
       session = null;
     };
-    const fallBack = () => { cleanup(); setPlaying(false); if (!stopped) setMode('hls'); };
+    const fallBack = () => { cleanup(); setPlaying(false); if (!stopped) setMode(mode === 'webrtc' ? 'lite' : 'hls'); };
     const scheduleRetry = () => {
       // Closed right after connecting means MediaMTX refused the tracks: WebRTC will not work for this feed.
       if (connectedAt && Date.now() - connectedAt < 15000) return fallBack();
@@ -72,7 +78,7 @@ export function WhepPlayer({ url, active, sessionKey }: { url: string; active: b
           pc!.addEventListener('icegatheringstatechange', done);
           setTimeout(resolve, 1500);
         });
-        const res = await fetch(url, {
+        const res = await fetch(whep, {
           method: 'POST',
           headers: { 'content-type': 'application/sdp', 'x-restream': '1' },
           body: pc.localDescription!.sdp,

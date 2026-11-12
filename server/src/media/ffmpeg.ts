@@ -169,3 +169,20 @@ export function recordArgs(input: string, src: SourceInfo, file: string): string
   args.push('-f', 'mp4', '-movflags', '+frag_keyframe+empty_moov+default_base_moof', '-frag_duration', '2000000', '-y', file);
   return args;
 }
+
+/**
+ * Light console preview for WebRTC: re-encodes the feed without B-frames (which MediaMTX refuses over WebRTC)
+ * at up to 540p and 30 fps, with Opus audio (WebRTC carries no AAC). About half a CPU core while someone watches.
+ */
+export function previewArgs(input: string, output: string): string[] {
+  return [
+    '-hide_banner', '-nostats', '-loglevel', 'warning',
+    '-rtsp_transport', 'tcp', '-i', input,
+    '-map', '0:v:0', '-map', '0:a:0?',
+    '-vf', "scale=-2:'min(540,ih)'", '-fpsmax', '30',
+    '-c:v', 'libx264', '-preset', 'veryfast', '-tune', 'zerolatency', '-bf', '0', '-pix_fmt', 'yuv420p',
+    '-b:v', '1500k', '-maxrate', '1500k', '-bufsize', '1500k', '-g', '60',
+    '-c:a', 'libopus', '-b:a', '96k', '-ar', '48000', '-ac', '2',
+    '-f', 'rtsp', '-rtsp_transport', 'tcp', output,
+  ];
+}
