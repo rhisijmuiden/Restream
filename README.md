@@ -2,7 +2,51 @@
 
 Self-hosted stream multiplexer for Debian 13, installed with a single installer script on a bare server. Send one RTMP or SRT stream to the server, press **Go live**, and Restream distributes it to YouTube, Facebook, Twitch, Instagram, Kick, X and your own RTMP/SRT servers, each in its own bitrate and resolution.
 
-> Status: planning. See [docs/ROADMAP.md](docs/ROADMAP.md) (Dutch) for phases and priorities.
+> Status: phase 0 (foundation) is done: installer, sign-in with 2FA and Microsoft 365, users, admin console, EN/NL, updates from the UI. Streaming arrives in phase 1. See [docs/ROADMAP.md](docs/ROADMAP.md) (Dutch) and [CHANGELOG.md](CHANGELOG.md).
+
+## Install
+
+On a fresh Debian 13 server (recommended: 4 vCPU, 8 GB RAM, 80 GB SSD, 100 Mbps or more), as root:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/rhisijmuiden/restream/main/deploy/install.sh | bash -s -- \
+  --domain restream.example.com --email you@example.com
+```
+
+- Without `--domain` the server uses its IP address and a self-signed certificate.
+- `--channel test` installs the test channel (`test` branch) instead of production (`main`). To try the test channel before anything is on `main`, fetch the script from the `test` branch as well.
+- At the end the installer prints the sign-in address and a temporary password. At first sign-in you choose your own password and set up two-factor authentication.
+- Running the installer again is safe; it keeps the database, secrets and users.
+
+Maintenance on the server:
+
+| Command | What it does |
+| --- | --- |
+| `restream-cli reset-password --email <e>` | New temporary password for a user |
+| `restream-cli reset-2fa --email <e>` | User sets up 2FA again at next sign-in |
+| `restream-update [--channel production\|test]` | Update from the shell (same as the Updates page) |
+| `journalctl -u restream -f` | Application log |
+
+### How updates work
+
+The web console never runs privileged commands. When an administrator clicks **Install update** or switches channel, the app writes a small request file. A root-owned systemd path unit (`restream-updater.path`) picks it up and runs `deploy/update.sh`: fetch the branch, `npm ci`, build, migrate, restart, health check. If any step fails, the previous version is rebuilt and restored automatically. Progress and the log are shown live on the Updates page.
+
+### Microsoft 365 sign-in
+
+In Entra ID, create an app registration (type Web) with the redirect URI shown on **Settings → Microsoft 365 sign-in**, create a client secret, and enter tenant ID, client ID and secret in Restream. Optionally restrict sign-in to one group (add the `groups` claim to the token). Local accounts with 2FA keep working next to SSO.
+
+## Development
+
+```bash
+npm install
+# PostgreSQL with a database "restream" (user/password restream) on localhost
+npm run dev:server   # API on :8080
+npm run dev:web      # UI on :5173 with /api proxied
+npm test             # needs database restream_test
+npm run build
+```
+
+Create a first user with `node server/dist/cli.js create-admin --email you@example.com` after a build.
 
 ## Planned features
 
@@ -24,16 +68,16 @@ Standard for every release:
 - `main` (production) and `test` release channels, switchable in the UI
 - English by default, Dutch translation included
 
-## Planned stack
+## Stack
 
 | Part | Choice |
 | --- | --- |
-| Ingest | MediaMTX (RTMP + SRT) |
-| Distribution | FFmpeg, one process per destination |
-| Backend | Node.js 22, TypeScript, Fastify |
+| Ingest (phase 1) | MediaMTX (RTMP + SRT) |
+| Distribution (phase 1) | FFmpeg, one process per destination |
+| Backend | Node.js 22, TypeScript, Fastify, argon2id, otplib, openid-client |
 | Database | PostgreSQL 17 |
-| Jobs & scheduling | Redis + BullMQ |
-| Frontend | React, Vite, Tailwind CSS, shadcn/ui, i18next |
+| Jobs & scheduling (phase 3) | Redis + BullMQ |
+| Frontend | React 19, Vite, Tailwind CSS 4, TanStack Query, i18next |
 | Web server | Nginx + Let's Encrypt |
 | OS | Debian 13 (trixie), native systemd services |
 
@@ -44,7 +88,7 @@ Standard for every release:
 
 ## Design
 
-Interface sketches (Design Component files) live in [docs/design](docs/design).
+The house style "Signal" (colours, type, logo) lives in [brand/](brand/README.md); the web app imports `brand/tokens.css` directly. Interface sketches live in [docs/design](docs/design).
 
 ## License
 

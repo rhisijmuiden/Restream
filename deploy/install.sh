@@ -72,7 +72,7 @@ echo "CPU cores: $cpus · RAM: ${mem_gb} GB · free disk: ${disk_gb} GB"
 low=0
 (( cpus >= 4 )) || { warn "Recommended: 4 vCPU or more (one 1080p50 ingest to several platforms)."; low=1; }
 (( mem_gb >= 7 )) || { warn "Recommended: 8 GB RAM or more."; low=1; }
-(( disk_gb >= 40 )) || { warn "Recommended: 80 GB disk (recordings need space)."; low=1; }
+(( disk_gb >= 75 )) || { warn "Recommended: 80 GB disk (recordings need space)."; low=1; }
 if (( low )) && [[ $SKIP_CHECKS -eq 0 ]]; then
   cont=""; ask cont "The server is below the recommendation. Continue? (y/N)" "n"
   [[ "$cont" =~ ^[yYjJ] ]] || die "Stopped. Use --skip-checks to install anyway."
@@ -222,8 +222,10 @@ write_site() {
 }
 write_site "$CERT_IN_USE" "$KEY_IN_USE"
 if [[ -n "$DOMAIN" && ! -f "$CERT" ]]; then
+  le_contact=(--register-unsafely-without-email)
+  [[ -n "$ADMIN_EMAIL" ]] && le_contact=(-m "$ADMIN_EMAIL")
   if certbot certonly --webroot -w /var/www/html -d "$DOMAIN" --non-interactive --agree-tos \
-       ${ADMIN_EMAIL:+-m "$ADMIN_EMAIL"} ${ADMIN_EMAIL:---register-unsafely-without-email} --deploy-hook "systemctl reload nginx"; then
+       "${le_contact[@]}" --deploy-hook "systemctl reload nginx"; then
     write_site "$CERT" "$KEY"
   else
     warn "Let's Encrypt failed (is DNS for $DOMAIN pointing here and port 80 open?). Using a self-signed certificate for now; run the installer again later."

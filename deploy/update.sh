@@ -39,6 +39,7 @@ BRANCH=$([[ "$CHANNEL" == "production" ]] && echo main || echo test)
 
 STARTED=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 FROM=$(git -C "$APP_DIR" rev-parse HEAD)
+FROM_BRANCH=$(git -C "$APP_DIR" rev-parse --abbrev-ref HEAD)
 TO=""
 
 json_escape() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' | tr -d '\n\r'; }
@@ -73,7 +74,8 @@ healthy() {
 rollback() {
   log "FAILED: $1. Rolling back to ${FROM:0:7}."
   status running "rollback" "$1"
-  git -C "$APP_DIR" checkout -f "$FROM" && build && systemctl restart restream && healthy \
+  BRANCH="$FROM_BRANCH"
+  git -C "$APP_DIR" checkout -f -B "$FROM_BRANCH" "$FROM" && build && systemctl restart restream && healthy \
     && { status rolled_back "done" "$1"; log "Previous version restored."; exit 1; }
   status failed "rollback" "$1; rollback also failed, see journalctl -u restream"
   log "Rollback failed."
@@ -86,8 +88,7 @@ if ! git -C "$APP_DIR" fetch --prune origin "$BRANCH"; then
   status failed "fetch" "Could not reach the git repository"; log "fetch failed"; exit 1
 fi
 TO=$(git -C "$APP_DIR" rev-parse "origin/$BRANCH")
-CURRENT_BRANCH=$(git -C "$APP_DIR" rev-parse --abbrev-ref HEAD)
-if [[ "$TO" == "$FROM" && "$CURRENT_BRANCH" == "$BRANCH" ]]; then
+if [[ "$TO" == "$FROM" && "$FROM_BRANCH" == "$BRANCH" ]]; then
   log "Already on the latest commit."
   status success "done" "Already up to date"
   exit 0

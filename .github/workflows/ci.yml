@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, test]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: restream
+          POSTGRES_PASSWORD: restream
+          POSTGRES_DB: restream_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U restream"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+      - name: Check installer scripts
+        run: shellcheck -S warning deploy/*.sh
+      - name: Check translations are complete
+        run: |
+          node -e '
+            const flat = (o, p = "") => Object.entries(o).flatMap(([k, v]) => typeof v === "object" ? flat(v, p + k + ".") : [p + k]);
+            const en = new Set(flat(require("./web/src/i18n/en.json")));
+            const nl = new Set(flat(require("./web/src/i18n/nl.json")));
+            const missing = [...en].filter((k) => !nl.has(k)).concat([...nl].filter((k) => !en.has(k)));
+            if (missing.length) { console.error("Translation keys out of sync:", missing); process.exit(1); }
+            console.log(en.size + " keys in EN and NL");
+          '
