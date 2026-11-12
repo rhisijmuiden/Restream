@@ -29,6 +29,20 @@ export const config = {
   githubRepo: process.env.GITHUB_REPO ?? 'rhisijmuiden/restream',
   webDist: process.env.WEB_DIST ?? path.join(appDir, 'web', 'dist'),
   logLevel: process.env.LOG_LEVEL ?? 'info',
+  media: {
+    /** Runs the MediaMTX poller and the FFmpeg output supervisor. Off in tests and development by default. */
+    enabled: bool(process.env.MEDIA_ENABLED, process.env.NODE_ENV === 'production'),
+    /** MediaMTX control API and local listeners (all bound to 127.0.0.1 by the shipped config). */
+    apiUrl: process.env.MEDIAMTX_API_URL ?? 'http://127.0.0.1:9997',
+    rtspUrl: process.env.MEDIAMTX_RTSP_URL ?? 'rtsp://127.0.0.1:8554',
+    hlsUrl: process.env.MEDIAMTX_HLS_URL ?? 'http://127.0.0.1:8888',
+    webrtcUrl: process.env.MEDIAMTX_WEBRTC_URL ?? 'http://127.0.0.1:8889',
+    ffmpegPath: process.env.FFMPEG_PATH ?? 'ffmpeg',
+    /** Public ingest ports, shown in the console. */
+    rtmpPort: Number(process.env.RTMP_PORT ?? 1935),
+    srtPort: Number(process.env.SRT_PORT ?? 8890),
+    pollMs: Number(process.env.MEDIA_POLL_MS ?? 2000),
+  },
 };
 
 export type Channel = 'production' | 'test';

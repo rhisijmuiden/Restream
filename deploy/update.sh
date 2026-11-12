@@ -90,6 +90,13 @@ fi
 TO=$(git -C "$APP_DIR" rev-parse "origin/$BRANCH")
 if [[ "$TO" == "$FROM" && "$FROM_BRANCH" == "$BRANCH" ]]; then
   log "Already on the latest commit."
+  # Still check the media server, so an update also repairs a missing or stopped MediaMTX.
+  if [[ -f "$APP_DIR/deploy/lib/media.sh" ]]; then
+    status running "media"
+    # shellcheck source=lib/media.sh
+    . "$APP_DIR/deploy/lib/media.sh"
+    ensure_media "$APP_DIR" /etc/restream || { status failed "media" "Media server setup failed, see the updater log"; exit 1; }
+  fi
   status success "done" "Already up to date"
   exit 0
 fi
@@ -97,6 +104,11 @@ fi
 log "Checking out ${TO:0:7}"
 status running "checkout"
 git -C "$APP_DIR" checkout -f -B "$BRANCH" "origin/$BRANCH" || rollback "checkout failed"
+
+status running "media"
+log "media server"
+# shellcheck source=lib/media.sh
+. "$APP_DIR/deploy/lib/media.sh" && ensure_media "$APP_DIR" /etc/restream || rollback "media server setup failed"
 
 status running "build"
 build || rollback "build failed"

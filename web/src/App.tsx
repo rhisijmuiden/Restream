@@ -8,6 +8,8 @@ import { Setup2fa } from './pages/Setup2fa';
 import { PasswordForm } from './pages/ChangePassword';
 import { AuthShell } from './pages/AuthShell';
 import { Dashboard } from './pages/Dashboard';
+import { Streams } from './pages/Streams';
+import { Destinations } from './pages/Destinations';
 import { ComingSoon } from './pages/ComingSoon';
 import { Users } from './pages/Users';
 import { Account } from './pages/Account';
@@ -66,8 +68,8 @@ export function App() {
       <Route path="/change-password" element={<Gate need="password"><ForcedPassword /></Gate>} />
       <Route element={<Gate need="full"><Layout /></Gate>}>
         <Route index element={<Dashboard />} />
-        <Route path="streams" element={<ComingSoon titleKey="nav.streams" phase={1} />} />
-        <Route path="destinations" element={<ComingSoon titleKey="nav.destinations" phase={1} />} />
+        <Route path="streams" element={<Streams />} />
+        <Route path="destinations" element={<Destinations />} />
         <Route path="events" element={<ComingSoon titleKey="nav.events" phase={3} />} />
         <Route path="recordings" element={<ComingSoon titleKey="nav.recordings" phase={3} />} />
         <Route path="analytics" element={<ComingSoon titleKey="nav.analytics" phase={4} />} />

@@ -28,8 +28,8 @@ export function Layout() {
 
   const broadcast: Item[] = [
     { to: '/', label: t('nav.dashboard'), icon: <LayoutGrid size={18} /> },
-    { to: '/streams', label: t('nav.streams'), icon: <KeyRound size={18} />, soon: true },
-    { to: '/destinations', label: t('nav.destinations'), icon: <Share2 size={18} />, soon: true },
+    { to: '/streams', label: t('nav.streams'), icon: <KeyRound size={18} /> },
+    { to: '/destinations', label: t('nav.destinations'), icon: <Share2 size={18} /> },
     { to: '/events', label: t('nav.events'), icon: <CalendarClock size={18} />, soon: true },
     { to: '/recordings', label: t('nav.recordings'), icon: <CircleDot size={18} />, soon: true },
     { to: '/analytics', label: t('nav.analytics'), icon: <BarChart3 size={18} />, soon: true },

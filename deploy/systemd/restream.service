@@ -1,7 +1,7 @@
 [Unit]
 Description=Restream multiplexer (web console and API)
-After=network-online.target postgresql.service
-Wants=network-online.target
+After=network-online.target postgresql.service restream-media.service
+Wants=network-online.target restream-media.service
 Requires=postgresql.service
 
 [Service]

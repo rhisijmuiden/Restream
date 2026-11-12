@@ -10,6 +10,8 @@
 #   --email <address>      Email of the first administrator (also used for Let's Encrypt).
 #   --channel <name>       Release channel: production (main branch, default) or test (test branch).
 #   --repo <url>           Git repository (default https://github.com/rhisijmuiden/restream.git).
+#   --firewall             Install and enable ufw with SSH, web (80, 443) and media ports open.
+#                          Without it, an already active ufw or firewalld only gets the ports added.
 #   --skip-checks          Install even if the OS or the hardware is below the recommendation.
 #   -y, --yes              Do not ask questions; use defaults for anything not given.
 #
@@ -27,6 +29,7 @@ ADMIN_EMAIL=""
 CHANNEL="production"
 SKIP_CHECKS=0
 ASSUME_YES=0
+FIREWALL=0
 
 c_cyan=$'\e[36m'; c_red=$'\e[31m'; c_yellow=$'\e[33m'; c_bold=$'\e[1m'; c_off=$'\e[0m'
 step() { printf '\n%s==>%s %s%s%s\n' "$c_cyan" "$c_off" "$c_bold" "$*" "$c_off"; }
@@ -40,9 +43,10 @@ while [[ $# -gt 0 ]]; do
     --email) ADMIN_EMAIL="${2:-}"; shift 2 ;;
     --channel) CHANNEL="${2:-}"; shift 2 ;;
     --repo) REPO_URL="${2:-}"; shift 2 ;;
+    --firewall) FIREWALL=1; shift ;;
     --skip-checks) SKIP_CHECKS=1; shift ;;
     -y|--yes) ASSUME_YES=1; shift ;;
-    -h|--help) sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) die "Unknown option: $1 (see --help)" ;;
   esac
 done
@@ -90,7 +94,7 @@ PUBLIC_URL="https://${HOST_NAME}"
 step "Installing system packages"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
-apt-get install -y -qq ca-certificates curl git gnupg openssl nginx postgresql postgresql-contrib >/dev/null
+apt-get install -y -qq ca-certificates curl git gnupg openssl nginx postgresql postgresql-contrib ffmpeg >/dev/null
 if [[ -n "$DOMAIN" ]]; then apt-get install -y -qq certbot python3-certbot-nginx >/dev/null; fi
 
 if ! command -v node >/dev/null || [[ "$(node -p 'process.versions.node.split(".")[0]')" -lt $NODE_MAJOR ]]; then
@@ -188,6 +192,13 @@ if [[ -n "$ADMIN_EMAIL" ]]; then
   ADMIN_PASSWORD=$(printf '%s\n' "$out" | awk '/^password:/ {print $2}')
 fi
 
+# --- Media server -------------------------------------------------------------
+step "Installing the media server (MediaMTX) and FFmpeg"
+# shellcheck source=lib/media.sh
+. "$APP_DIR/deploy/lib/media.sh"
+ensure_media "$APP_DIR" "$ETC_DIR"
+echo "MediaMTX $(/usr/local/bin/mediamtx --version | head -1), $(ffmpeg -version | head -1 | awk '{print $1, $3}')"
+
 # --- Services -----------------------------------------------------------------
 step "Installing services"
 install -m 0644 deploy/systemd/restream.service deploy/systemd/restream-updater.service deploy/systemd/restream-updater.path /etc/systemd/system/
@@ -232,6 +243,16 @@ if [[ -n "$DOMAIN" && ! -f "$CERT" ]]; then
   fi
 fi
 
+# --- Firewall -----------------------------------------------------------------
+step "Firewall"
+FIREWALL_NOTE=""
+if [[ $FIREWALL -eq 1 ]]; then
+  enable_ufw
+elif ! open_firewall; then
+  FIREWALL_NOTE="No active firewall found. If your provider has one, allow TCP 80, 443, 1935 and 8189, and UDP 8890 and 8189."
+  echo "$FIREWALL_NOTE"
+fi
+
 # --- Health -------------------------------------------------------------------
 step "Waiting for Restream to start"
 for _ in $(seq 1 30); do
@@ -249,6 +270,9 @@ if [[ -n "$ADMIN_PASSWORD" ]]; then
   echo "  Password:  ${ADMIN_PASSWORD}   (temporary: you choose your own and set up 2FA at first sign-in)"
 fi
 echo
+echo "  Ingest:    rtmp://${HOST_NAME}/live  and  srt://${HOST_NAME}:8890  (stream keys are in the console under Streams & keys)"
+echo
 echo "  Maintenance: restream-cli reset-password --email <email> | reset-2fa --email <email>"
-echo "  Logs:        journalctl -u restream -f"
-echo "  Firewall:    allow TCP 80 and 443 (later releases also use 1935/RTMP and 8890/UDP for SRT)."
+echo "  Logs:        journalctl -u restream -f   ·   journalctl -u restream-media -f"
+echo "  Ports:       TCP 80, 443, 1935 (RTMP), 8189 (WebRTC) · UDP 8890 (SRT), 8189 (WebRTC)"
+if [[ -n "$FIREWALL_NOTE" ]]; then echo "  Firewall:    $FIREWALL_NOTE"; fi

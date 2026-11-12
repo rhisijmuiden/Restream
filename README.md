@@ -2,7 +2,7 @@
 
 Self-hosted stream multiplexer for Debian 13, installed with a single installer script on a bare server. Send one RTMP or SRT stream to the server, press **Go live**, and Restream distributes it to YouTube, Facebook, Twitch, Instagram, Kick, X and your own RTMP/SRT servers, each in its own bitrate and resolution.
 
-> Status: phase 0 (foundation) is done: installer, sign-in with 2FA and Microsoft 365, users, admin console, EN/NL, updates from the UI. Streaming arrives in phase 1. See [docs/ROADMAP.md](docs/ROADMAP.md) (Dutch) and [CHANGELOG.md](CHANGELOG.md).
+> Status: phase 1 (restreaming core) is done on the test channel: RTMP/SRT ingest with stream keys, destinations (YouTube, Facebook, Twitch, custom RTMP/SRT), Go live per stream and per destination with automatic reconnect, and HLS/WebRTC hotlink URLs. Phase 0 brought the installer, sign-in with 2FA and Microsoft 365, users, admin console, EN/NL and updates from the UI. Mail and backups follow in phase 2. See [docs/ROADMAP.md](docs/ROADMAP.md) (Dutch) and [CHANGELOG.md](CHANGELOG.md).
 
 ## Install
 
@@ -14,6 +14,7 @@ curl -fsSL https://raw.githubusercontent.com/rhisijmuiden/restream/main/deploy/i
 ```
 
 - Without `--domain` the server uses its IP address and a self-signed certificate.
+- `--firewall` installs and enables ufw with SSH, web and media ports open. Without it, an active ufw or firewalld only gets the ports added.
 - `--channel test` installs the test channel (`test` branch) instead of production (`main`). To try the test channel before anything is on `main`, fetch the script from the `test` branch as well.
 - At the end the installer prints the sign-in address and a temporary password. At first sign-in you choose your own password and set up two-factor authentication.
 - Running the installer again is safe; it keeps the database, secrets and users.
@@ -25,7 +26,28 @@ Maintenance on the server:
 | `restream-cli reset-password --email <e>` | New temporary password for a user |
 | `restream-cli reset-2fa --email <e>` | User sets up 2FA again at next sign-in |
 | `restream-update [--channel production\|test]` | Update from the shell (same as the Updates page) |
-| `journalctl -u restream -f` | Application log |
+| `journalctl -u restream -f` | Application log (including the FFmpeg outputs) |
+| `journalctl -u restream-media -f` | Media server log (MediaMTX: ingest connections, playback) |
+
+### Ports
+
+| Port | Used for |
+| --- | --- |
+| 80, 443 TCP | Web console, HLS and WebRTC signalling (nginx) |
+| 1935 TCP | RTMP ingest |
+| 8890 UDP | SRT ingest |
+| 8189 UDP and TCP | WebRTC media for viewers and the console preview |
+
+## Streaming
+
+1. **Streams & keys** → **New stream**. You get an RTMP server (`rtmp://<host>/live`), a stream key, and an SRT address (`srt://<host>:8890?streamid=publish:live/<key>`). Only connections with a valid key of an enabled stream are accepted; **New stream key** revokes the old one and disconnects the encoder.
+2. **Destinations** → **Add destination**: YouTube, Facebook (RTMPS), Twitch, or any RTMP(S) or SRT server. Stream keys and SRT passphrases are stored encrypted and never sent back to the browser.
+   - **Passthrough** (default) sends the ingest unchanged: no extra CPU. Set a 2-second keyframe interval in your encoder.
+   - **Transcode** re-encodes for that destination with its own bitrate, resolution (1080p/720p/480p) and frame rate, H.264 + AAC with 2-second keyframes. Roughly 1 to 2 CPU cores per 1080p output.
+3. On the dashboard, **Go live** starts every destination marked "In Go live"; each destination also has its own Go live / Stop. Outputs that drop are restarted with backoff (2 to 30 seconds), and outputs that are live wait for the ingest and start by themselves when it comes back, also after a server restart.
+4. **Hotlink**: each stream has public HLS (`https://<host>/live/<id>/index.m3u8`) and WebRTC/WHEP (`https://<host>/live/<id>/whep`) URLs plus ready-made player pages. The id is separate from the stream key, and playback can be switched off per stream.
+
+How it fits together: MediaMTX receives the ingest and asks Restream (`/api/internal/mediamtx/auth`, local only) whether the key is valid. Each live destination is one FFmpeg process that reads the local RTSP feed from MediaMTX and publishes to the platform. Public playback goes through Restream, which maps the playback id to the stream, so MediaMTX itself only listens on 127.0.0.1 apart from the ingest and WebRTC media ports. Restream v1 supports up to 1080p50; the dashboard warns when the ingest is larger.
 
 ### How updates work
 
@@ -48,13 +70,12 @@ npm run build
 
 Create a first user with `node server/dist/cli.js create-admin --email you@example.com` after a build.
 
+The media engine is off in development. To try streaming locally, run MediaMTX with `deploy/mediamtx/mediamtx.yml` (replace `__PUBLIC_HOST__` with `127.0.0.1`), install FFmpeg, and start the server with `MEDIA_ENABLED=true`.
+
 ## Planned features
 
-- RTMP and SRT ingest, only accepted with a configured stream key
-- Live dashboard with ingest health and preview
-- Destinations via stream key or linked account (OAuth), with per-destination encoding profiles
-- Go live / end broadcast per stream and per destination, with automatic reconnect
-- Hotlink URLs (HLS / WebRTC) and an embeddable player for websites, optionally restricted to allowed domains or tokens
+- Destinations via linked account (OAuth) next to stream keys
+- An embeddable player for websites, optionally restricted to allowed domains or tokens
 - Scheduled live events, registered on the platforms as upcoming broadcasts
 - One-click recording of the broadcast
 - Live viewer counts per platform and a unified chat
@@ -72,8 +93,8 @@ Standard for every release:
 
 | Part | Choice |
 | --- | --- |
-| Ingest (phase 1) | MediaMTX (RTMP + SRT) |
-| Distribution (phase 1) | FFmpeg, one process per destination |
+| Ingest and playback | MediaMTX (RTMP + SRT in, HLS + WebRTC out) |
+| Distribution | FFmpeg, one process per destination, supervised by the Node.js server |
 | Backend | Node.js 22, TypeScript, Fastify, argon2id, otplib, openid-client |
 | Database | PostgreSQL 17 |
 | Jobs & scheduling (phase 3) | Redis + BullMQ |
