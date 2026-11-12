@@ -6,6 +6,7 @@ import { config } from '../config.js';
 import { decrypt, sha256 } from '../lib/crypto.js';
 import { requireAuth } from '../lib/guards.js';
 import { headerHost, hostAllowed, verifyPlaybackToken } from '../lib/playback.js';
+import type { MediaSupervisor } from '../media/supervisor.js';
 
 const loopback = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
 
@@ -50,7 +51,7 @@ export class PlaybackCache {
 
 const hopByHop = new Set(['connection', 'keep-alive', 'transfer-encoding', 'upgrade', 'proxy-connection', 'te', 'trailer', 'content-length', 'server', 'set-cookie', 'location', 'access-control-allow-origin', 'access-control-allow-credentials']);
 
-export async function mediaRoutes(app: FastifyInstance, { sql, playback }: { sql: Sql; playback: PlaybackCache }) {
+export async function mediaRoutes(app: FastifyInstance, { sql, playback, media }: { sql: Sql; playback: PlaybackCache; media?: MediaSupervisor }) {
   /**
    * MediaMTX asks this endpoint before every publish and read (authMethod: http).
    * Publishing needs a valid stream key (the path is live/<key>); reading is only allowed from this machine,
@@ -59,6 +60,8 @@ export async function mediaRoutes(app: FastifyInstance, { sql, playback }: { sql
   app.post('/api/internal/mediamtx/auth', { config: { internal: true } }, async (req, reply) => {
     if (!isLocal(req)) return reply.status(404).send({ error: 'not_found' });
     const b = hookBody.parse(req.body);
+    // Restream's own light preview encoder (FFmpeg on this machine) publishes preview/<key> over RTSP.
+    if (b.action === 'publish' && loopback.has(b.ip) && b.protocol === 'rtsp' && /^preview\/[A-Za-z0-9]{16,64}$/.test(b.path)) return { ok: true };
     if (b.action === 'publish') {
       const m = /^live\/([A-Za-z0-9]{16,64})$/.exec(b.path);
       if (!m || !['rtmp', 'srt'].includes(b.protocol)) return reply.status(401).send({ ok: false });
@@ -117,7 +120,7 @@ export async function mediaRoutes(app: FastifyInstance, { sql, playback }: { sql
     publicHeaders(reply, allowOrigin);
     if (req.method === 'OPTIONS') return reply.status(204).send();
     if (!allowed) return reply.status(403).send({ error: 'playback_restricted' });
-    return forward(req, reply, info.key, `/live/${raw}/`, rest);
+    return forward(req, reply, `live/${info.key}`, `/live/${raw}/`, rest);
   }
 
   const publicHeaders = (reply: FastifyReply, origin: string) => {
@@ -133,7 +136,7 @@ export async function mediaRoutes(app: FastifyInstance, { sql, playback }: { sql
   };
 
   /** Forwards a request to MediaMTX for ingest key `key`; `base` is the public URL prefix that stands for /live/<key>/. */
-  async function forward(req: FastifyRequest, reply: FastifyReply, key: string, base: string, rest: string) {
+  async function forward(req: FastifyRequest, reply: FastifyReply, mtxPath: string, base: string, rest: string) {
     let upstream: string; let prefix: string; let sub: string;
     if (rest === 'webrtc' || rest.startsWith('webrtc/')) {
       upstream = config.media.webrtcUrl; prefix = `${base}webrtc/`; sub = rest.slice('webrtc/'.length);
@@ -144,7 +147,7 @@ export async function mediaRoutes(app: FastifyInstance, { sql, playback }: { sql
     }
     if (rest === 'webrtc') return reply.redirect(`${base}webrtc/`);
     const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
-    const target = `${upstream}/live/${key}/${sub}${qs}`;
+    const target = `${upstream}/${mtxPath}/${sub}${qs}`;
 
     const headers: Record<string, string> = {};
     for (const h of ['content-type', 'if-match', 'accept', 'range']) {
@@ -171,7 +174,7 @@ export async function mediaRoutes(app: FastifyInstance, { sql, playback }: { sql
     reply.status(res.status);
     res.headers.forEach((v, k) => { if (!hopByHop.has(k)) reply.header(k, v); });
     const loc = res.headers.get('location');
-    if (loc) reply.header('location', loc.split(`/live/${key}/`).join(prefix));
+    if (loc) reply.header('location', loc.split(`/${mtxPath}/`).join(prefix));
     const setCookies = res.headers.getSetCookie?.() ?? [];
     if (setCookies.length) reply.header('set-cookie', setCookies);
     if ((res.headers.get('content-type') ?? '').includes('text/html')) {
@@ -193,13 +196,21 @@ export async function mediaRoutes(app: FastifyInstance, { sql, playback }: { sql
     url: '/api/preview/:id/*',
     preHandler: requireAuth('viewer'),
     handler: async (req, reply) => {
-      // "<id>~backup" previews the backup feed.
-      const { id: raw, '*': rest } = z.object({ id: z.string().regex(/^[0-9a-f-]{36}(~backup)?$/), '*': z.string().regex(/^(whep(\/[0-9a-f-]{36})?|[A-Za-z0-9_.-]+\.(m3u8|mp4|m4s)|)$/) }).parse(req.params);
-      const id = z.uuid().parse(raw.replace(/~backup$/, ''));
-      const backup = raw.endsWith('~backup');
+      // "<id>~backup" previews the backup feed; "~lite" is the light WebRTC preview without B-frames (WHEP only).
+      const { id: raw, '*': rest } = z.object({ id: z.string().regex(/^[0-9a-f-]{36}(~backup)?(~lite)?$/), '*': z.string().regex(/^(whep(\/[0-9a-f-]{36})?|[A-Za-z0-9_.-]+\.(m3u8|mp4|m4s)|)$/) }).parse(req.params);
+      const lite = raw.endsWith('~lite');
+      const feed = raw.replace(/~lite$/, '');
+      const id = z.uuid().parse(feed.replace(/~backup$/, ''));
+      const backup = feed.endsWith('~backup');
       const [s] = await sql<{ ingest_key_enc: string; backup_key_enc: string | null }[]>`SELECT ingest_key_enc, backup_key_enc FROM streams WHERE id = ${id}`;
       if (!s || (backup && !s.backup_key_enc)) return reply.status(404).send({ error: 'not_found' });
-      return forward(req, reply, decrypt(backup ? s.backup_key_enc! : s.ingest_key_enc), `/api/preview/${raw}/`, rest);
+      const key = decrypt(backup ? s.backup_key_enc! : s.ingest_key_enc);
+      if (!lite) return forward(req, reply, `live/${key}`, `/api/preview/${raw}/`, rest);
+      if (!rest.startsWith('whep') || !media) return reply.status(404).send({ error: 'not_found' });
+      // A new session starts the encoder (or keeps it running); later requests only need it to exist.
+      const path = req.method === 'POST' ? await media.ensurePreview(key) : `preview/${key}`;
+      if (!path) return reply.status(503).send({ error: 'preview_unavailable' });
+      return forward(req, reply, path, `/api/preview/${raw}/`, rest);
     },
   });
 

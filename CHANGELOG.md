@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.2 · Real-time preview with sound, whatever the encoder sends
+
+- **Light preview**: when someone watches the dashboard preview, the server encodes a light copy of the feed (up to 540p, 30 fps, no B-frames, Opus sound) and plays it over WebRTC, so the preview is real time and has sound with any encoder settings. It runs only while the preview is open (stops 20 seconds after the last viewer) and costs about a third to half of a CPU core. The destinations still get the original feed.
+- Order of the preview: WebRTC of the feed itself when it already has no B-frames and no AAC sound, otherwise the light preview, and LL-HLS as the last resort (blocked UDP).
+
 ## 1.3.1 · Fixes from the first real install: preview, caching, DNS check
 
 - API answers now carry `Cache-Control: private, no-store`, so a browser or a CDN never shows an old stream status.

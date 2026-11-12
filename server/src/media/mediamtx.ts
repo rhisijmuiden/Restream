@@ -43,3 +43,6 @@ export async function kickPublisher(p: MtxPath): Promise<void> {
 
 /** Ingest path for a stream key. The key is the path, as with Twitch/YouTube style ingest. */
 export const ingestPath = (key: string) => `live/${key}`;
+
+/** Path of the light console preview of a feed (published by Restream's own FFmpeg, see previewArgs). */
+export const previewPath = (key: string) => `preview/${key}`;

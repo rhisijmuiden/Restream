@@ -160,7 +160,7 @@ function StreamControl({ stream, canOperate, sys }: { stream: Stream; canOperate
                   <span className="text-sm">{t('dashboard.previewEmpty')}</span>
                 </div>
               )}
-              <WhepPlayer url={`/api/preview/${stream.id}${onBackup ? '~backup' : ''}/whep`} active={st.online} sessionKey={`${onBackup ? 'b' : 'm'}${st.since ?? ''}`} />
+              <WhepPlayer url={`/api/preview/${stream.id}${onBackup ? '~backup' : ''}/whep`} active={st.online} sessionKey={`${onBackup ? 'b' : 'm'}${st.since ?? ''}`} audioCodec={st.audio?.codec ?? null} />
               <div className="pointer-events-none absolute top-4 left-4 flex items-center gap-2">
                 {onAir && <span className="rounded-md bg-live px-2 py-0.5 font-mono text-[11px] font-semibold tracking-wider text-white">{t('dashboard.onAir')}</span>}
                 <span className="rounded-md bg-bg/60 px-2 py-0.5 font-mono text-xs text-fg-2 backdrop-blur">{clock(sinceSeconds(st.since, now))}</span>

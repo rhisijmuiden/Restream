@@ -117,7 +117,7 @@ export async function buildApp(sql: Sql, opts: { logger?: boolean; background?: 
   const live = new LiveMonitor(sql, app.log, media);
   app.decorate('live', live);
   await app.register(streamRoutes, { sql, media, playback, provisioner });
-  await app.register(mediaRoutes, { sql, playback });
+  await app.register(mediaRoutes, { sql, playback, media });
   await app.register(embedRoutes, { sql, playback });
   await app.register(recordingRoutes, { sql, media });
   await app.register(accountRoutes, { sql });
