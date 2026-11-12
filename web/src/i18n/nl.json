@@ -1,0 +1,123 @@
+{
+  "app": { "tagline": "Multiplex-console", "loading": "Laden…" },
+  "nav": {
+    "broadcast": "Uitzending", "administration": "Beheer",
+    "dashboard": "Dashboard", "streams": "Streams & keys", "destinations": "Bestemmingen", "events": "Evenementen",
+    "recordings": "Opnames", "analytics": "Statistieken", "chat": "Chat",
+    "users": "Gebruikers & 2FA", "mail": "Mailserver", "backups": "Back-ups", "updates": "Updates", "settings": "Instellingen", "audit": "Auditlog",
+    "account": "Mijn account", "signOut": "Afmelden", "info": "Info", "menu": "Menu", "close": "Menu sluiten", "soon": "Binnenkort"
+  },
+  "channel": { "label": "Releasekanaal", "production": "Productie", "test": "Test" },
+  "lang": { "switch": "Taal wisselen", "en": "English", "nl": "Nederlands" },
+  "roles": { "admin": "Beheerder", "operator": "Operator", "viewer": "Kijker" },
+  "common": {
+    "save": "Opslaan", "saved": "Opgeslagen", "cancel": "Annuleren", "close": "Sluiten", "delete": "Verwijderen", "confirm": "Bevestigen",
+    "copy": "Kopiëren", "copied": "Gekopieerd", "yes": "Ja", "no": "Nee", "never": "Nooit", "optional": "optioneel",
+    "email": "E-mail", "name": "Naam", "role": "Rol", "status": "Status", "actions": "Acties", "enabled": "Aan", "disabled": "Uit",
+    "back": "Terug", "continue": "Doorgaan", "download": "Downloaden", "unknown": "Onbekend"
+  },
+  "login": {
+    "eyebrow": "Eén signaal · elk platform",
+    "hero": "Stuur één stream.\nOveral live.",
+    "heroText": "Ontvang via SRT of RTMP en verdeel naar YouTube, Facebook, Twitch en je eigen servers, elk in de juiste bitrate.",
+    "title": "Inloggen", "subtitle": "Toegang tot de {{name}}-console",
+    "password": "Wachtwoord", "submit": "Inloggen", "or": "of", "microsoft": "Inloggen met Microsoft",
+    "forgot": "Wachtwoord vergeten? Vraag een beheerder om het te resetten.",
+    "mfaTitle": "Tweestapscode", "mfaText": "Vul de 6-cijferige code uit je authenticator-app in, of een van je herstelcodes.",
+    "mfaCode": "Code", "verify": "Controleren", "startOver": "Ander account gebruiken"
+  },
+  "setup2fa": {
+    "title": "Tweestapsverificatie instellen",
+    "text": "Tweestapsverificatie is verplicht. Scan deze QR-code met een authenticator-app zoals Microsoft Authenticator, Google Authenticator, 1Password of Bitwarden.",
+    "manual": "Lukt scannen niet? Vul deze sleutel handmatig in:",
+    "code": "Code uit de app", "confirm": "2FA activeren",
+    "codesTitle": "Bewaar je herstelcodes",
+    "codesText": "Elke code werkt één keer als je je authenticator-app kwijt bent. Bewaar ze op een veilige plek; ze worden niet opnieuw getoond.",
+    "codesDone": "Ik heb ze bewaard"
+  },
+  "changePassword": {
+    "title": "Kies een nieuw wachtwoord", "forced": "Je beheerder heeft een tijdelijk wachtwoord ingesteld. Kies je eigen wachtwoord om verder te gaan.",
+    "current": "Huidig wachtwoord", "new": "Nieuw wachtwoord", "repeat": "Herhaal nieuw wachtwoord", "hint": "Minstens 12 tekens. Een korte zin werkt goed.",
+    "mismatch": "De wachtwoorden komen niet overeen.", "submit": "Wachtwoord wijzigen", "done": "Wachtwoord gewijzigd. Andere sessies zijn afgemeld."
+  },
+  "dashboard": {
+    "eyebrow": "Stream · hoofdingest", "title": "Live-regie",
+    "goLive": "Ga live", "record": "Opnemen", "noIngest": "Geen ingest",
+    "welcome": "Welkom, {{name}}",
+    "phaseTitle": "Het fundament staat",
+    "phaseText": "Inloggen, gebruikers, 2FA, talen en updates werken. Ingest, bestemmingen en Ga live komen in de volgende release (fase 1).",
+    "preview": "Programmavoorbeeld", "previewEmpty": "Wacht op een binnenkomende SRT- of RTMP-stream",
+    "destinations": "Bestemmingen", "destinationsEmpty": "Nog geen bestemmingen",
+    "viewers": "Totaal live kijkers", "chat": "Gecombineerde chat", "nextEvent": "Volgend gepland evenement", "nothingScheduled": "Niets gepland",
+    "system": "Systeem", "version": "Versie", "channel": "Kanaal", "uptime": "Uptime", "users": "Gebruikers"
+  },
+  "soon": {
+    "title": "Komt in fase {{phase}}", "text": "Dit deel van Restream staat op de planning en verschijnt hier na een update.",
+    "roadmap": "Bekijk de roadmap"
+  },
+  "users": {
+    "title": "Gebruikers & 2FA", "subtitle": "Iedereen logt in met een eigen account. Alle gebruikers delen dezelfde streams en instellingen.",
+    "add": "Gebruiker toevoegen", "addTitle": "Nieuwe gebruiker", "passwordHint": "Laat leeg voor een tijdelijk wachtwoord. De gebruiker moet het bij de eerste keer inloggen wijzigen.",
+    "tempPassword": "Tijdelijk wachtwoord", "tempPasswordText": "Geef dit wachtwoord aan {{email}}. Het wordt maar één keer getoond.",
+    "twofa": "2FA", "lastLogin": "Laatst ingelogd", "source": "Inloggen", "local": "Wachtwoord + 2FA", "microsoft": "Microsoft 365",
+    "you": "jij", "locked": "Geblokkeerd", "on": "Aan", "off": "Niet ingesteld",
+    "resetPassword": "Wachtwoord resetten", "reset2fa": "2FA resetten", "disable": "Uitschakelen", "enable": "Inschakelen",
+    "confirmDelete": "{{email}} verwijderen? Dit kan niet ongedaan worden gemaakt.",
+    "confirmReset2fa": "2FA resetten voor {{email}}? Diegene stelt het bij de volgende keer inloggen opnieuw in.",
+    "editRole": "Rol wijzigen"
+  },
+  "account": {
+    "title": "Mijn account", "profile": "Profiel", "language": "Taal", "password": "Wachtwoord",
+    "twofa": "Tweestapsverificatie", "twofaOn": "Actief. Nog {{n}} herstelcodes over.",
+    "newCodes": "Nieuwe herstelcodes", "newCodesText": "Vul een actuele code uit je app in om nieuwe herstelcodes te maken. De oude codes werken dan niet meer.",
+    "reenrol": "Naar een nieuw toestel", "sessions": "Actieve sessies", "current": "Deze browser", "revoke": "Afmelden",
+    "ssoManaged": "Je account wordt beheerd door Microsoft 365. Wachtwoord en 2FA regel je daar."
+  },
+  "settings": {
+    "title": "Instellingen", "general": "Algemeen", "instanceName": "Naam van deze installatie", "defaultLanguage": "Standaardtaal",
+    "publicUrl": "Publieke URL", "publicUrlHint": "Het adres dat gebruikers openen, bijv. https://restream.voorbeeld.nl. Nodig voor inloggen met Microsoft.",
+    "githubToken": "GitHub-token", "githubTokenHint": "Alleen nodig als de repository privé is. Laat leeg om de huidige waarde te houden.",
+    "tokenSet": "Er is een token opgeslagen.", "clearToken": "Token verwijderen",
+    "sso": "Inloggen met Microsoft 365", "ssoText": "Laat technici inloggen met hun Microsoft 365-werkaccount (Entra ID). Microsoft regelt dan de meervoudige verificatie.",
+    "ssoEnabled": "Inloggen met Microsoft toestaan", "tenantId": "Tenant-ID", "clientId": "Toepassings-ID (client)",
+    "clientSecret": "Clientgeheim", "secretSet": "Er is een geheim opgeslagen. Laat leeg om het te houden.",
+    "allowedGroup": "Toegestane groep (object-ID)", "allowedGroupHint": "Optioneel. Alleen leden van deze Entra-groep mogen inloggen. Vereist de groups-claim in de app-registratie.",
+    "autoProvision": "Accounts automatisch aanmaken bij eerste keer inloggen", "defaultRole": "Rol voor nieuwe accounts",
+    "redirectUri": "Omleidings-URI voor de app-registratie",
+    "ssoHelp": "In Entra ID: App-registraties → Nieuwe registratie → Web → plak de omleidings-URI hieronder. Maak een clientgeheim aan onder Certificaten en geheimen."
+  },
+  "updates": {
+    "title": "Updates", "subtitle": "Restream werkt zichzelf bij vanaf GitHub. Productie volgt de main-branch, test volgt de test-branch.",
+    "current": "Geïnstalleerd", "check": "Controleren op updates", "checking": "Controleren…", "checkedAt": "Gecontroleerd {{time}}",
+    "upToDate": "Je hebt de nieuwste versie.", "available": "Er is een update beschikbaar op het kanaal {{channel}}.",
+    "install": "Update installeren", "switchTo": "Overstappen naar {{channel}}",
+    "switchText": "Overstappen installeert de nieuwste build van dat kanaal. Testbuilds kunnen onafgemaakte functies bevatten.",
+    "confirmInstall": "Nu de nieuwste {{channel}}-build installeren? Restream herstart een paar seconden; live streams worden onderbroken.",
+    "latest": "Nieuwste op {{channel}}", "commit": "Commit", "published": "Gepubliceerd",
+    "progress": "Voortgang update", "log": "Log van de updater",
+    "state_idle": "Er loopt geen update", "state_queued": "Wachten op de updater…", "state_running": "Bezig met bijwerken…",
+    "state_success": "Update voltooid", "state_failed": "Update mislukt", "state_rolled_back": "Update mislukt, vorige versie teruggezet",
+    "unavailable": "De updater is niet geïnstalleerd op deze server (ontwikkelmodus). Gebruik de installer op Debian 13.",
+    "reloading": "Restream is herstart. Opnieuw laden…"
+  },
+  "audit": { "title": "Auditlog", "subtitle": "De laatste 200 beveiligings- en configuratiegebeurtenissen.", "when": "Wanneer", "who": "Wie", "action": "Gebeurtenis", "ip": "IP" },
+  "info": {
+    "title": "Over Restream", "version": "Versie", "channel": "Kanaal", "commit": "Commit", "built": "Gebouwd",
+    "server": "Server", "uptime": "Uptime", "checkUpdates": "Controleren op updates", "openUpdates": "Naar updates", "license": "Vrije software onder GPL-3.0"
+  },
+  "comingSoon": "Binnenkort",
+  "errors": {
+    "invalid_credentials": "E-mail of wachtwoord klopt niet.", "account_locked": "Te veel pogingen. Probeer het over 15 minuten opnieuw.",
+    "account_disabled": "Dit account is uitgeschakeld.", "invalid_code": "Die code is niet geldig.", "unauthenticated": "Je sessie is verlopen. Log opnieuw in.",
+    "forbidden": "Je hebt hier geen rechten voor.", "password_too_short": "Gebruik minstens 12 tekens.",
+    "invalid_current_password": "Je huidige wachtwoord klopt niet.", "email_taken": "Er bestaat al een gebruiker met dit e-mailadres.",
+    "last_admin": "Er moet minstens één actieve beheerder zijn.", "cannot_delete_self": "Je kunt je eigen account niet verwijderen.",
+    "cannot_demote_self": "Je kunt je eigen beheerdersrol niet weghalen of jezelf uitschakelen.",
+    "updater_unavailable": "De updater is niet beschikbaar op deze server.", "update_in_progress": "Er loopt al een update.",
+    "sso_not_configured": "Inloggen met Microsoft is niet ingesteld.", "sso_failed": "Inloggen met Microsoft is mislukt. Probeer opnieuw of gebruik je wachtwoord.",
+    "sso_not_allowed": "Je Microsoft-account zit niet in de toegestane groep.", "sso_no_account": "Er is geen Restream-account voor deze Microsoft-gebruiker.",
+    "validation": "Controleer de gemarkeerde velden.", "too_many_requests": "Te veel pogingen. Wacht een minuut.",
+    "generic": "Er ging iets mis. Probeer het opnieuw."
+  },
+  "time": { "seconds": "{{n}}s", "minutes": "{{n}}m", "hours": "{{n}}u {{m}}m", "days": "{{n}}d {{h}}u" }
+}
