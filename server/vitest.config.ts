@@ -17,6 +17,7 @@ export default defineConfig({
       WEB_DIST: path.join(tmp, 'no-web'),
       DATA_DIR: path.join(tmp, 'data'),
       ENV_FILE: path.join(tmp, 'restream.env'),
+      WEBHOOKS_ALLOW_LOOPBACK: 'true',
     },
   },
 });

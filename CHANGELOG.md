@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.3.0 · Phase 5: more platforms, backup feed with failover, API and webhooks
+
+- **Instagram, Kick, X and LinkedIn** as destinations, each with a preset checked against the platform's own guidance (November 2026): Instagram 720×1280 portrait at 30 fps, up to 6 Mbps, 44.1 kHz audio; Kick up to 1080p60 and 8 Mbps (RTMPS); X 720p30 up to 4 Mbps with 3-second keyframes; LinkedIn up to 1080p30 and 6 Mbps. The form fills in mode, bitrate, resolution and frame rate from the preset, limits the choices to what the platform accepts and explains where to find the server URL and key (Instagram, X and LinkedIn give a new one per broadcast; LinkedIn Live needs LinkedIn's approval).
+- **Portrait output**: per transcoded destination, "Portrait 9:16" cuts the middle of the picture out for platforms that show vertical video.
+- Transcoding now uses a constant bitrate (`nal-hrd=cbr`, Kick requires it) and the keyframe interval and audio sample rate of the platform.
+- **Backup feed**: a second stream key per stream for a backup encoder or a second line. When the main feed drops, live destinations switch to the backup feed by themselves and switch back once the main feed has been stable for a set time (default 10 s). Recordings follow the feed that is on air. The dashboard shows which feed is on air and previews the backup feed while it is used.
+- **Fallback image**: when no feed comes in while destinations are live, they show the standard "We'll be right back / We zijn zo terug" image or your own PNG/JPEG with silence, for at most a set time (default 30 minutes), so the platforms keep the broadcast open. Uploaded images are stored in `DATA_DIR/assets` and included in backups.
+- The "stream lost its ingest" notification says whether the backup feed or the fallback image took over.
+- **API keys** (Administration › API & webhooks): `Authorization: Bearer rsk_…`, with a role (never more than the role of the person who made it), optional expiry, last use, and revocation. Keys cannot sign in, manage users or keys, or restore backups; their changes are in the audit log with the key's name. Only a fingerprint is stored.
+- **Webhooks**: signed JSON (`X-Restream-Signature: t=…,v1=<HMAC-SHA256>`) for stream ingest, feed switches, outputs, broadcasts (with viewer figures), recordings, events and backups. Per webhook all events or a selection, a test button, a 14-day delivery log with payloads, redelivery, and retries after 30 s, 2 min, 10 min, 30 min, 2 h and 6 h. Webhooks never call this server itself or link-local addresses, also not through DNS.
+- API reference with examples in [docs/API.md](docs/API.md).
+
 ## 1.2.1 · Fix: media server did not start on a fresh install
 
 - MediaMTX could not open its config: it ran as the `mediamtx` user but the file was in `/etc/restream`, which only root and `restream` may enter. The config now lives in `/etc/restream-media` (root:mediamtx, 0750), so `/etc/restream` stays closed for secrets. Updating, or **Repair media server** in the console, moves it on existing servers.

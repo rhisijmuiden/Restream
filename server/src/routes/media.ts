@@ -62,12 +62,15 @@ export async function mediaRoutes(app: FastifyInstance, { sql, playback }: { sql
     if (b.action === 'publish') {
       const m = /^live\/([A-Za-z0-9]{16,64})$/.exec(b.path);
       if (!m || !['rtmp', 'srt'].includes(b.protocol)) return reply.status(401).send({ ok: false });
-      const [s] = await sql<{ id: string; enabled: boolean }[]>`SELECT id, enabled FROM streams WHERE ingest_key_hash = ${sha256(m[1])}`;
+      // The main key or the backup key of a stream.
+      const h = sha256(m[1]);
+      const [s] = await sql<{ id: string; enabled: boolean; backup: boolean }[]>`
+        SELECT id, enabled, backup_key_hash = ${h} AS backup FROM streams WHERE ingest_key_hash = ${h} OR backup_key_hash = ${h}`;
       if (!s || !s.enabled) {
         req.log.info({ ip: b.ip, protocol: b.protocol }, 'ingest refused: unknown or disabled stream key');
         return reply.status(401).send({ ok: false });
       }
-      req.log.info({ stream: s.id, ip: b.ip, protocol: b.protocol }, 'ingest accepted');
+      req.log.info({ stream: s.id, ip: b.ip, protocol: b.protocol, feed: s.backup ? 'backup' : 'main' }, 'ingest accepted');
       return { ok: true };
     }
     if (b.action === 'read' && loopback.has(b.ip)) return { ok: true };
@@ -190,10 +193,13 @@ export async function mediaRoutes(app: FastifyInstance, { sql, playback }: { sql
     url: '/api/preview/:id/*',
     preHandler: requireAuth('viewer'),
     handler: async (req, reply) => {
-      const { id, '*': rest } = z.object({ id: z.uuid(), '*': z.string().regex(/^(whep(\/[0-9a-f-]{36})?|[A-Za-z0-9_.-]+\.(m3u8|mp4|m4s)|)$/) }).parse(req.params);
-      const [s] = await sql<{ ingest_key_enc: string }[]>`SELECT ingest_key_enc FROM streams WHERE id = ${id}`;
-      if (!s) return reply.status(404).send({ error: 'not_found' });
-      return forward(req, reply, decrypt(s.ingest_key_enc), `/api/preview/${id}/`, rest);
+      // "<id>~backup" previews the backup feed.
+      const { id: raw, '*': rest } = z.object({ id: z.string().regex(/^[0-9a-f-]{36}(~backup)?$/), '*': z.string().regex(/^(whep(\/[0-9a-f-]{36})?|[A-Za-z0-9_.-]+\.(m3u8|mp4|m4s)|)$/) }).parse(req.params);
+      const id = z.uuid().parse(raw.replace(/~backup$/, ''));
+      const backup = raw.endsWith('~backup');
+      const [s] = await sql<{ ingest_key_enc: string; backup_key_enc: string | null }[]>`SELECT ingest_key_enc, backup_key_enc FROM streams WHERE id = ${id}`;
+      if (!s || (backup && !s.backup_key_enc)) return reply.status(404).send({ error: 'not_found' });
+      return forward(req, reply, decrypt(backup ? s.backup_key_enc! : s.ingest_key_enc), `/api/preview/${raw}/`, rest);
     },
   });
 

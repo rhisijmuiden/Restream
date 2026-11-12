@@ -8,7 +8,10 @@ import { decrypt, encrypt, sha256 } from '../lib/crypto.js';
 import { audit } from '../lib/audit.js';
 import { getSettings } from '../lib/settings.js';
 import { ingestPath, kickPublisher, listPaths } from '../media/mediamtx.js';
-import { platforms, presets, serverUrlProblem, unsafeSrtValue, type Platform } from '../media/platforms.js';
+import { accountPlatforms, platforms, presets, serverUrlProblem, unsafeSrtValue, type Platform } from '../media/platforms.js';
+import { fallbackDir, fallbackImagePath, imageType } from '../lib/fallback.js';
+import { mkdir, rm, readFile, writeFile, rename } from 'node:fs/promises';
+import path from 'node:path';
 import type { MediaSupervisor } from '../media/supervisor.js';
 import type { PlaybackCache } from './media.js';
 import type { Provisioner } from '../platforms/provisioner.js';
@@ -33,11 +36,12 @@ const idParam = z.object({ id: z.uuid() });
 interface StreamRow {
   id: string; name: string; ingest_key_enc: string; playback_id: string; playback_enabled: boolean; enabled: boolean; created_at: Date;
   allowed_domains: string[]; require_token: boolean; token_secret: string; record: boolean; auto_record: boolean; title: string; description: string;
+  backup_key_enc: string | null; fallback_mode: 'off' | 'standard' | 'image'; fallback_image: string | null; fallback_minutes: number; switch_back_seconds: number;
 }
 interface DestRow {
   id: string; stream_id: string; name: string; platform: Platform; server_url: string; stream_key_enc: string; passphrase_enc: string;
   enabled: boolean; mode: 'copy' | 'transcode'; video_bitrate: number; audio_bitrate: number; max_height: number; fps: number | null;
-  live: boolean; live_since: Date | null; position: number;
+  live: boolean; live_since: Date | null; position: number; orientation: 'landscape' | 'portrait';
   auth: 'key' | 'account'; account_id: string | null; privacy: 'public' | 'unlisted' | 'private'; watch_url: string | null; prepare_error: string | null;
 }
 interface AccountRow { id: string; provider: string; name: string; image_url: string; status: string }
@@ -62,6 +66,8 @@ const destinationBody = z.object({
   audioBitrate: z.number().int().min(64).max(320).default(160),
   maxHeight: z.union([z.literal(480), z.literal(720), z.literal(1080)]).default(1080),
   fps: z.union([z.literal(25), z.literal(30), z.literal(50), z.literal(60), z.null()]).default(null),
+  /** Portrait crops the middle 9:16 (Instagram); only applies when transcoding. */
+  orientation: z.enum(['landscape', 'portrait']).default('landscape'),
   /** 'account': the ingest comes from a connected YouTube/Facebook/Twitch account instead of a typed stream key. */
   auth: z.enum(['key', 'account']).default('key'),
   accountId: z.uuid().nullable().default(null),
@@ -95,6 +101,7 @@ export async function streamRoutes(app: FastifyInstance, { sql, media, playback,
       mediamtxOnline: media.mediamtxOnline,
       streams: streams.map((s) => {
         const key = canSeeKeys ? decrypt(s.ingest_key_enc) : null;
+        const bkey = canSeeKeys && s.backup_key_enc ? decrypt(s.backup_key_enc) : null;
         const rtmpServer = `rtmp://${host}${rtmpPort === 1935 ? '' : `:${rtmpPort}`}/live`;
         return {
           id: s.id,
@@ -116,6 +123,19 @@ export async function streamRoutes(app: FastifyInstance, { sql, media, playback,
             rtmpUrl: key ? `${rtmpServer}/${key}` : null,
             srtUrl: key ? `srt://${host}:${srtPort}?streamid=publish:${ingestPath(key)}` : null,
           },
+          backupIngest: {
+            configured: !!s.backup_key_enc,
+            streamKey: bkey,
+            rtmpUrl: bkey ? `${rtmpServer}/${bkey}` : null,
+            srtUrl: bkey ? `srt://${host}:${srtPort}?streamid=publish:${ingestPath(bkey)}` : null,
+          },
+          fallback: {
+            mode: s.fallback_mode,
+            imageSet: !!s.fallback_image,
+            minutes: s.fallback_minutes,
+            switchBackSeconds: s.switch_back_seconds,
+          },
+          source: { ...media.sourceState(s.id), backupConfigured: !!s.backup_key_enc },
           playback: {
             hls: `${base}/live/${s.playback_id}/index.m3u8`,
             whep: `${base}/live/${s.playback_id}/whep`,
@@ -137,6 +157,7 @@ export async function streamRoutes(app: FastifyInstance, { sql, media, playback,
             audioBitrate: d.audio_bitrate,
             maxHeight: d.max_height,
             fps: d.fps,
+            orientation: d.orientation,
             live: d.live,
             liveSince: d.live_since,
             auth: d.auth,
@@ -193,8 +214,12 @@ export async function streamRoutes(app: FastifyInstance, { sql, media, playback,
       autoRecord: z.boolean().optional(),
       title: z.string().trim().max(100).optional(),
       description: z.string().trim().max(5000).optional(),
+      fallbackMode: z.enum(['off', 'standard', 'image']).optional(),
+      fallbackMinutes: z.number().int().min(1).max(720).optional(),
+      switchBackSeconds: z.number().int().min(0).max(600).optional(),
     }).parse(req.body);
     const s = await getStream(id);
+    if (body.fallbackMode === 'image' && !s.fallback_image) throw new HttpError(400, 'fallback_image_missing');
     let domains: string[] | null = null;
     if (body.allowedDomains) {
       const bad = body.allowedDomains.filter((d) => d.trim() && !normaliseDomain(d));
@@ -209,9 +234,15 @@ export async function streamRoutes(app: FastifyInstance, { sql, media, playback,
              auto_record = COALESCE(${body.autoRecord ?? null}, auto_record),
              title = COALESCE(${body.title ?? null}, title),
              description = COALESCE(${body.description ?? null}, description),
+             fallback_mode = COALESCE(${body.fallbackMode ?? null}, fallback_mode),
+             fallback_minutes = COALESCE(${body.fallbackMinutes ?? null}, fallback_minutes),
+             switch_back_seconds = COALESCE(${body.switchBackSeconds ?? null}, switch_back_seconds),
              updated_at = now()
       WHERE id = ${id}`;
-    if (body.enabled === false) await kick(decrypt(s.ingest_key_enc));
+    if (body.enabled === false) {
+      await kick(decrypt(s.ingest_key_enc));
+      if (s.backup_key_enc) await kick(decrypt(s.backup_key_enc));
+    }
     playback.clear();
     await audit(sql, req, 'stream.updated', { id, ...body, description: undefined });
     nudge();
@@ -268,11 +299,77 @@ export async function streamRoutes(app: FastifyInstance, { sql, media, playback,
     return { ok: true };
   });
 
+  /** Creates (or replaces) the backup ingest key; `enabled: false` removes it and disconnects the backup encoder. */
+  app.post('/api/streams/:id/backup-key', operator, async (req) => {
+    const { id } = idParam.parse(req.params);
+    const { enabled } = z.object({ enabled: z.boolean() }).parse(req.body);
+    const s = await getStream(id);
+    if (enabled) {
+      const key = newIngestKey();
+      await sql`UPDATE streams SET backup_key_hash = ${sha256(key)}, backup_key_enc = ${encrypt(key)}, updated_at = now() WHERE id = ${id}`;
+    } else {
+      await sql`UPDATE streams SET backup_key_hash = NULL, backup_key_enc = NULL, updated_at = now() WHERE id = ${id}`;
+    }
+    if (s.backup_key_enc) await kick(decrypt(s.backup_key_enc));
+    await audit(sql, req, enabled ? (s.backup_key_enc ? 'stream.backup_key_rotated' : 'stream.backup_key_created') : 'stream.backup_key_removed', { id });
+    nudge();
+    return { ok: true };
+  });
+
+  // Fallback image: PNG or JPEG, sent as the raw request body.
+  for (const type of ['image/png', 'image/jpeg']) {
+    app.addContentTypeParser(type, { parseAs: 'buffer', bodyLimit: 8 * 1024 * 1024 }, (_req, body, done) => done(null, body));
+  }
+
+  app.put('/api/streams/:id/fallback-image', operator, async (req) => {
+    const { id } = idParam.parse(req.params);
+    const s = await getStream(id);
+    const buf = Buffer.isBuffer(req.body) ? req.body : null;
+    const ext = buf ? imageType(buf) : null;
+    if (!buf || !ext) throw new HttpError(400, 'invalid_image');
+    const dir = fallbackDir();
+    await mkdir(dir, { recursive: true });
+    // A new name per upload, so a running fallback output notices the change and restarts with the new image.
+    const file = `${id}-${Date.now().toString(36)}.${ext}`;
+    await writeFile(path.join(dir, `${file}.tmp`), buf);
+    await rename(path.join(dir, `${file}.tmp`), path.join(dir, file));
+    await sql`UPDATE streams SET fallback_image = ${file}, fallback_mode = 'image', updated_at = now() WHERE id = ${id}`;
+    if (s.fallback_image) await rm(path.join(dir, s.fallback_image), { force: true });
+    await audit(sql, req, 'stream.fallback_image_uploaded', { id, bytes: buf.length });
+    nudge();
+    return { ok: true };
+  });
+
+  app.delete('/api/streams/:id/fallback-image', operator, async (req) => {
+    const { id } = idParam.parse(req.params);
+    const s = await getStream(id);
+    await sql`
+      UPDATE streams SET fallback_image = NULL, fallback_mode = CASE WHEN fallback_mode = 'image' THEN 'standard' ELSE fallback_mode END,
+             updated_at = now()
+      WHERE id = ${id}`;
+    if (s.fallback_image) await rm(path.join(fallbackDir(), s.fallback_image), { force: true });
+    await audit(sql, req, 'stream.fallback_image_removed', { id });
+    nudge();
+    return { ok: true };
+  });
+
+  /** The uploaded fallback image, or the standard one, for the preview in the console. */
+  app.get('/api/streams/:id/fallback-image', viewer, async (req, reply) => {
+    const { id } = idParam.parse(req.params);
+    const s = await getStream(id);
+    const file = fallbackImagePath(s.fallback_image ? 'image' : 'standard', s.fallback_image);
+    if (!file) return reply.status(404).send({ error: 'not_found' });
+    reply.header('cache-control', 'private, max-age=60');
+    return reply.type(file.endsWith('.png') ? 'image/png' : 'image/jpeg').send(await readFile(file));
+  });
+
   app.delete('/api/streams/:id', admin, async (req) => {
     const { id } = idParam.parse(req.params);
     const s = await getStream(id);
     await sql`DELETE FROM streams WHERE id = ${id}`;
     await kick(decrypt(s.ingest_key_enc));
+    if (s.backup_key_enc) await kick(decrypt(s.backup_key_enc));
+    if (s.fallback_image) await rm(path.join(fallbackDir(), s.fallback_image), { force: true });
     await audit(sql, req, 'stream.deleted', { id, name: s.name });
     nudge();
     return { ok: true };
@@ -298,7 +395,7 @@ export async function streamRoutes(app: FastifyInstance, { sql, media, playback,
     if (problem) throw new HttpError(400, problem);
     if (platform === 'srt' && [body.streamKey, body.passphrase].some((v) => v && unsafeSrtValue.test(v))) throw new HttpError(400, 'invalid_srt_value');
     if (body.auth === 'account') {
-      if (!['youtube', 'facebook', 'twitch'].includes(platform)) throw new HttpError(400, 'account_not_supported');
+      if (!(accountPlatforms as readonly string[]).includes(platform)) throw new HttpError(400, 'account_not_supported');
       if (!body.accountId) throw new HttpError(400, 'account_required');
       const [a] = await sql<{ provider: string }[]>`SELECT provider FROM platform_accounts WHERE id = ${body.accountId}`;
       if (!a || a.provider !== platform) throw new HttpError(400, 'account_required');
@@ -316,11 +413,11 @@ export async function streamRoutes(app: FastifyInstance, { sql, media, playback,
     if (n >= 20) throw new HttpError(400, 'too_many_destinations');
     const [d] = await sql<{ id: string }[]>`
       INSERT INTO destinations (stream_id, name, platform, server_url, stream_key_enc, passphrase_enc, enabled, mode,
-                                video_bitrate, audio_bitrate, max_height, fps, position, auth, account_id, privacy)
+                                video_bitrate, audio_bitrate, max_height, fps, position, auth, account_id, privacy, orientation)
       VALUES (${id}, ${body.name}, ${body.platform}, ${serverUrl}, ${body.streamKey ? encrypt(body.streamKey) : ''},
               ${body.passphrase ? encrypt(body.passphrase) : ''}, ${body.enabled}, ${body.mode},
               ${body.videoBitrate}, ${body.audioBitrate}, ${body.maxHeight}, ${body.fps}, ${n},
-              ${body.auth}, ${body.auth === 'account' ? body.accountId : null}, ${body.privacy})
+              ${body.auth}, ${body.auth === 'account' ? body.accountId : null}, ${body.privacy}, ${body.orientation})
       RETURNING id`;
     await audit(sql, req, 'destination.created', { id: d.id, stream: id, platform: body.platform, name: body.name });
     return { id: d.id };
@@ -348,7 +445,7 @@ export async function streamRoutes(app: FastifyInstance, { sql, media, playback,
       UPDATE destinations SET name = ${body.name}, server_url = ${serverUrl}, stream_key_enc = ${keyEnc}, passphrase_enc = ${passEnc},
              enabled = ${body.enabled}, mode = ${body.mode}, video_bitrate = ${body.videoBitrate}, audio_bitrate = ${body.audioBitrate},
              max_height = ${body.maxHeight}, fps = ${body.fps}, auth = ${body.auth},
-             account_id = ${body.auth === 'account' ? body.accountId : null}, privacy = ${body.privacy},
+             account_id = ${body.auth === 'account' ? body.accountId : null}, privacy = ${body.privacy}, orientation = ${body.orientation},
              remote_stream_id = CASE WHEN ${reset} THEN NULL ELSE remote_stream_id END,
              updated_at = now()
       WHERE id = ${id}`;

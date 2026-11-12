@@ -18,6 +18,7 @@ import { Recordings } from './pages/Recordings';
 import { Users } from './pages/Users';
 import { Account } from './pages/Account';
 import { Settings } from './pages/Settings';
+import { Integrations } from './pages/Integrations';
 import { Updates } from './pages/Updates';
 import { Audit } from './pages/Audit';
 import { Mail } from './pages/Mail';
@@ -86,6 +87,7 @@ export function App() {
         <Route path="admin/mail" element={admin(<Mail />)} />
         <Route path="admin/backups" element={admin(<Backups />)} />
         <Route path="admin/updates" element={admin(<Updates />)} />
+        <Route path="admin/integrations" element={admin(<Integrations />)} />
         <Route path="admin/settings" element={admin(<Settings />)} />
         <Route path="admin/audit" element={admin(<Audit />)} />
       </Route>

@@ -14,6 +14,10 @@ export const platformMeta: Record<Platform, { short: string; color: string; labe
   youtube: { short: 'YT', color: 'var(--rs-youtube)', label: 'YouTube' },
   facebook: { short: 'FB', color: 'var(--rs-facebook)', label: 'Facebook' },
   twitch: { short: 'TW', color: 'var(--rs-twitch)', label: 'Twitch' },
+  instagram: { short: 'IG', color: 'var(--rs-instagram)', label: 'Instagram' },
+  kick: { short: 'KICK', color: 'var(--rs-kick)', label: 'Kick' },
+  x: { short: 'X', color: 'var(--rs-x)', label: 'X' },
+  linkedin: { short: 'IN', color: 'var(--rs-linkedin)', label: 'LinkedIn' },
   rtmp: { short: 'RTMP', color: 'var(--rs-accent)', label: 'RTMP' },
   srt: { short: 'SRT', color: 'var(--rs-info)', label: 'SRT' },
 };

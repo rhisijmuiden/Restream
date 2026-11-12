@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { clsx } from 'clsx';
-import type { Destination, IngestStatus, Platform } from '../lib/api';
+import type { Destination, IngestStatus, Platform, SourceState } from '../lib/api';
 import { platformMeta } from '../lib/streams';
 import { Badge } from './ui';
 
@@ -35,6 +35,20 @@ export function IngestBadge({ status, enabled = true }: { status: IngestStatus; 
   return status.online
     ? <Badge tone="ok" dot>{t('ingest.online', { protocol: status.protocol ?? '' })}</Badge>
     : <Badge tone="neutral" dot>{t('ingest.offline')}</Badge>;
+}
+
+/** Which feed the live destinations carry; only shown when a backup feed is set up or something other than the main feed is on air. */
+export function SourceBadge({ source, anyLive, now }: { source: SourceState; anyLive: boolean; now: number }) {
+  const { t } = useTranslation();
+  if (source.active === 'backup') return <Badge tone="warn" dot>{t('failover.sourceBackup')}</Badge>;
+  if (source.active === 'fallback') {
+    const left = source.fallbackEndsAt ? Math.max(0, Math.ceil((new Date(source.fallbackEndsAt).getTime() - now) / 60_000)) : null;
+    return <Badge tone="danger" dot>{left !== null ? t('failover.sourceFallbackLeft', { minutes: left }) : t('failover.sourceFallback')}</Badge>;
+  }
+  if (!source.backupConfigured) return null;
+  return source.backup.online
+    ? <Badge tone="ok" dot>{t('failover.backupReady')}</Badge>
+    : <Badge tone={anyLive ? 'warn' : 'neutral'} dot>{t('failover.backupOffline')}</Badge>;
 }
 
 const codecNames: Record<string, string> = {

@@ -45,7 +45,7 @@ Fase 0 t/m 2 vormen samen v1.0. Elke fase gaat eerst naar `test` en pas na akkoo
 - Samengevoegde chat van alle platforms in één venster
 - Overzicht per uitzending achteraf: piek, gemiddelde en duur
 
-### Fase 5 · Uitbreiden (P3)
+### Fase 5 · Uitbreiden (P3) · klaar op `test` (v1.3.0)
 - Meer platforms: Instagram, LinkedIn, Kick en X, met eigen presets per platform
 - Reserve-ingest met automatische overname en een fallback-beeld bij uitval
 - API en webhooks voor koppeling met andere projecten
@@ -58,10 +58,12 @@ Fase 0 t/m 2 vormen samen v1.0. Elke fase gaat eerst naar `test` en pas na akkoo
 | Facebook (pagina) | RTMPS of OAuth | Ja (Graph API) | Ja | Ja (reacties) | 1 / 3 / 4 |
 | Twitch | RTMP | Alleen streamschema | Ja | Ja | 1 / 4 |
 | Eigen RTMP / SRT | Ja | n.v.t. | Nee | Nee | 1 |
-| Instagram | RTMPS-key per uitzending | Nee | Nee | Nee | 5 |
-| Kick | RTMPS | Nee | Beperkt | Beperkt | 5 |
-| LinkedIn Live | Na partnergoedkeuring | Na goedkeuring | Na goedkeuring | Na goedkeuring | 5 |
-| X | RTMP via Media Studio | Nee | Beperkt (betaalde API) | Beperkt | 5 |
+| Instagram | RTMPS, server-URL en key per uitzending, staand 9:16 | Nee | Nee | Nee | 5 |
+| Kick | RTMPS met streamkey | Nee | Nee | Nee | 5 |
+| LinkedIn Live | RTMP(S) per live evenement, na goedkeuring door LinkedIn | Nee | Nee | Nee | 5 |
+| X | RTMP(S) via Media Studio Producer, key per uitzending | Nee | Nee | Nee | 5 |
+
+Fase 5 voegt Instagram, Kick, X en LinkedIn toe met een streamkey (geen OAuth): kijkers, chat en events plannen zijn bij die platforms niet via een openbare API beschikbaar (X en Kick alleen beperkt of betaald, LinkedIn alleen voor goedgekeurde partners). Reservefeed, fallback-beeld, API-sleutels en webhooks staan in de README en in [API.md](API.md).
 
 Fase 3 en 4 zijn gebouwd tegen YouTube Data API v3, Facebook Graph API v26.0 en Twitch Helix/IRC (gecontroleerd november 2026), maar nog niet met echte accounts getest. Kijkers en chat werken alleen voor bestemmingen via een gekoppeld account. YouTube-chat kost 5 quota-eenheden per opvraging; met de standaard 10 seconden is dat ongeveer 1.800 eenheden per uur uitzending (dagquotum 10.000).
 

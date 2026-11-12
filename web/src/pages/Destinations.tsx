@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { clsx } from 'clsx';
 import { ExternalLink, Pencil, Plus, Trash2, Link2 } from 'lucide-react';
-import { api, type AccountsResponse, type Destination, type Platform, type Privacy, type Stream } from '../lib/api';
+import { api, type AccountsResponse, type Destination, type Orientation, type Platform, type PlatformPreset, type Privacy, type Stream } from '../lib/api';
 import { useMe } from '../lib/auth';
 import { formatKbps, platformMeta, usePresets, useStreams } from '../lib/streams';
 import { Button, Card, ErrorText, Field, Input, Modal, PageHeader, Select, Toggle } from '../components/ui';
@@ -91,6 +91,7 @@ function DestinationRow({ d, canOperate, onEdit }: { d: Destination; canOperate:
       </div>
       <span className="text-xs text-fg-2">
         {d.mode === 'copy' ? t('destinations.passthrough') : t('destinations.transcodeLong', { rate: formatKbps(d.videoBitrate), height: d.maxHeight, fps: d.fps ?? 50, audio: d.audioBitrate })}
+        {d.mode === 'transcode' && d.orientation === 'portrait' && ` · ${t('destinations.portraitShort')}`}
       </span>
       <OutputBadge status={d.status} />
       <Toggle checked={d.enabled} onChange={() => act.mutate('include')} disabled={!canOperate} label={<span className="text-xs text-fg-2">{t('destinations.included')}</span>} />
@@ -108,20 +109,35 @@ function DestinationRow({ d, canOperate, onEdit }: { d: Destination; canOperate:
 interface FormState {
   name: string; platform: Platform; serverUrl: string; streamKey: string; passphrase: string; enabled: boolean;
   mode: 'copy' | 'transcode'; videoBitrate: number; audioBitrate: number; maxHeight: 480 | 720 | 1080; fps: 25 | 30 | 50 | 60 | null;
-  auth: 'key' | 'account'; accountId: string | null; privacy: Privacy;
+  auth: 'key' | 'account'; accountId: string | null; privacy: Privacy; orientation: Orientation;
 }
 
 function toBody(d: Destination, patch: Partial<FormState> = {}) {
   return {
     name: d.name, platform: d.platform, serverUrl: d.serverUrl, enabled: d.enabled, mode: d.mode,
-    videoBitrate: d.videoBitrate, audioBitrate: d.audioBitrate, maxHeight: d.maxHeight, fps: d.fps,
+    videoBitrate: d.videoBitrate, audioBitrate: d.audioBitrate, maxHeight: d.maxHeight, fps: d.fps, orientation: d.orientation,
     auth: d.auth, accountId: d.account?.id ?? null, privacy: d.privacy, ...patch,
   };
 }
 
 const accountPlatforms: Platform[] = ['youtube', 'facebook', 'twitch'];
 
-const platformsList: Platform[] = ['youtube', 'facebook', 'twitch', 'rtmp', 'srt'];
+const platformsList: Platform[] = ['youtube', 'facebook', 'twitch', 'instagram', 'kick', 'x', 'linkedin', 'rtmp', 'srt'];
+
+/** Settings a new destination starts with, from the platform's preset. */
+function fromPreset(p: Platform, preset: PlatformPreset | undefined): Partial<FormState> {
+  if (!preset) return {};
+  return {
+    mode: preset.defaultMode, videoBitrate: preset.recommendedKbps, maxHeight: preset.maxHeight,
+    fps: preset.maxFps === 30 ? 30 : null, orientation: preset.orientation, audioBitrate: p === 'instagram' ? 128 : 160,
+  };
+}
+
+/** Where the operator finds the server URL and key on each platform. */
+const keyHints: Partial<Record<Platform, string>> = {
+  youtube: 'destinations.ytKeyHint', facebook: 'destinations.fbKeyHint', instagram: 'destinations.igKeyHint',
+  kick: 'destinations.kickKeyHint', x: 'destinations.xKeyHint', linkedin: 'destinations.liKeyHint',
+};
 
 function DestinationModal({ editing, onClose }: { editing: Editing; onClose: () => void }) {
   const { t } = useTranslation();
@@ -136,7 +152,7 @@ function DestinationModal({ editing, onClose }: { editing: Editing; onClose: () 
     const d = editing?.dest;
     setF(d
       ? { ...toBody(d), streamKey: '', passphrase: '' } as FormState
-      : { name: 'YouTube', platform: 'youtube', serverUrl: '', streamKey: '', passphrase: '', enabled: true, mode: 'copy', videoBitrate: presets?.youtube.recommendedKbps ?? 9000, audioBitrate: 160, maxHeight: 1080, fps: null, auth: 'key', accountId: null, privacy: 'public' });
+      : { name: 'YouTube', platform: 'youtube', serverUrl: '', streamKey: '', passphrase: '', enabled: true, mode: 'copy', videoBitrate: presets?.youtube.recommendedKbps ?? 9000, audioBitrate: 160, maxHeight: 1080, fps: null, auth: 'key', accountId: null, privacy: 'public', orientation: 'landscape' });
   }
   const set = (patch: Partial<FormState>) => setF((cur) => (cur ? { ...cur, ...patch } : cur));
 
@@ -145,7 +161,7 @@ function DestinationModal({ editing, onClose }: { editing: Editing; onClose: () 
       const s = f!;
       const body = {
         name: s.name, platform: s.platform, serverUrl: s.serverUrl.trim() || undefined, enabled: s.enabled, mode: s.mode,
-        videoBitrate: s.videoBitrate, audioBitrate: s.audioBitrate, maxHeight: s.maxHeight, fps: s.fps,
+        videoBitrate: s.videoBitrate, audioBitrate: s.audioBitrate, maxHeight: s.maxHeight, fps: s.fps, orientation: s.orientation,
         auth: s.auth, accountId: s.auth === 'account' ? s.accountId : null, privacy: s.privacy,
         // Empty fields keep the stored secret when editing.
         ...(s.streamKey || (!editing?.dest && s.auth === 'key') ? { streamKey: s.streamKey.trim() } : {}),
@@ -163,7 +179,7 @@ function DestinationModal({ editing, onClose }: { editing: Editing; onClose: () 
   const isNew = !editing?.dest;
   const pickPlatform = (p: Platform) => {
     const wasDefaultName = !f.name || platformsList.some((x) => platformMeta[x].label === f.name);
-    set({ platform: p, serverUrl: '', name: wasDefaultName ? platformMeta[p].label : f.name, videoBitrate: presets?.[p].recommendedKbps ?? f.videoBitrate, auth: 'key', accountId: null });
+    set({ platform: p, serverUrl: '', name: wasDefaultName ? platformMeta[p].label : f.name, ...fromPreset(p, presets?.[p]), auth: 'key', accountId: null });
   };
   const options = (accounts.data?.accounts ?? []).filter((a) => a.provider === f.platform);
   const viaAccount = f.auth === 'account';
@@ -185,6 +201,10 @@ function DestinationModal({ editing, onClose }: { editing: Editing; onClose: () 
               </button>
             ))}
           </div>
+        )}
+
+        {preset && (preset.keyPerBroadcast || f.platform === 'kick') && (
+          <p className="rounded-xl border border-info/30 bg-info/[0.06] px-4 py-3 text-xs leading-relaxed text-fg-2">{t(`destinations.about_${f.platform}`)}</p>
         )}
 
         {accountPlatforms.includes(f.platform) && (
@@ -230,19 +250,19 @@ function DestinationModal({ editing, onClose }: { editing: Editing; onClose: () 
           </Field>
           {(!viaAccount || f.platform === 'twitch') && <Field
             label={t('destinations.server')}
-            hint={preset?.server ? t('destinations.serverDefault', { url: preset.server }) : f.platform === 'srt' ? t('destinations.srtServerHint') : t('destinations.rtmpServerHint')}
+            hint={preset?.server ? t('destinations.serverDefault', { url: preset.server }) : f.platform === 'srt' ? t('destinations.srtServerHint') : f.platform === 'rtmp' ? t('destinations.rtmpServerHint') : t('destinations.serverFromPlatform', { platform: platformMeta[f.platform].label })}
           >
             {(id) => (
               <Input
                 id={id} value={f.serverUrl} onChange={(e) => set({ serverUrl: e.target.value })}
-                required={!preset?.server} placeholder={preset?.server || (f.platform === 'srt' ? 'srt://host:port' : 'rtmp://host/app')}
+                required={!preset?.server} placeholder={preset?.server || preset?.serverExample || (f.platform === 'srt' ? 'srt://host:port' : 'rtmp://host/app')}
                 className="font-mono text-[13px]"
               />
             )}
           </Field>}
           {!viaAccount && <Field
             label={f.platform === 'srt' ? t('destinations.streamId') : t('destinations.streamKey')}
-            hint={!isNew && editing?.dest?.streamKeyMasked ? t('destinations.keyKeep', { masked: editing.dest.streamKeyMasked }) : f.platform === 'youtube' ? t('destinations.ytKeyHint') : f.platform === 'facebook' ? t('destinations.fbKeyHint') : undefined}
+            hint={!isNew && editing?.dest?.streamKeyMasked ? t('destinations.keyKeep', { masked: editing.dest.streamKeyMasked }) : keyHints[f.platform] ? t(keyHints[f.platform]!) : undefined}
           >
             {(id) => (
               <Input id={id} type="password" autoComplete="off" value={f.streamKey} onChange={(e) => set({ streamKey: e.target.value })}
@@ -269,8 +289,8 @@ function DestinationModal({ editing, onClose }: { editing: Editing; onClose: () 
           <p className="text-xs leading-relaxed text-fg-3">{f.mode === 'copy' ? t('destinations.passthroughHint') : t('destinations.transcodeHint')}</p>
           {f.mode === 'transcode' && (
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label={t('destinations.videoBitrate')} hint={preset ? t('destinations.recommended', { rate: formatKbps(preset.recommendedKbps) }) : undefined}>
-                {(id) => <Input id={id} type="number" min={300} max={20000} step={100} value={f.videoBitrate} onChange={(e) => set({ videoBitrate: Number(e.target.value) })} />}
+              <Field label={t('destinations.videoBitrate')} hint={preset ? t('destinations.recommendedMax', { rate: formatKbps(preset.recommendedKbps), max: formatKbps(preset.maxKbps) }) : undefined}>
+                {(id) => <Input id={id} type="number" min={300} max={Math.min(20000, preset?.maxKbps ?? 20000)} step={100} value={f.videoBitrate} onChange={(e) => set({ videoBitrate: Number(e.target.value) })} />}
               </Field>
               <Field label={t('destinations.audioBitrate')}>
                 {(id) => (
@@ -282,19 +302,30 @@ function DestinationModal({ editing, onClose }: { editing: Editing; onClose: () 
               <Field label={t('destinations.resolution')}>
                 {(id) => (
                   <Select id={id} value={f.maxHeight} onChange={(e) => set({ maxHeight: Number(e.target.value) as FormState['maxHeight'] })}>
-                    {[1080, 720, 480].map((v) => <option key={v} value={v}>{v}p</option>)}
+                    {[1080, 720, 480].filter((v) => v <= (preset?.maxHeight ?? 1080)).map((v) => <option key={v} value={v}>{v}p</option>)}
                   </Select>
                 )}
               </Field>
               <Field label={t('destinations.fps')}>
                 {(id) => (
                   <Select id={id} value={f.fps ?? ''} onChange={(e) => set({ fps: e.target.value ? Number(e.target.value) as FormState['fps'] : null })}>
-                    <option value="">{t('destinations.fpsDefault')}</option>
-                    {[25, 30, 50, 60].map((v) => <option key={v} value={v}>{v} fps</option>)}
+                    {(preset?.maxFps ?? 60) > 30 && <option value="">{t('destinations.fpsDefault')}</option>}
+                    {[25, 30, 50, 60].filter((v) => v <= (preset?.maxFps ?? 60)).map((v) => <option key={v} value={v}>{v} fps</option>)}
                   </Select>
                 )}
               </Field>
+              <div className="flex flex-col gap-2 sm:col-span-2">
+                <span className="text-[13px] font-medium text-fg-2">{t('destinations.orientation')}</span>
+                <Segmented
+                  className="self-start" label={t('destinations.orientation')} value={f.orientation} onChange={(v) => set({ orientation: v })}
+                  options={[{ value: 'landscape', label: t('destinations.landscape') }, { value: 'portrait', label: t('destinations.portrait') }]}
+                />
+                <p className="text-xs leading-relaxed text-fg-3">{f.orientation === 'portrait' ? t('destinations.portraitHint') : t('destinations.landscapeHint')}</p>
+              </div>
             </div>
+          )}
+          {f.mode === 'copy' && preset?.defaultMode === 'transcode' && (
+            <p className="text-xs leading-relaxed text-warn">{t('destinations.transcodeAdvised', { platform: platformMeta[f.platform].label, height: preset.maxHeight, fps: preset.maxFps })}</p>
           )}
         </div>
 
