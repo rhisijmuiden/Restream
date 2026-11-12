@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Restream schedule event</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#070A12}
+a{color:#2EE6D6}a:hover{color:#8AF5EC}
+</style>
+</helmet>
+<div style="min-height: 1000px; display: flex; flex-wrap: wrap; background: #070A12; color: #E8ECF6; font-family: Inter, system-ui, sans-serif; font-size: 14px;">
+
+  <nav aria-label="Main menu" style="flex: 1 1 248px; max-width: 280px; box-sizing: border-box; padding: 24px 16px; background: #0B0F1A; border-right: 1px solid #1A2238; display: flex; flex-direction: column; gap: 24px;">
+    <div style="display: flex; align-items: center; gap: 12px; padding: 0 8px;">
+      <div style="width: 36px; height: 36px; border-radius: 10px; background: #2EE6D6; display: flex; align-items: center; justify-content: center;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#070A12" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h5M16 5l5 0M16 12h5M16 19h5M8 12l8-7M8 12h8M8 12l8 7"/></svg>
+      </div>
+      <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 18px; letter-spacing: 0.02em;">RESTREAM</span>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+      <sc-for list="{{nav}}" as="item" hint-placeholder-count="7">
+        <a href="#" style="{{item.style}}">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{item.icon}}"/></svg>
+          <span>{{item.label}}</span>
+        </a>
+      </sc-for>
+    </div>
+  </nav>
+
+  <main style="flex: 999 1 560px; min-width: 0; box-sizing: border-box; padding: 24px 32px 40px; display: flex; flex-direction: column; gap: 24px;">
+    <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px;">
+      <div style="display: flex; flex-direction: column; gap: 4px; flex-grow: 1;">
+        <span style="font-size: 12px; color: #8A94AD; letter-spacing: 0.08em;">EVENTS</span>
+        <h1 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-weight: 600; font-size: 28px;">Schedule a live event</h1>
+      </div>
+      <button style="min-height: 44px; padding: 0 16px; border-radius: 12px; border: 1px solid #1E2740; background: #111829; color: #E8ECF6; font-size: 14px;">Cancel</button>
+      <button style="min-height: 44px; padding: 0 20px; border-radius: 12px; border: 0; background: #2EE6D6; color: #070A12; font-size: 14px; font-weight: 700;">Schedule on all platforms</button>
+    </header>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+      <form style="flex: 3 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 20px; padding: 24px; border-radius: 16px; background: #0D1220; border: 1px solid #1A2238;">
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <label for="ev-title" style="font-size: 13px; font-weight: 500; color: #B4BDD3;">Title</label>
+          <input id="ev-title" placeholder="[Event title]" style="min-height: 48px; box-sizing: border-box; padding: 0 16px; border-radius: 12px; border: 1px solid #1E2740; background: #070A12; color: #E8ECF6; font-size: 15px;">
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <label for="ev-desc" style="font-size: 13px; font-weight: 500; color: #B4BDD3;">Description</label>
+          <textarea id="ev-desc" rows="3" placeholder="Shown on YouTube and Facebook" style="box-sizing: border-box; padding: 12px 16px; border-radius: 12px; border: 1px solid #1E2740; background: #070A12; color: #E8ECF6; font-size: 14px; font-family: Inter, sans-serif; resize: vertical;"></textarea>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px;">
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <label for="ev-date" style="font-size: 13px; font-weight: 500; color: #B4BDD3;">Date</label>
+            <input id="ev-date" value="2026-11-19" style="min-height: 48px; box-sizing: border-box; padding: 0 16px; border-radius: 12px; border: 1px solid #1E2740; background: #070A12; color: #E8ECF6; font-size: 14px; font-family: 'JetBrains Mono', monospace;">
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <label for="ev-time" style="font-size: 13px; font-weight: 500; color: #B4BDD3;">Start time</label>
+            <input id="ev-time" value="19:30" style="min-height: 48px; box-sizing: border-box; padding: 0 16px; border-radius: 12px; border: 1px solid #1E2740; background: #070A12; color: #E8ECF6; font-size: 14px; font-family: 'JetBrains Mono', monospace;">
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <label for="ev-stream" style="font-size: 13px; font-weight: 500; color: #B4BDD3;">Ingest stream</label>
+            <select id="ev-stream" style="min-height: 48px; box-sizing: border-box; padding: 0 12px; border-radius: 12px; border: 1px solid #1E2740; background: #070A12; color: #E8ECF6; font-size: 14px;"><option>Main ingest (SRT)</option></select>
+          </div>
+        </div>
+
+        <fieldset style="margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 10px;">
+          <legend style="font-size: 13px; font-weight: 500; color: #B4BDD3; margin-bottom: 10px;">Destinations</legend>
+          <sc-for list="{{dest}}" as="d" hint-placeholder-count="5">
+            <label style="display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-radius: 12px; border: 1px solid #1E2740; background: #0A0E19; min-height: 44px;">
+              <input type="checkbox" checked="{{d.checked}}" style="width: 18px; height: 18px; accent-color: #2EE6D6;">
+              <span style="{{d.logo}}">{{d.short}}</span>
+              <span style="display: flex; flex-direction: column; flex-grow: 1;">
+                <span style="font-weight: 600;">{{d.name}}</span>
+                <span style="font-size: 12px; color: #8A94AD;">{{d.note}}</span>
+              </span>
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #B4BDD3;">{{d.profile}}</span>
+            </label>
+          </sc-for>
+        </fieldset>
+
+        <div style="display: flex; flex-wrap: wrap; gap: 12px;">
+          <sc-for list="{{opts}}" as="o" hint-placeholder-count="3">
+            <div style="flex: 1 1 200px; display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; border: 1px solid #1E2740;">
+              <span style="display: flex; flex-direction: column; flex-grow: 1;"><span style="font-weight: 600; font-size: 13px;">{{o.t}}</span><span style="font-size: 12px; color: #8A94AD;">{{o.s}}</span></span>
+              <span role="switch" aria-checked="true" aria-label="{{o.t}}" style="position: relative; width: 44px; height: 26px; border-radius: 13px; background: #2EE6D6; flex-shrink: 0;"><span style="position: absolute; top: 3px; left: 21px; width: 20px; height: 20px; border-radius: 50%; background: #070A12;"></span></span>
+            </div>
+          </sc-for>
+        </div>
+      </form>
+
+      <aside style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 14px;">
+        <h2 style="margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 600;">Upcoming</h2>
+        <sc-for list="{{upcoming}}" as="u" hint-placeholder-count="3">
+          <article style="display: flex; gap: 16px; padding: 16px; border-radius: 14px; background: #0D1220; border: 1px solid #1A2238;">
+            <div style="width: 56px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px 0; border-radius: 10px; background: #141C30;">
+              <span style="font-size: 11px; color: #2EE6D6; font-weight: 600; letter-spacing: 0.08em;">{{u.mon}}</span>
+              <span style="font-family: 'Space Grotesk', sans-serif; font-size: 22px; font-weight: 700;">{{u.day}}</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px; min-width: 0;">
+              <span style="font-weight: 600;">{{u.title}}</span>
+              <span style="font-size: 12px; color: #8A94AD;">{{u.meta}}</span>
+              <span style="font-size: 12px; color: #3BE38A;">{{u.state}}</span>
+            </div>
+          </article>
+        </sc-for>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const base = 'display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; text-decoration: none; ';
+    const nav = [
+      { label: 'Dashboard', icon: 'M3 3h7v9H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 16h7v5H3z' },
+      { label: 'Streams & keys', icon: 'M4 12h10M10 6l6 6-6 6M20 4v16' },
+      { label: 'Destinations', icon: 'M4 12h6M14 5h6M14 12h6M14 19h6M10 12l4-7M10 12l4 7' },
+      { label: 'Events', icon: 'M4 6h16v14H4zM4 10h16M9 3v5M15 3v5', active: true },
+      { label: 'Recordings', icon: 'M12 4a8 8 0 1 0 0 16a8 8 0 1 0 0-16zM12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6z' },
+      { label: 'Analytics', icon: 'M4 20V10M10 20V4M16 20v-7M22 20H2' },
+      { label: 'Chat', icon: 'M4 5h16v11H9l-5 4z' }
+    ].map(n => ({ ...n, style: base + (n.active ? 'background: #141C30; color: #E8ECF6; box-shadow: inset 2px 0 0 #2EE6D6;' : 'color: #B4BDD3;') }));
+    const logo = c => 'width: 36px; height: 36px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-family: Space Grotesk, sans-serif; font-weight: 700; font-size: 12px; background: #141C30; border: 1px solid #1E2740; color: ' + c + ';';
+    const dest = [
+      { name: 'YouTube', short: 'YT', c: '#FF4E45', note: 'Creates a scheduled broadcast on your channel', profile: '1080p60 · 6.0 Mbps', checked: true },
+      { name: 'Facebook Page', short: 'FB', c: '#4C8DFF', note: 'Creates a planned live video on your page', profile: '720p30 · 4.0 Mbps', checked: true },
+      { name: 'Twitch', short: 'TW', c: '#A970FF', note: 'Adds a segment to your stream schedule', profile: '1080p60 · 6.0 Mbps', checked: true },
+      { name: 'Instagram', short: 'IG', c: '#FF5FA2', note: 'Stream key needed at start, no scheduling API', profile: '720×1280 · 3.5 Mbps', checked: false },
+      { name: 'Studio backup', short: 'SRT', c: '#2EE6D6', note: 'Custom SRT, starts with the event', profile: 'Passthrough', checked: true }
+    ].map(d => ({ ...d, logo: logo(d.c) }));
+    return {
+      nav, dest,
+      opts: [
+        { t: 'Auto go-live', s: 'Start all destinations at start time' },
+        { t: 'Record broadcast', s: 'Save a copy on this server' },
+        { t: 'Notify by email', s: 'Via your SMTP server' }
+      ],
+      upcoming: [
+        { mon: 'NOV', day: '14', title: '[Event title]', meta: '19:30 · YouTube, Facebook', state: 'Scheduled on 2 platforms' },
+        { mon: 'NOV', day: '19', title: '[Event title]', meta: '20:00 · YouTube, Twitch, SRT', state: 'Scheduled on 3 platforms' },
+        { mon: 'NOV', day: '26', title: '[Event title]', meta: '19:30 · All destinations', state: 'Scheduled on 4 platforms' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>
