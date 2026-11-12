@@ -162,7 +162,9 @@
     "eventNow": "Event nu live",
     "eventNext": "Volgend event",
     "eventAuto": "Gaat automatisch live op de begintijd",
-    "watch": "Bekijken op het platform"
+    "watch": "Bekijken op het platform",
+    "previewHls": "HLS-preview · paar seconden vertraging",
+    "previewHlsHint": "Een WebRTC-preview zonder vertraging kan niet voor deze stream, meestal omdat de encoder B-frames stuurt. Zet B-frames in OBS op 0 voor een vrijwel directe preview."
   },
   "soon": {
     "title": "Komt in fase {{phase}}",

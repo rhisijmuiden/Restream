@@ -46,6 +46,9 @@ export async function buildApp(sql: Sql, opts: { logger?: boolean; background?: 
       directives: {
         defaultSrc: ["'self'"],
         imgSrc: ["'self'", 'data:'],
+        // The dashboard preview falls back to HLS (hls.js uses Media Source blobs and a worker).
+        mediaSrc: ["'self'", 'blob:'],
+        workerSrc: ["'self'", 'blob:'],
         styleSrc: ["'self'", "'unsafe-inline'"],
         fontSrc: ["'self'", 'data:'],
         connectSrc: ["'self'"],
@@ -57,6 +60,11 @@ export async function buildApp(sql: Sql, opts: { logger?: boolean; background?: 
     hsts: config.cookieSecure,
   });
   await app.register(rateLimit, { global: false });
+
+  // API answers are live state (stream status, sessions): never let a browser or a CDN such as Cloudflare cache them.
+  app.addHook('onSend', async (req, reply) => {
+    if (req.url.startsWith('/api/') && !reply.hasHeader('cache-control')) reply.header('cache-control', 'private, no-store');
+  });
 
   app.decorateRequest('session', null);
   app.decorateRequest('user', null);

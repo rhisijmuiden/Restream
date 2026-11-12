@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.1 · Fixes from the first real install: preview, caching, DNS check
+
+- API answers now carry `Cache-Control: private, no-store`, so a browser or a CDN never shows an old stream status.
+- The dashboard preview falls back to LL-HLS (a few seconds delay, with sound) when WebRTC cannot play the feed: MediaMTX refuses H264 with B-frames over WebRTC, which is the OBS x264 default. A badge explains how to get the low-latency preview back (B-frames 0). HLS also works where UDP 8189 is blocked.
+- The installer warns when the domain does not point at this server, for example behind Cloudflare's proxy (orange cloud), which does not pass RTMP, SRT or WebRTC and can break Let's Encrypt.
+
 ## 1.3.0 · Phase 5: more platforms, backup feed with failover, API and webhooks
 
 - **Instagram, Kick, X and LinkedIn** as destinations, each with a preset checked against the platform's own guidance (November 2026): Instagram 720×1280 portrait at 30 fps, up to 6 Mbps, 44.1 kHz audio; Kick up to 1080p60 and 8 Mbps (RTMPS); X 720p30 up to 4 Mbps with 3-second keyframes; LinkedIn up to 1080p30 and 6 Mbps. The form fills in mode, bitrate, resolution and frame rate from the preset, limits the choices to what the platform accepts and explains where to find the server URL and key (Instagram, X and LinkedIn give a new one per broadcast; LinkedIn Live needs LinkedIn's approval).
