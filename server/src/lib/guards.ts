@@ -2,7 +2,8 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import type { Role } from './session.js';
 
 export class HttpError extends Error {
-  constructor(public status: number, public code: string, message?: string) {
+  /** `detail` is a technical message shown under the translated error (e.g. the SMTP server's reply). */
+  constructor(public status: number, public code: string, message?: string, public detail?: string) {
     super(message ?? code);
   }
 }

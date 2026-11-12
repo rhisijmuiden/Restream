@@ -21,6 +21,14 @@ export const config = {
   cookieSecure: bool(process.env.COOKIE_SECURE, process.env.NODE_ENV === 'production'),
   sessionHours: Number(process.env.SESSION_HOURS ?? 12),
   dataDir: process.env.DATA_DIR ?? path.join(appDir, 'data'),
+  /** Environment file with APP_KEY and the database password; included in backups when readable. */
+  envFile: process.env.ENV_FILE ?? '/etc/restream/restream.env',
+  /** Directories inside DATA_DIR that hold user files (recordings, uploaded assets) and are backed up. */
+  backupFileDirs: (process.env.BACKUP_FILE_DIRS ?? 'recordings,assets').split(',').map((d) => d.trim()).filter(Boolean),
+  pgDumpPath: process.env.PG_DUMP_PATH ?? 'pg_dump',
+  pgRestorePath: process.env.PG_RESTORE_PATH ?? 'pg_restore',
+  psqlPath: process.env.PSQL_PATH ?? 'psql',
+  tarPath: process.env.TAR_PATH ?? 'tar',
   /** Directory the updater watches for requests (writable by the app). */
   updateRequestDir: process.env.UPDATE_REQUEST_DIR ?? '/var/lib/restream/update-request',
   /** Directory the updater writes status and log to (read-only for the app). */

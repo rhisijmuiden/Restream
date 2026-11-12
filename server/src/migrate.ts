@@ -12,6 +12,11 @@ function migrationsDir() {
   return dir;
 }
 
+/** Names of the migrations this version of Restream knows. */
+export function migrationFiles(): string[] {
+  return readdirSync(migrationsDir()).filter((f) => f.endsWith('.sql')).sort();
+}
+
 /** Applies pending SQL migrations in filename order, each in its own transaction. */
 export async function migrate(sql: Sql, log: (msg: string) => void = () => {}) {
   await sql`CREATE TABLE IF NOT EXISTS schema_migrations (name text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())`;
