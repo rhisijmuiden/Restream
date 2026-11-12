@@ -162,7 +162,9 @@
     "eventNow": "Event live now",
     "eventNext": "Next event",
     "eventAuto": "Goes live automatically at the start time",
-    "watch": "Watch on the platform"
+    "watch": "Watch on the platform",
+    "previewHls": "HLS preview · a few seconds delay",
+    "previewHlsHint": "Low-latency WebRTC preview is not possible for this feed, usually because the encoder sends B-frames. Set B-frames to 0 in OBS for a near real-time preview."
   },
   "soon": {
     "title": "Coming in phase {{phase}}",

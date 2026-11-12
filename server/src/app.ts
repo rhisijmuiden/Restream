@@ -46,6 +46,9 @@ export async function buildApp(sql: Sql, opts: { logger?: boolean; background?: 
       directives: {
         defaultSrc: ["'self'"],
         imgSrc: ["'self'", 'data:'],
+        // The dashboard preview falls back to HLS (hls.js uses Media Source blobs and a worker).
+        mediaSrc: ["'self'", 'blob:'],
+        workerSrc: ["'self'", 'blob:'],
         styleSrc: ["'self'", "'unsafe-inline'"],
         fontSrc: ["'self'", 'data:'],
         connectSrc: ["'self'"],

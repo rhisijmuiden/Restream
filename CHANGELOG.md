@@ -1,8 +1,9 @@
 # Changelog
 
-## 1.3.1 · Fix: dashboard stuck behind a proxy or CDN
+## 1.3.1 · Fixes from the first real install: preview, caching, DNS check
 
 - API answers now carry `Cache-Control: private, no-store`, so a browser or a CDN never shows an old stream status.
+- The dashboard preview falls back to LL-HLS (a few seconds delay, with sound) when WebRTC cannot play the feed: MediaMTX refuses H264 with B-frames over WebRTC, which is the OBS x264 default. A badge explains how to get the low-latency preview back (B-frames 0). HLS also works where UDP 8189 is blocked.
 - The installer warns when the domain does not point at this server, for example behind Cloudflare's proxy (orange cloud), which does not pass RTMP, SRT or WebRTC and can break Let's Encrypt.
 
 ## 1.3.0 · Phase 5: more platforms, backup feed with failover, API and webhooks
