@@ -41,7 +41,8 @@ export async function backupRoutes(app: FastifyInstance, { sql, backups }: { sql
     return {
       settings: view(s.backup),
       busy: backups.busy,
-      serverTime: new Date().toString(),
+      serverTime: new Date().toTimeString().slice(0, 5),
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       ...(await backups.localInfo()),
     };
   });

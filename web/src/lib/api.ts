@@ -1,5 +1,6 @@
 export class ApiError extends Error {
-  constructor(public status: number, public code: string) { super(code); }
+  /** `detail` is the technical reason from the server (e.g. the reply of a mail or FTP server). */
+  constructor(public status: number, public code: string, public detail?: string) { super(code); }
 }
 
 export async function api<T = unknown>(path: string, opts: { method?: string; body?: unknown } = {}): Promise<T> {
@@ -10,7 +11,7 @@ export async function api<T = unknown>(path: string, opts: { method?: string; bo
     body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
   });
   const data = res.headers.get('content-type')?.includes('json') ? await res.json() : null;
-  if (!res.ok) throw new ApiError(res.status, data?.error ?? 'request_failed');
+  if (!res.ok) throw new ApiError(res.status, data?.error ?? 'request_failed', data?.detail);
   return data as T;
 }
 

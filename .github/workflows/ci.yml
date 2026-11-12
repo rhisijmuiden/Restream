@@ -25,6 +25,14 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: PostgreSQL 17 client (pg_dump/pg_restore for the backup tests)
+        run: |
+          sudo apt-get install -y -qq postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y -qq postgresql-client-17
+          echo "PG_DUMP_PATH=/usr/lib/postgresql/17/bin/pg_dump" >> "$GITHUB_ENV"
+          echo "PG_RESTORE_PATH=/usr/lib/postgresql/17/bin/pg_restore" >> "$GITHUB_ENV"
+          echo "PSQL_PATH=/usr/lib/postgresql/17/bin/psql" >> "$GITHUB_ENV"
       - run: npm ci
       - run: npm run build
       - run: npm test

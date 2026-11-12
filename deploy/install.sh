@@ -272,7 +272,8 @@ fi
 echo
 echo "  Ingest:    rtmp://${HOST_NAME}/live  and  srt://${HOST_NAME}:8890  (stream keys are in the console under Streams & keys)"
 echo
-echo "  Maintenance: restream-cli reset-password --email <email> | reset-2fa --email <email>"
+echo "  Next:        set up Administration > Mail server and Administration > Backups in the console"
+echo "  Maintenance: restream-cli reset-password --email <email> | reset-2fa --email <email> | backup | restore --id <id> --yes"
 echo "  Logs:        journalctl -u restream -f   ·   journalctl -u restream-media -f"
 echo "  Ports:       TCP 80, 443, 1935 (RTMP), 8189 (WebRTC) · UDP 8890 (SRT), 8189 (WebRTC)"
 if [[ -n "$FIREWALL_NOTE" ]]; then echo "  Firewall:    $FIREWALL_NOTE"; fi

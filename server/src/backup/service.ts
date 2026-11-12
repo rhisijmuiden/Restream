@@ -192,7 +192,10 @@ export class BackupService {
       try {
         await remote.get(f.name, local);
         const m = JSON.parse(await readFile(local, 'utf8')) as Manifest;
-        if (m.format === 1 && names.has(m.bundle.name)) out.push(m);
+        // The manifest comes from the remote: only accept names Restream itself would write.
+        const valid = m.format === 1 && `restream-${m.id}.json` === f.name && m.bundle?.name === bundleName(m.id)
+          && (m.parent === null || /^\d{8}-\d{6}-(full|incr)$/.test(m.parent)) && /^\d{8}-\d{6}-full$/.test(m.chain);
+        if (valid && names.has(m.bundle.name)) out.push(m);
       } catch (err) {
         this.log.warn({ err, file: f.name }, 'skipping unreadable backup manifest');
       } finally {
