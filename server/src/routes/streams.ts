@@ -10,6 +10,9 @@ import { getSettings } from '../lib/settings.js';
 import { ingestPath, kickPublisher, listPaths } from '../media/mediamtx.js';
 import { platforms, presets, serverUrlProblem, unsafeSrtValue, type Platform } from '../media/platforms.js';
 import type { MediaSupervisor } from '../media/supervisor.js';
+import type { PlaybackCache } from './media.js';
+import type { Provisioner } from '../platforms/provisioner.js';
+import { createPlaybackToken, normaliseDomain } from '../lib/playback.js';
 
 const base62 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 function randomString(len: number, alphabet = base62) {
@@ -29,12 +32,15 @@ const idParam = z.object({ id: z.uuid() });
 
 interface StreamRow {
   id: string; name: string; ingest_key_enc: string; playback_id: string; playback_enabled: boolean; enabled: boolean; created_at: Date;
+  allowed_domains: string[]; require_token: boolean; token_secret: string; record: boolean; auto_record: boolean; title: string; description: string;
 }
 interface DestRow {
   id: string; stream_id: string; name: string; platform: Platform; server_url: string; stream_key_enc: string; passphrase_enc: string;
   enabled: boolean; mode: 'copy' | 'transcode'; video_bitrate: number; audio_bitrate: number; max_height: number; fps: number | null;
   live: boolean; live_since: Date | null; position: number;
+  auth: 'key' | 'account'; account_id: string | null; privacy: 'public' | 'unlisted' | 'private'; watch_url: string | null; prepare_error: string | null;
 }
+interface AccountRow { id: string; provider: string; name: string; image_url: string; status: string }
 
 const mask = (enc: string) => {
   if (!enc) return '';
@@ -56,9 +62,16 @@ const destinationBody = z.object({
   audioBitrate: z.number().int().min(64).max(320).default(160),
   maxHeight: z.union([z.literal(480), z.literal(720), z.literal(1080)]).default(1080),
   fps: z.union([z.literal(25), z.literal(30), z.literal(50), z.literal(60), z.null()]).default(null),
+  /** 'account': the ingest comes from a connected YouTube/Facebook/Twitch account instead of a typed stream key. */
+  auth: z.enum(['key', 'account']).default('key'),
+  accountId: z.uuid().nullable().default(null),
+  /** Visibility of broadcasts Restream creates on a connected account (YouTube; Facebook pages are public). */
+  privacy: z.enum(['public', 'unlisted', 'private']).default('public'),
 });
 
-export async function streamRoutes(app: FastifyInstance, { sql, media }: { sql: Sql; media: MediaSupervisor }) {
+export async function streamRoutes(app: FastifyInstance, { sql, media, playback, provisioner }: { sql: Sql; media: MediaSupervisor; playback: PlaybackCache; provisioner: Provisioner }) {
+  /** Runs the platform and media passes now, after a change in the console. */
+  const nudge = () => { provisioner.nudge(); media.nudge(); };
   const viewer = { preHandler: requireAuth('viewer') };
   const operator = { preHandler: requireAuth('operator') };
   const admin = { preHandler: requireAuth('admin') };
@@ -76,6 +89,7 @@ export async function streamRoutes(app: FastifyInstance, { sql, media }: { sql: 
     const { rtmpPort, srtPort } = config.media;
     const streams = await sql<StreamRow[]>`SELECT * FROM streams ORDER BY created_at`;
     const dests = await sql<DestRow[]>`SELECT * FROM destinations ORDER BY position, created_at`;
+    const accounts = new Map((await sql<AccountRow[]>`SELECT id, provider, name, image_url, status FROM platform_accounts`).map((a) => [a.id, a]));
     return {
       mediaEnabled: config.media.enabled,
       mediamtxOnline: media.mediamtxOnline,
@@ -89,6 +103,13 @@ export async function streamRoutes(app: FastifyInstance, { sql, media }: { sql: 
           playbackEnabled: s.playback_enabled,
           playbackId: s.playback_id,
           createdAt: s.created_at,
+          allowedDomains: s.allowed_domains,
+          requireToken: s.require_token,
+          record: s.record,
+          autoRecord: s.auto_record,
+          title: s.title,
+          description: s.description,
+          recording: media.recordingState(s.id),
           ingest: {
             rtmpServer,
             streamKey: key,
@@ -100,6 +121,7 @@ export async function streamRoutes(app: FastifyInstance, { sql, media }: { sql: 
             whep: `${base}/live/${s.playback_id}/whep`,
             hlsPage: `${base}/live/${s.playback_id}/`,
             webrtcPage: `${base}/live/${s.playback_id}/webrtc/`,
+            embed: `${base}/embed/${s.playback_id}`,
           },
           status: media.ingestState(s.id),
           destinations: dests.filter((d) => d.stream_id === s.id).map((d) => ({
@@ -117,6 +139,12 @@ export async function streamRoutes(app: FastifyInstance, { sql, media }: { sql: 
             fps: d.fps,
             live: d.live,
             liveSince: d.live_since,
+            auth: d.auth,
+            account: d.account_id && accounts.has(d.account_id)
+              ? { id: d.account_id, name: accounts.get(d.account_id)!.name, imageUrl: accounts.get(d.account_id)!.image_url, status: accounts.get(d.account_id)!.status }
+              : null,
+            privacy: d.privacy,
+            watchUrl: d.live ? d.watch_url : null,
             status: d.live ? media.outputState(d.id) : { ...media.outputState(d.id), state: 'off' as const },
           })),
         };
@@ -135,7 +163,7 @@ export async function streamRoutes(app: FastifyInstance, { sql, media }: { sql: 
       INSERT INTO streams (name, ingest_key_hash, ingest_key_enc, playback_id)
       VALUES (${body.name}, ${sha256(key)}, ${encrypt(key)}, ${newPlaybackId()}) RETURNING id`;
     await audit(sql, req, 'stream.created', { id: s.id, name: body.name });
-    media.nudge();
+    nudge();
     return { id: s.id };
   });
 
@@ -159,15 +187,73 @@ export async function streamRoutes(app: FastifyInstance, { sql, media }: { sql: 
       name: z.string().trim().min(1).max(60).optional(),
       enabled: z.boolean().optional(),
       playbackEnabled: z.boolean().optional(),
+      /** Sites that may embed the player and play the stream; empty = everywhere. */
+      allowedDomains: z.array(z.string().max(260)).max(50).optional(),
+      requireToken: z.boolean().optional(),
+      autoRecord: z.boolean().optional(),
+      title: z.string().trim().max(100).optional(),
+      description: z.string().trim().max(5000).optional(),
     }).parse(req.body);
     const s = await getStream(id);
+    let domains: string[] | null = null;
+    if (body.allowedDomains) {
+      const bad = body.allowedDomains.filter((d) => d.trim() && !normaliseDomain(d));
+      if (bad.length) throw new HttpError(400, 'invalid_domain', undefined, bad.join(', '));
+      domains = [...new Set(body.allowedDomains.map(normaliseDomain).filter((d): d is string => !!d))];
+    }
     await sql`
       UPDATE streams SET name = COALESCE(${body.name ?? null}, name), enabled = COALESCE(${body.enabled ?? null}, enabled),
-             playback_enabled = COALESCE(${body.playbackEnabled ?? null}, playback_enabled), updated_at = now()
+             playback_enabled = COALESCE(${body.playbackEnabled ?? null}, playback_enabled),
+             allowed_domains = COALESCE(${domains}::text[], allowed_domains),
+             require_token = COALESCE(${body.requireToken ?? null}, require_token),
+             auto_record = COALESCE(${body.autoRecord ?? null}, auto_record),
+             title = COALESCE(${body.title ?? null}, title),
+             description = COALESCE(${body.description ?? null}, description),
+             updated_at = now()
       WHERE id = ${id}`;
     if (body.enabled === false) await kick(decrypt(s.ingest_key_enc));
-    await audit(sql, req, 'stream.updated', { id, ...body });
-    media.nudge();
+    playback.clear();
+    await audit(sql, req, 'stream.updated', { id, ...body, description: undefined });
+    nudge();
+    return { ok: true };
+  });
+
+  /** Creates a signed playback link (embed, HLS, WebRTC) that works while the stream requires a token or limits domains. */
+  app.post('/api/streams/:id/playback-token', operator, async (req) => {
+    const { id } = idParam.parse(req.params);
+    const { days } = z.object({ days: z.number().int().min(1).max(3650).nullable() }).parse(req.body);
+    const s = await getStream(id);
+    const exp = days === null ? null : new Date(Date.now() + days * 86_400_000);
+    const token = createPlaybackToken(s.playback_id, s.token_secret, exp);
+    const base = await publicBase(req);
+    await audit(sql, req, 'stream.token_created', { id, days });
+    return {
+      token,
+      expiresAt: exp,
+      embed: `${base}/embed/${s.playback_id}?token=${token}`,
+      hls: `${base}/live/${s.playback_id}~${token}/index.m3u8`,
+      whep: `${base}/live/${s.playback_id}~${token}/whep`,
+    };
+  });
+
+  /** Revokes every playback token of the stream (also the ones embedded pages currently use). */
+  app.post('/api/streams/:id/revoke-tokens', operator, async (req) => {
+    const { id } = idParam.parse(req.params);
+    await getStream(id);
+    await sql`UPDATE streams SET token_secret = replace(gen_random_uuid()::text, '-', ''), updated_at = now() WHERE id = ${id}`;
+    playback.clear();
+    await audit(sql, req, 'stream.tokens_revoked', { id });
+    return { ok: true };
+  });
+
+  /** Starts or stops recording. While the ingest is offline the recording waits and starts when it comes in. */
+  app.post('/api/streams/:id/record', operator, async (req) => {
+    const { id } = idParam.parse(req.params);
+    const { record } = z.object({ record: z.boolean() }).parse(req.body);
+    await getStream(id);
+    await sql`UPDATE streams SET record = ${record}, record_by = ${record ? req.user!.id : null}, updated_at = now() WHERE id = ${id}`;
+    await audit(sql, req, record ? 'recording.started' : 'recording.stopped', { stream: id });
+    nudge();
     return { ok: true };
   });
 
@@ -178,7 +264,7 @@ export async function streamRoutes(app: FastifyInstance, { sql, media }: { sql: 
     await sql`UPDATE streams SET ingest_key_hash = ${sha256(key)}, ingest_key_enc = ${encrypt(key)}, updated_at = now() WHERE id = ${id}`;
     await kick(decrypt(s.ingest_key_enc));
     await audit(sql, req, 'stream.key_rotated', { id });
-    media.nudge();
+    nudge();
     return { ok: true };
   });
 
@@ -188,7 +274,7 @@ export async function streamRoutes(app: FastifyInstance, { sql, media }: { sql: 
     await sql`DELETE FROM streams WHERE id = ${id}`;
     await kick(decrypt(s.ingest_key_enc));
     await audit(sql, req, 'stream.deleted', { id, name: s.name });
-    media.nudge();
+    nudge();
     return { ok: true };
   });
 
@@ -196,19 +282,27 @@ export async function streamRoutes(app: FastifyInstance, { sql, media }: { sql: 
   app.post('/api/streams/:id/live', operator, async (req) => {
     const { id } = idParam.parse(req.params);
     const { live } = z.object({ live: z.boolean() }).parse(req.body);
-    await getStream(id);
+    const s = await getStream(id);
     const r = live
       ? await sql`UPDATE destinations SET live = true, live_since = COALESCE(live_since, now()), updated_at = now() WHERE stream_id = ${id} AND enabled AND NOT live`
       : await sql`UPDATE destinations SET live = false, live_since = NULL, updated_at = now() WHERE stream_id = ${id} AND live`;
+    // "Record automatically" follows Go live / Stop all.
+    if (s.auto_record) await sql`UPDATE streams SET record = ${live}, record_by = ${live ? req.user!.id : null} WHERE id = ${id}`;
     await audit(sql, req, live ? 'stream.live' : 'stream.stopped', { id, destinations: r.count });
-    media.nudge();
+    nudge();
     return { ok: true, changed: r.count };
   });
 
-  function checkDestination(platform: Platform, serverUrl: string, body: { streamKey?: string; passphrase?: string }) {
+  async function checkDestination(platform: Platform, serverUrl: string, body: z.infer<typeof destinationBody>) {
     const problem = serverUrlProblem(platform, serverUrl);
     if (problem) throw new HttpError(400, problem);
     if (platform === 'srt' && [body.streamKey, body.passphrase].some((v) => v && unsafeSrtValue.test(v))) throw new HttpError(400, 'invalid_srt_value');
+    if (body.auth === 'account') {
+      if (!['youtube', 'facebook', 'twitch'].includes(platform)) throw new HttpError(400, 'account_not_supported');
+      if (!body.accountId) throw new HttpError(400, 'account_required');
+      const [a] = await sql<{ provider: string }[]>`SELECT provider FROM platform_accounts WHERE id = ${body.accountId}`;
+      if (!a || a.provider !== platform) throw new HttpError(400, 'account_required');
+    }
   }
 
   app.post('/api/streams/:id/destinations', operator, async (req) => {
@@ -216,16 +310,17 @@ export async function streamRoutes(app: FastifyInstance, { sql, media }: { sql: 
     const body = destinationBody.parse(req.body);
     await getStream(id);
     const serverUrl = body.serverUrl || presets[body.platform].server;
-    checkDestination(body.platform, serverUrl, body);
-    if (presets[body.platform].keyRequired && !body.streamKey) throw new HttpError(400, 'stream_key_required');
+    await checkDestination(body.platform, serverUrl, body);
+    if (presets[body.platform].keyRequired && body.auth === 'key' && !body.streamKey) throw new HttpError(400, 'stream_key_required');
     const [{ n }] = await sql<{ n: number }[]>`SELECT count(*)::int AS n FROM destinations WHERE stream_id = ${id}`;
     if (n >= 20) throw new HttpError(400, 'too_many_destinations');
     const [d] = await sql<{ id: string }[]>`
       INSERT INTO destinations (stream_id, name, platform, server_url, stream_key_enc, passphrase_enc, enabled, mode,
-                                video_bitrate, audio_bitrate, max_height, fps, position)
+                                video_bitrate, audio_bitrate, max_height, fps, position, auth, account_id, privacy)
       VALUES (${id}, ${body.name}, ${body.platform}, ${serverUrl}, ${body.streamKey ? encrypt(body.streamKey) : ''},
               ${body.passphrase ? encrypt(body.passphrase) : ''}, ${body.enabled}, ${body.mode},
-              ${body.videoBitrate}, ${body.audioBitrate}, ${body.maxHeight}, ${body.fps}, ${n})
+              ${body.videoBitrate}, ${body.audioBitrate}, ${body.maxHeight}, ${body.fps}, ${n},
+              ${body.auth}, ${body.auth === 'account' ? body.accountId : null}, ${body.privacy})
       RETURNING id`;
     await audit(sql, req, 'destination.created', { id: d.id, stream: id, platform: body.platform, name: body.name });
     return { id: d.id };
@@ -243,26 +338,33 @@ export async function streamRoutes(app: FastifyInstance, { sql, media }: { sql: 
     const cur = await getDestination(id);
     if (body.platform !== cur.platform) throw new HttpError(400, 'platform_change');
     const serverUrl = body.serverUrl || presets[body.platform].server;
-    checkDestination(body.platform, serverUrl, body);
+    await checkDestination(body.platform, serverUrl, body);
     const keyEnc = body.streamKey === undefined ? cur.stream_key_enc : body.streamKey ? encrypt(body.streamKey) : '';
-    if (presets[body.platform].keyRequired && !keyEnc) throw new HttpError(400, 'stream_key_required');
+    if (presets[body.platform].keyRequired && body.auth === 'key' && !keyEnc) throw new HttpError(400, 'stream_key_required');
+    // Another account or another way of connecting: the prepared broadcast no longer applies.
+    const reset = body.auth !== cur.auth || (body.accountId ?? null) !== (cur.auth === 'account' ? cur.account_id : null);
     const passEnc = body.passphrase === undefined ? cur.passphrase_enc : body.passphrase ? encrypt(body.passphrase) : '';
     await sql`
       UPDATE destinations SET name = ${body.name}, server_url = ${serverUrl}, stream_key_enc = ${keyEnc}, passphrase_enc = ${passEnc},
              enabled = ${body.enabled}, mode = ${body.mode}, video_bitrate = ${body.videoBitrate}, audio_bitrate = ${body.audioBitrate},
-             max_height = ${body.maxHeight}, fps = ${body.fps}, updated_at = now()
+             max_height = ${body.maxHeight}, fps = ${body.fps}, auth = ${body.auth},
+             account_id = ${body.auth === 'account' ? body.accountId : null}, privacy = ${body.privacy},
+             remote_stream_id = CASE WHEN ${reset} THEN NULL ELSE remote_stream_id END,
+             updated_at = now()
       WHERE id = ${id}`;
     await audit(sql, req, 'destination.updated', { id, name: body.name, keyChanged: body.streamKey !== undefined });
-    media.nudge();
+    nudge();
     return { ok: true };
   });
 
   app.delete('/api/destinations/:id', operator, async (req) => {
     const { id } = idParam.parse(req.params);
     const d = await getDestination(id);
+    // End a broadcast this destination still has open on its connected account.
+    await provisioner.release(id).catch(() => {});
     await sql`DELETE FROM destinations WHERE id = ${id}`;
     await audit(sql, req, 'destination.deleted', { id, name: d.name });
-    media.nudge();
+    nudge();
     return { ok: true };
   });
 
@@ -272,7 +374,7 @@ export async function streamRoutes(app: FastifyInstance, { sql, media }: { sql: 
     const d = await getDestination(id);
     await sql`UPDATE destinations SET live = ${live}, live_since = ${live ? (d.live_since ?? new Date()) : null}, updated_at = now() WHERE id = ${id}`;
     await audit(sql, req, live ? 'destination.live' : 'destination.stopped', { id, name: d.name });
-    media.nudge();
+    nudge();
     return { ok: true };
   });
 }

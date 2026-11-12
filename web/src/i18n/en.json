@@ -24,7 +24,8 @@
     "info": "Info",
     "menu": "Menu",
     "close": "Close menu",
-    "soon": "Soon"
+    "soon": "Soon",
+    "accounts": "Accounts"
   },
   "channel": {
     "label": "Release channel",
@@ -64,7 +65,8 @@
     "back": "Back",
     "continue": "Continue",
     "download": "Download",
-    "unknown": "Unknown"
+    "unknown": "Unknown",
+    "edit": "Edit"
   },
   "login": {
     "eyebrow": "One signal · every platform",
@@ -111,7 +113,6 @@
     "stop": "Stop",
     "stopAll": "Stop all",
     "record": "Record",
-    "recordSoon": "Recording arrives in phase 3",
     "confirmStopAll": "Stop every destination of this stream?",
     "noIncluded": "Add a destination first, or include one in Go live.",
     "goLiveWaiting": "No ingest yet: destinations connect as soon as the stream comes in.",
@@ -150,7 +151,16 @@
     "mediaOfflineText": "Restream can't reach MediaMTX, so no stream can come in. Repair reinstalls and starts it (this takes a minute), or check it on the server with: systemctl status restream-media",
     "overLimitTitle": "Resolution above 1080p",
     "overLimitText": "Restream supports up to 1080p50 in this version. Set your encoder to 1920×1080 or lower; passthrough destinations may refuse this stream.",
-    "repairMedia": "Repair media server"
+    "repairMedia": "Repair media server",
+    "recordHint": "Record the incoming stream to an MP4 file on this server",
+    "confirmStopRecording": "Stop recording? The file is kept under Recordings.",
+    "stopRecording": "Stop recording",
+    "recordWaiting": "Recording starts as soon as the encoder sends a signal",
+    "recordArmed": "REC · waiting for signal",
+    "eventNow": "Event live now",
+    "eventNext": "Next event",
+    "eventAuto": "Goes live automatically at the start time",
+    "watch": "Watch on the platform"
   },
   "soon": {
     "title": "Coming in phase {{phase}}",
@@ -324,7 +334,28 @@
     "backup_command_failed": "A backup tool failed on the server.",
     "backup_tool_missing": "A backup tool (pg_dump, tar) is missing on the server. Run the updater.",
     "invalid_private_key": "That is not a valid OpenSSH private key (without passphrase).",
-    "passphrase_mismatch": "The passphrases are not the same."
+    "passphrase_mismatch": "The passphrases are not the same.",
+    "oauth_failed": "Connecting the account failed. Try again; check the app settings when it keeps failing.",
+    "oauth_denied": "Access was not granted on the platform.",
+    "no_channel": "This Google/Twitch account has no channel to stream to.",
+    "no_pages": "This Facebook account manages no pages. Restream streams to pages.",
+    "public_url_missing": "Set the public URL of this server first (Administration › Settings).",
+    "app_not_configured": "The app for this platform has not been registered yet.",
+    "invalid_domain": "One of the websites is not a valid domain name.",
+    "account_required": "Choose a connected account of this platform.",
+    "account_not_supported": "Only YouTube, Facebook and Twitch work with a connected account.",
+    "account_in_use": "This account is live right now. Stop its destinations first.",
+    "recording_active": "This recording is still running.",
+    "file_missing": "The file of this recording is missing on the server.",
+    "disk_full": "Not enough free disk space to record (at least 1 GB needed).",
+    "event_in_past": "The start time is in the past.",
+    "event_end_before_start": "The end must be after the start.",
+    "event_too_long": "An event can last at most 24 hours.",
+    "event_not_editable": "This event can no longer be changed.",
+    "event_stream_change": "The stream of an event cannot be changed.",
+    "event_not_live": "This event is not live.",
+    "event_cleanup_pending": "Restream is still removing this event from the platforms. Try again in a minute.",
+    "invalid_destination": "A chosen destination does not belong to this stream."
   },
   "time": {
     "seconds": "{{n}}s",
@@ -342,7 +373,9 @@
     "connecting": "Connecting",
     "live": "Live",
     "reconnecting": "Reconnecting",
-    "reconnectingN": "Reconnecting ({{n}})"
+    "reconnectingN": "Reconnecting ({{n}})",
+    "preparing": "Preparing broadcast",
+    "preparingFailed": "Platform refused, retrying"
   },
   "streams": {
     "title": "Streams & keys",
@@ -376,7 +409,14 @@
     "enable": "Enable",
     "disabled": "Disabled",
     "confirmDisable": "Disable this stream? The encoder is disconnected and new connections are refused.",
-    "confirmDelete": "Delete {{name}} and all its destinations? This cannot be undone."
+    "confirmDelete": "Delete {{name}} and all its destinations? This cannot be undone.",
+    "details": "Broadcast details",
+    "detailsHint": "Used as title and description when Restream creates a broadcast on a connected account (YouTube, Facebook, Twitch) on Go live. Events have their own title.",
+    "broadcastTitle": "Title",
+    "broadcastDescription": "Description",
+    "recording": "Recording",
+    "recordingHint": "Recordings are MP4 files on this server; you find them under Recordings. You can always start one with the Record button on the dashboard.",
+    "autoRecord": "Record automatically on Go live (stops with Stop all)"
   },
   "destinations": {
     "title": "Destinations",
@@ -419,7 +459,16 @@
     "fps": "Frame rate",
     "fpsDefault": "50 fps (default)",
     "recommended": "Recommended for this platform: {{rate}}",
-    "confirmDelete": "Delete destination {{name}}?"
+    "confirmDelete": "Delete destination {{name}}?",
+    "viaAccountName": "via account {{name}}",
+    "accountMissing": "Connected account missing — choose another one",
+    "connectWith": "Connect with",
+    "withKey": "Stream key",
+    "withAccount": "Connected account",
+    "withKeyHint": "Paste the stream key from the platform's studio. Works for every platform and account.",
+    "withAccountHint": "Restream creates the broadcast itself on Go live, with the stream's title, and ends it on Stop. Scheduled events are announced on the platform.",
+    "account": "Account",
+    "noAccounts": "No {{platform}} account connected yet — connect one under Accounts"
   },
   "mail": {
     "title": "Mail server",
@@ -616,5 +665,182 @@
     "signedOutTitle": "Restore in progress",
     "signedOutText": "The restore signed everyone out. Sign in with an account from the backup; the result is under Backups › Activity.",
     "signInAgain": "Sign in again"
+  },
+  "privacy": {
+    "public": "Public",
+    "unlisted": "Unlisted",
+    "private": "Private"
+  },
+  "embed": {
+    "title": "Embed on a website",
+    "subtitle": "A player in your own style that you place on any website with one line of code. Choose who may play the stream; this also applies to the HLS and WebRTC links above.",
+    "access": "Who may watch",
+    "mode": {
+      "public": "Everyone, on every website",
+      "domains": "Only on my websites",
+      "token": "Only with a link I hand out"
+    },
+    "modeHint": {
+      "public": "The player and the links work everywhere.",
+      "domains": "The player only works when it is embedded on the websites you list. Direct links only play from those sites.",
+      "token": "Every player and link needs a signed link from this page. Links can expire and you can revoke all of them at once."
+    },
+    "domains": "Websites",
+    "domainsHint": "One per line. *.example.com also covers example.com and every subdomain.",
+    "saveAccess": "Save access",
+    "links": "Signed links",
+    "linksHintToken": "Create a link for each website or person. Anyone with the link can watch until it expires.",
+    "linksHintDomains": "Optional: a signed link also plays outside your websites, for example in a TV app or VLC.",
+    "validity": "Valid for",
+    "validDays_one": "Valid for {{count}} day",
+    "validDays_other": "Valid for {{count}} days",
+    "validForever": "Never expires",
+    "validUntil": "Valid until {{date}}",
+    "createLink": "Create link",
+    "revoke": "Revoke all links",
+    "confirmRevoke": "Revoke all links of this stream? Players that use one stop within a minute, also on websites.",
+    "code": "Embed code",
+    "autoplay": "Start automatically (muted)",
+    "showTitle": "Show title",
+    "lowLatency": "Low latency (WebRTC)",
+    "preview": "Preview",
+    "hidePreview": "Hide preview",
+    "codeHint": "Paste this code into your website. The player scales with the page and switches to full screen.",
+    "autoplayHint": "Browsers only start video automatically without sound; viewers can switch the sound on.",
+    "needLink": "Create a signed link first; the embed code uses it."
+  },
+  "accounts": {
+    "title": "Connected accounts",
+    "subtitle": "Connect YouTube channels, Facebook pages and Twitch channels once. Destinations can then go live without copying stream keys, and events are announced on the platforms.",
+    "connected_one": "Account connected.",
+    "connected_other": "{{count}} accounts connected.",
+    "publicUrlMissing": "Set the public URL of this server first; the platforms send you back to it after signing in.",
+    "openSettings": "Open settings",
+    "connect": "Connect",
+    "appMissing": "An administrator first registers the app for this platform (below on this page).",
+    "none": "No accounts connected.",
+    "usedBy_one": "used by {{count}} destination",
+    "usedBy_other": "used by {{count}} destinations",
+    "reconnect": "Access expired or revoked — connect again",
+    "ok": "Connected",
+    "error": "Needs attention",
+    "remove": "Remove account",
+    "confirmRemove": "Remove {{name}}? Destinations that use it stop working until you choose another account or a stream key.",
+    "kind": {
+      "youtube": "YouTube channels",
+      "facebook": "Facebook pages",
+      "twitch": "Twitch channels"
+    },
+    "what": {
+      "youtube": "Creates the live broadcast on Go live, schedules events with their own watch link, and ends the broadcast on Stop.",
+      "facebook": "Every page you manage is added. Goes live on the page and schedules events as upcoming live videos.",
+      "twitch": "Gets the stream key itself and sets the stream title. Events go into the stream schedule (Affiliates and Partners)."
+    },
+    "appsTitle": "Platform apps",
+    "appsText": "Each platform needs an app registered in its developer console, with the redirect URL below. You do this once; the client secret is stored encrypted.",
+    "app": {
+      "youtube": "Google Cloud OAuth client",
+      "facebook": "Meta app",
+      "twitch": "Twitch app"
+    },
+    "steps": {
+      "youtube": [
+        "Create a project in Google Cloud and enable the YouTube Data API v3.",
+        "Configure the OAuth consent screen (External) and add your Google accounts as test users, or publish it.",
+        "Create credentials › OAuth client ID › Web application, with the redirect URL below."
+      ],
+      "facebook": [
+        "Create an app at Meta for Developers (type Business) and add Facebook Login for Business.",
+        "Add the redirect URL below under Valid OAuth Redirect URIs.",
+        "Request the permissions pages_show_list, pages_read_engagement, pages_manage_posts and publish_video (App Review for pages you do not own)."
+      ],
+      "twitch": [
+        "Register an application in the Twitch developer console (category: Broadcaster Suite).",
+        "Use the redirect URL below as OAuth Redirect URL.",
+        "Choose client type Confidential and create a new secret."
+      ]
+    },
+    "openConsole": "Open the developer console",
+    "redirectUri": "Redirect URL",
+    "clientId": "Client ID / App ID",
+    "clientSecret": "Client secret",
+    "secretKeep": "Leave empty to keep the stored secret."
+  },
+  "events": {
+    "title": "Events",
+    "subtitle": "Plan broadcasts ahead. Restream announces them on the connected platforms, goes live at the start time and stops at the end.",
+    "add": "Plan event",
+    "addTitle": "Plan event",
+    "editTitle": "Edit event",
+    "create": "Plan event",
+    "emptyTitle": "No events planned",
+    "emptyText": "Plan a live event: viewers find it on YouTube, Facebook and Twitch beforehand, and Restream goes live on time.",
+    "liveNow": "Live now",
+    "upcoming": "Upcoming",
+    "past": "Past 60 days",
+    "confirmStart": "Start {{title}} now? Its destinations go live.",
+    "confirmStop": "Stop {{title}}? Its destinations stop.",
+    "confirmCancel": "Cancel {{title}}? It is removed from the platforms.",
+    "status": {
+      "live": "Live",
+      "ended": "Ended",
+      "missed": "Not started",
+      "cancelled": "Cancelled"
+    },
+    "target": {
+      "pending": "announcing…",
+      "registered": "announced",
+      "used": "went live",
+      "skipped": "stream key",
+      "failed": "not announced"
+    },
+    "rec": "REC",
+    "openOnPlatform": "Open on the platform",
+    "retry": "Try again",
+    "startNow": "Start now",
+    "cancelEvent": "Cancel",
+    "stop": "Stop event",
+    "manualStart": "Start by hand",
+    "titleLabel": "Title",
+    "titlePlaceholder": "Christmas Eve service",
+    "stream": "Stream",
+    "starts": "Starts",
+    "ends": "Ends",
+    "endsHint": "Optional. Needed to stop automatically.",
+    "description": "Description",
+    "descriptionHint": "Shown on YouTube and Facebook.",
+    "destinations": "Destinations",
+    "announced": "announced on {{account}}",
+    "keyOnly": "stream key, not announced",
+    "destinationsHint": "Destinations on a connected account are announced on the platform right away. The others simply go live at the start.",
+    "autoStart": "Go live automatically at the start",
+    "autoStop": "Stop automatically at the end",
+    "record": "Record this event",
+    "privacy": "Visibility"
+  },
+  "recordings": {
+    "title": "Recordings",
+    "subtitle": "Every broadcast you record, as an MP4 file on this server. Watch it in the browser or download it.",
+    "statCount": "Recordings",
+    "activeNow_one": "{{count}} recording now",
+    "activeNow_other": "{{count}} recording now",
+    "statUsed": "Storage used",
+    "diskFree": "{{free}} free on the disk",
+    "diskUsed": "Disk {{pct}}% full",
+    "retention": "Keep recordings",
+    "keepForever": "Forever",
+    "keepDays_one": "{{count}} day",
+    "keepDays_other": "{{count}} days",
+    "retentionHint": "Older recordings are deleted automatically. Backups include the recordings.",
+    "emptyTitle": "No recordings yet",
+    "emptyText": "Press Record on the dashboard during a broadcast, or switch on automatic recording for a stream or event.",
+    "play": "Play",
+    "recording": "Recording",
+    "failed": "Failed",
+    "download": "Download",
+    "rename": "Rename",
+    "confirmDelete": "Delete the recording {{name}}? The file is removed from the server.",
+    "titleLabel": "Title",
+    "titleHint": "Also used as the file name of the download."
   }
 }

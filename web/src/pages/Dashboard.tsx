@@ -2,11 +2,12 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, CircleDot, MonitorPlay, Plus, Radio, Settings2, Square, ExternalLink, Wrench } from 'lucide-react';
+import { AlertTriangle, CalendarClock, CircleDot, MonitorPlay, Plus, Radio, Settings2, Square, ExternalLink, Wrench, Link2 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { api, type Destination, type Stream, type SystemInfo } from '../lib/api';
 import { useMe } from '../lib/auth';
-import { formatDuration } from '../lib/format';
+import { formatBytes, formatDate, formatDuration } from '../lib/format';
+import { useEvents } from './Events';
 import { clock, formatKbps, sinceSeconds, useStreams } from '../lib/streams';
 import { Button, Card, CopyButton, ErrorText, KeyValue } from '../components/ui';
 import { IngestBadge, OutputBadge, PlatformChip, Segmented, audioLabel, videoLabel } from '../components/media';
@@ -126,7 +127,7 @@ function StreamControl({ stream, canOperate, sys }: { stream: Stream; canOperate
           <h1 className="font-display text-3xl font-semibold tracking-tight">{t('dashboard.title')}</h1>
         </div>
         <IngestBadge status={st} enabled={stream.enabled} />
-        <Button disabled title={t('dashboard.recordSoon')}><CircleDot size={16} className="text-live" /> {t('dashboard.record')}</Button>
+        <RecordButton stream={stream} canOperate={canOperate} now={now} />
         {canOperate && (anyLive ? (
           <Button variant="danger" onClick={stopAll} loading={live.isPending}><Square size={14} /> {t('dashboard.stopAll')}</Button>
         ) : (
@@ -190,6 +191,7 @@ function StreamControl({ stream, canOperate, sys }: { stream: Stream; canOperate
         </div>
 
         <aside className="flex flex-col gap-6">
+          <NextEvent streamId={stream.id} />
           <Card eyebrow={t('dashboard.outputs')}>
             <div className="flex items-end gap-3">
               <span className="font-display text-5xl font-semibold">{stream.destinations.filter((d) => d.status.state === 'live').length}</span>
@@ -227,6 +229,50 @@ function StreamControl({ stream, canOperate, sys }: { stream: Stream; canOperate
   );
 }
 
+function RecordButton({ stream, canOperate, now }: { stream: Stream; canOperate: boolean; now: number }) {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const rec = stream.recording;
+  const toggle = useMutation({
+    mutationFn: (on: boolean) => api(`/api/streams/${stream.id}/record`, { method: 'POST', body: { record: on } }),
+    onSettled: () => { qc.invalidateQueries({ queryKey: ['streams'] }); qc.invalidateQueries({ queryKey: ['recordings'] }); },
+  });
+  if (!stream.record) {
+    return (
+      <Button onClick={() => toggle.mutate(true)} loading={toggle.isPending} disabled={!canOperate} title={rec.lastError ?? t('dashboard.recordHint')}>
+        <CircleDot size={16} className="text-live" /> {t('dashboard.record')}
+      </Button>
+    );
+  }
+  const recording = rec.state === 'recording';
+  return (
+    <Button
+      variant="danger" onClick={() => { if (confirm(t('dashboard.confirmStopRecording'))) toggle.mutate(false); }} loading={toggle.isPending} disabled={!canOperate}
+      title={recording ? t('dashboard.stopRecording') : rec.lastError === 'disk_full' ? t('errors.disk_full') : t('dashboard.recordWaiting')}
+      className="font-mono"
+    >
+      <CircleDot size={16} className={clsx(recording && 'pulse-dot')} />
+      {recording ? `REC ${clock(sinceSeconds(rec.since, now))} · ${formatBytes(rec.sizeBytes)}` : t('dashboard.recordArmed')}
+    </Button>
+  );
+}
+
+function NextEvent({ streamId }: { streamId: string }) {
+  const { t } = useTranslation();
+  const events = useEvents().data ?? [];
+  const e = events.find((x) => x.streamId === streamId && x.status === 'live') ?? events.find((x) => x.streamId === streamId && x.status === 'scheduled');
+  if (!e) return null;
+  return (
+    <Card eyebrow={<span className="flex items-center gap-2"><CalendarClock size={13} /> {e.status === 'live' ? t('dashboard.eventNow') : t('dashboard.eventNext')}</span>}>
+      <Link to="/events" className="flex flex-col gap-1 text-fg hover:text-fg">
+        <span className="font-display text-lg font-semibold">{e.title}</span>
+        <span className="text-sm text-fg-2">{formatDate(e.startsAt)}</span>
+        {e.status === 'scheduled' && <span className="text-xs text-fg-3">{e.autoStart ? t('dashboard.eventAuto') : t('events.manualStart')}</span>}
+      </Link>
+    </Card>
+  );
+}
+
 function UrlRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col gap-1">
@@ -254,6 +300,7 @@ function DestinationTile({ d, canOperate, now }: { d: Destination; canOperate: b
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="truncate text-sm font-medium">{d.name}</span>
           <span className="truncate text-xs text-fg-3">
+            {d.auth === 'account' && <Link2 size={11} className="mr-1 inline text-accent" />}
             {d.mode === 'copy' ? t('destinations.passthrough') : t('destinations.transcodeShort', { rate: formatKbps(d.videoBitrate), height: d.maxHeight })}
             {!d.enabled && ` · ${t('destinations.notIncluded')}`}
           </span>
@@ -265,6 +312,9 @@ function DestinationTile({ d, canOperate, now }: { d: Destination; canOperate: b
           {s.state === 'live' ? `${formatKbps(s.bitrateKbps)} · ${clock(sinceSeconds(s.since, now))}` : ''}
         </span>
       </div>
+      {d.watchUrl && (
+        <a href={d.watchUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-xs">{t('dashboard.watch')} <ExternalLink size={12} /></a>
+      )}
       {s.lastError && s.state !== 'live' && s.state !== 'off' && (
         <p className="line-clamp-2 font-mono text-[11px] leading-relaxed text-warn" title={s.lastError}>{s.lastError}</p>
       )}

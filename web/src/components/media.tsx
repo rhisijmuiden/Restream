@@ -19,12 +19,12 @@ export function PlatformChip({ platform, size = 36 }: { platform: Platform; size
 
 export function OutputBadge({ status }: { status: Destination['status'] }) {
   const { t } = useTranslation();
-  const tone = { off: 'neutral', waiting: 'warn', connecting: 'accent', live: 'live', reconnecting: 'warn' } as const;
+  const tone = { off: 'neutral', waiting: 'warn', preparing: 'accent', connecting: 'accent', live: 'live', reconnecting: 'warn' } as const;
   return (
     <Badge tone={tone[status.state]} dot>
       {status.state === 'reconnecting' && status.attempts > 0
         ? t('output.reconnectingN', { n: status.attempts })
-        : t(`output.${status.state}`)}
+        : status.state === 'preparing' && status.lastError ? t('output.preparingFailed') : t(`output.${status.state}`)}
     </Badge>
   );
 }

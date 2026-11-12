@@ -11,6 +11,9 @@ import { Dashboard } from './pages/Dashboard';
 import { Streams } from './pages/Streams';
 import { Destinations } from './pages/Destinations';
 import { ComingSoon } from './pages/ComingSoon';
+import { Accounts } from './pages/Accounts';
+import { Events } from './pages/Events';
+import { Recordings } from './pages/Recordings';
 import { Users } from './pages/Users';
 import { Account } from './pages/Account';
 import { Settings } from './pages/Settings';
@@ -72,8 +75,9 @@ export function App() {
         <Route index element={<Dashboard />} />
         <Route path="streams" element={<Streams />} />
         <Route path="destinations" element={<Destinations />} />
-        <Route path="events" element={<ComingSoon titleKey="nav.events" phase={3} />} />
-        <Route path="recordings" element={<ComingSoon titleKey="nav.recordings" phase={3} />} />
+        <Route path="accounts" element={<Accounts />} />
+        <Route path="events" element={<Events />} />
+        <Route path="recordings" element={<Recordings />} />
         <Route path="analytics" element={<ComingSoon titleKey="nav.analytics" phase={4} />} />
         <Route path="chat" element={<ComingSoon titleKey="nav.chat" phase={4} />} />
         <Route path="account" element={<Account />} />

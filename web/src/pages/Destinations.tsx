@@ -1,10 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { clsx } from 'clsx';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
-import { api, type Destination, type Platform, type Stream } from '../lib/api';
+import { ExternalLink, Pencil, Plus, Trash2, Link2 } from 'lucide-react';
+import { api, type AccountsResponse, type Destination, type Platform, type Privacy, type Stream } from '../lib/api';
 import { useMe } from '../lib/auth';
 import { formatKbps, platformMeta, usePresets, useStreams } from '../lib/streams';
 import { Button, Card, ErrorText, Field, Input, Modal, PageHeader, Select, Toggle } from '../components/ui';
@@ -78,7 +78,15 @@ function DestinationRow({ d, canOperate, onEdit }: { d: Destination; canOperate:
         <PlatformChip platform={d.platform} />
         <div className="flex min-w-0 flex-col">
           <span className="truncate font-medium">{d.name}</span>
-          <span className="truncate font-mono text-xs text-fg-3">{d.serverUrl}{d.streamKeyMasked && ` · ${d.streamKeyMasked}`}</span>
+          {d.auth === 'account' ? (
+            <span className="flex items-center gap-1.5 truncate text-xs text-fg-3">
+              <Link2 size={12} className="text-accent" />
+              {d.account ? t('destinations.viaAccountName', { name: d.account.name }) : <span className="text-warn">{t('destinations.accountMissing')}</span>}
+              {d.platform === 'youtube' && ` · ${t(`privacy.${d.privacy}`)}`}
+            </span>
+          ) : (
+            <span className="truncate font-mono text-xs text-fg-3">{d.serverUrl}{d.streamKeyMasked && ` · ${d.streamKeyMasked}`}</span>
+          )}
         </div>
       </div>
       <span className="text-xs text-fg-2">
@@ -100,14 +108,18 @@ function DestinationRow({ d, canOperate, onEdit }: { d: Destination; canOperate:
 interface FormState {
   name: string; platform: Platform; serverUrl: string; streamKey: string; passphrase: string; enabled: boolean;
   mode: 'copy' | 'transcode'; videoBitrate: number; audioBitrate: number; maxHeight: 480 | 720 | 1080; fps: 25 | 30 | 50 | 60 | null;
+  auth: 'key' | 'account'; accountId: string | null; privacy: Privacy;
 }
 
 function toBody(d: Destination, patch: Partial<FormState> = {}) {
   return {
     name: d.name, platform: d.platform, serverUrl: d.serverUrl, enabled: d.enabled, mode: d.mode,
-    videoBitrate: d.videoBitrate, audioBitrate: d.audioBitrate, maxHeight: d.maxHeight, fps: d.fps, ...patch,
+    videoBitrate: d.videoBitrate, audioBitrate: d.audioBitrate, maxHeight: d.maxHeight, fps: d.fps,
+    auth: d.auth, accountId: d.account?.id ?? null, privacy: d.privacy, ...patch,
   };
 }
+
+const accountPlatforms: Platform[] = ['youtube', 'facebook', 'twitch'];
 
 const platformsList: Platform[] = ['youtube', 'facebook', 'twitch', 'rtmp', 'srt'];
 
@@ -115,6 +127,7 @@ function DestinationModal({ editing, onClose }: { editing: Editing; onClose: () 
   const { t } = useTranslation();
   const qc = useQueryClient();
   const presets = usePresets().data;
+  const accounts = useQuery({ queryKey: ['accounts'], queryFn: () => api<AccountsResponse>('/api/accounts'), enabled: !!editing });
   const [f, setF] = useState<FormState | null>(null);
   const [lastFor, setLastFor] = useState<string | null>(null);
   const key = editing ? editing.dest?.id ?? `new-${editing.stream.id}` : null;
@@ -123,7 +136,7 @@ function DestinationModal({ editing, onClose }: { editing: Editing; onClose: () 
     const d = editing?.dest;
     setF(d
       ? { ...toBody(d), streamKey: '', passphrase: '' } as FormState
-      : { name: 'YouTube', platform: 'youtube', serverUrl: '', streamKey: '', passphrase: '', enabled: true, mode: 'copy', videoBitrate: presets?.youtube.recommendedKbps ?? 9000, audioBitrate: 160, maxHeight: 1080, fps: null });
+      : { name: 'YouTube', platform: 'youtube', serverUrl: '', streamKey: '', passphrase: '', enabled: true, mode: 'copy', videoBitrate: presets?.youtube.recommendedKbps ?? 9000, audioBitrate: 160, maxHeight: 1080, fps: null, auth: 'key', accountId: null, privacy: 'public' });
   }
   const set = (patch: Partial<FormState>) => setF((cur) => (cur ? { ...cur, ...patch } : cur));
 
@@ -133,8 +146,9 @@ function DestinationModal({ editing, onClose }: { editing: Editing; onClose: () 
       const body = {
         name: s.name, platform: s.platform, serverUrl: s.serverUrl.trim() || undefined, enabled: s.enabled, mode: s.mode,
         videoBitrate: s.videoBitrate, audioBitrate: s.audioBitrate, maxHeight: s.maxHeight, fps: s.fps,
+        auth: s.auth, accountId: s.auth === 'account' ? s.accountId : null, privacy: s.privacy,
         // Empty fields keep the stored secret when editing.
-        ...(s.streamKey || !editing?.dest ? { streamKey: s.streamKey.trim() } : {}),
+        ...(s.streamKey || (!editing?.dest && s.auth === 'key') ? { streamKey: s.streamKey.trim() } : {}),
         ...(s.passphrase ? { passphrase: s.passphrase } : {}),
       };
       return editing!.dest
@@ -149,8 +163,10 @@ function DestinationModal({ editing, onClose }: { editing: Editing; onClose: () 
   const isNew = !editing?.dest;
   const pickPlatform = (p: Platform) => {
     const wasDefaultName = !f.name || platformsList.some((x) => platformMeta[x].label === f.name);
-    set({ platform: p, serverUrl: '', name: wasDefaultName ? platformMeta[p].label : f.name, videoBitrate: presets?.[p].recommendedKbps ?? f.videoBitrate });
+    set({ platform: p, serverUrl: '', name: wasDefaultName ? platformMeta[p].label : f.name, videoBitrate: presets?.[p].recommendedKbps ?? f.videoBitrate, auth: 'key', accountId: null });
   };
+  const options = (accounts.data?.accounts ?? []).filter((a) => a.provider === f.platform);
+  const viaAccount = f.auth === 'account';
   const submit = (e: FormEvent) => { e.preventDefault(); save.mutate(); };
 
   return (
@@ -171,11 +187,48 @@ function DestinationModal({ editing, onClose }: { editing: Editing; onClose: () 
           </div>
         )}
 
+        {accountPlatforms.includes(f.platform) && (
+          <div className="flex flex-col gap-3 rounded-xl border border-line bg-bg/40 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <span className="text-sm font-medium">{t('destinations.connectWith')}</span>
+              <Segmented
+                label={t('destinations.connectWith')} value={f.auth}
+                onChange={(v) => set({ auth: v, accountId: v === 'account' ? f.accountId ?? options[0]?.id ?? null : f.accountId })}
+                options={[{ value: 'key', label: t('destinations.withKey') }, { value: 'account', label: t('destinations.withAccount') }]}
+              />
+            </div>
+            <p className="text-xs leading-relaxed text-fg-3">{viaAccount ? t('destinations.withAccountHint') : t('destinations.withKeyHint')}</p>
+            {viaAccount && (options.length ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field label={t('destinations.account')}>
+                  {(id) => (
+                    <Select id={id} value={f.accountId ?? ''} onChange={(e) => set({ accountId: e.target.value })} required>
+                      {!f.accountId && <option value="">—</option>}
+                      {options.map((a) => <option key={a.id} value={a.id}>{a.name}{a.status === 'error' ? ' ⚠' : ''}</option>)}
+                    </Select>
+                  )}
+                </Field>
+                {f.platform === 'youtube' && (
+                  <Field label={t('events.privacy')}>
+                    {(id) => (
+                      <Select id={id} value={f.privacy} onChange={(e) => set({ privacy: e.target.value as Privacy })}>
+                        {(['public', 'unlisted', 'private'] as const).map((p) => <option key={p} value={p}>{t(`privacy.${p}`)}</option>)}
+                      </Select>
+                    )}
+                  </Field>
+                )}
+              </div>
+            ) : (
+              <Link to="/accounts" className="flex items-center gap-1.5 text-sm">{t('destinations.noAccounts', { platform: platformMeta[f.platform].label })} <ExternalLink size={13} /></Link>
+            ))}
+          </div>
+        )}
+
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label={t('common.name')}>
             {(id) => <Input id={id} value={f.name} onChange={(e) => set({ name: e.target.value })} required maxLength={60} />}
           </Field>
-          <Field
+          {(!viaAccount || f.platform === 'twitch') && <Field
             label={t('destinations.server')}
             hint={preset?.server ? t('destinations.serverDefault', { url: preset.server }) : f.platform === 'srt' ? t('destinations.srtServerHint') : t('destinations.rtmpServerHint')}
           >
@@ -186,16 +239,16 @@ function DestinationModal({ editing, onClose }: { editing: Editing; onClose: () 
                 className="font-mono text-[13px]"
               />
             )}
-          </Field>
-          <Field
+          </Field>}
+          {!viaAccount && <Field
             label={f.platform === 'srt' ? t('destinations.streamId') : t('destinations.streamKey')}
             hint={!isNew && editing?.dest?.streamKeyMasked ? t('destinations.keyKeep', { masked: editing.dest.streamKeyMasked }) : f.platform === 'youtube' ? t('destinations.ytKeyHint') : f.platform === 'facebook' ? t('destinations.fbKeyHint') : undefined}
           >
             {(id) => (
               <Input id={id} type="password" autoComplete="off" value={f.streamKey} onChange={(e) => set({ streamKey: e.target.value })}
-                required={isNew && !!preset?.keyRequired} className="font-mono text-[13px]" />
+                required={(isNew || editing?.dest?.auth === 'account') && !!preset?.keyRequired && !editing?.dest?.streamKeyMasked} className="font-mono text-[13px]" />
             )}
-          </Field>
+          </Field>}
           {f.platform === 'srt' && (
             <Field label={t('destinations.passphrase')} hint={editing?.dest?.passphraseSet ? t('destinations.passphraseKeep') : t('destinations.passphraseHint')}>
               {(id) => <Input id={id} type="password" autoComplete="off" value={f.passphrase} onChange={(e) => set({ passphrase: e.target.value })} minLength={10} maxLength={79} />}

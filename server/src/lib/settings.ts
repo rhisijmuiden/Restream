@@ -79,6 +79,17 @@ export interface BackupSettings {
   target: BackupTarget;
 }
 
+export const oauthProviders = ['youtube', 'facebook', 'twitch'] as const;
+export type OAuthProvider = (typeof oauthProviders)[number];
+
+/** OAuth app (client) of a platform, registered by the administrator in the platform's developer console. */
+export interface OAuthApp { clientId: string; clientSecretEnc: string }
+
+export interface RecordingSettings {
+  /** Finished recordings older than this many days are deleted automatically (0 = keep forever). */
+  retentionDays: number;
+}
+
 export interface Settings {
   instanceName: string;
   defaultLanguage: 'en' | 'nl';
@@ -90,6 +101,8 @@ export interface Settings {
   mail: MailSettings;
   notifications: NotificationSettings;
   backup: BackupSettings;
+  platforms: Record<OAuthProvider, OAuthApp>;
+  recordings: RecordingSettings;
 }
 
 export const defaultSettings: Settings = {
@@ -122,6 +135,12 @@ export const defaultSettings: Settings = {
       hostKeySha256: '', verifyCertificate: true, path: 'restream-backups',
     },
   },
+  platforms: {
+    youtube: { clientId: '', clientSecretEnc: '' },
+    facebook: { clientId: '', clientSecretEnc: '' },
+    twitch: { clientId: '', clientSecretEnc: '' },
+  },
+  recordings: { retentionDays: 0 },
 };
 
 /** Stored values over defaults, one level of nested objects deep (so new fields get their default). */

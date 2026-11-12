@@ -34,7 +34,7 @@ Fase 0 t/m 2 vormen samen v1.0. Elke fase gaat eerst naar `test` en pas na akkoo
 
 **Gate: v1.0 in productie**
 
-### Fase 3 · Opnemen, plannen en embedden (P1)
+### Fase 3 · Opnemen, plannen en embedden (P1) · klaar op `test` (v1.1.0)
 - Embed-speler met kopieerbare iframe-code, eigen huisstijl en optioneel alleen voor toegestane domeinen of met een token
 - Opnameknop tijdens de uitzending, overzicht van opnames met download
 - Accounts koppelen via OAuth (YouTube, Facebook, Twitch) naast losse streamkeys
@@ -63,7 +63,7 @@ Fase 0 t/m 2 vormen samen v1.0. Elke fase gaat eerst naar `test` en pas na akkoo
 | LinkedIn Live | Na partnergoedkeuring | Na goedkeuring | Na goedkeuring | Na goedkeuring | 5 |
 | X | RTMP via Media Studio | Nee | Beperkt (betaalde API) | Beperkt | 5 |
 
-API-mogelijkheden zijn nog niet tegen de actuele documentatie gecontroleerd; dat gebeurt aan het begin van fase 3 en 4.
+Fase 3 is gebouwd tegen YouTube Data API v3, Facebook Graph API v26.0 en Twitch Helix (gecontroleerd november 2026), maar nog niet met echte accounts getest. Kijkers en chat worden aan het begin van fase 4 gecontroleerd.
 
 ## Open punten
 

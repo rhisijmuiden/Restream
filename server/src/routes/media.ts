@@ -5,6 +5,7 @@ import type { Sql } from '../db.js';
 import { config } from '../config.js';
 import { decrypt, sha256 } from '../lib/crypto.js';
 import { requireAuth } from '../lib/guards.js';
+import { headerHost, hostAllowed, verifyPlaybackToken } from '../lib/playback.js';
 
 const loopback = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
 
@@ -20,25 +21,36 @@ const hookBody = z.object({
   protocol: z.string().default(''),
 });
 
-/** Playback ids map to ingest keys; cached briefly because every HLS segment request needs one. */
-class PlaybackCache {
-  private cache = new Map<string, { key: string | null; at: number }>();
+export interface PlaybackInfo {
+  key: string;
+  pid: string;
+  allowedDomains: string[];
+  requireToken: boolean;
+  tokenSecret: string;
+}
+
+/** Playback ids map to ingest keys and access rules; cached briefly because every HLS segment request needs one. */
+export class PlaybackCache {
+  private cache = new Map<string, { info: PlaybackInfo | null; at: number }>();
   constructor(private sql: Sql) {}
-  async keyFor(pid: string): Promise<string | null> {
+  async lookup(pid: string): Promise<PlaybackInfo | null> {
     const hit = this.cache.get(pid);
-    if (hit && Date.now() - hit.at < 5000) return hit.key;
-    const [s] = await this.sql<{ ingest_key_enc: string; playback_enabled: boolean; enabled: boolean }[]>`
-      SELECT ingest_key_enc, playback_enabled, enabled FROM streams WHERE playback_id = ${pid}`;
-    const key = s && s.enabled && s.playback_enabled ? decrypt(s.ingest_key_enc) : null;
+    if (hit && Date.now() - hit.at < 5000) return hit.info;
+    const [s] = await this.sql<{ ingest_key_enc: string; playback_enabled: boolean; enabled: boolean; allowed_domains: string[]; require_token: boolean; token_secret: string }[]>`
+      SELECT ingest_key_enc, playback_enabled, enabled, allowed_domains, require_token, token_secret FROM streams WHERE playback_id = ${pid}`;
+    const info = s && s.enabled && s.playback_enabled
+      ? { key: decrypt(s.ingest_key_enc), pid, allowedDomains: s.allowed_domains, requireToken: s.require_token, tokenSecret: s.token_secret }
+      : null;
     if (this.cache.size > 1000) this.cache.clear();
-    this.cache.set(pid, { key, at: Date.now() });
-    return key;
+    this.cache.set(pid, { info, at: Date.now() });
+    return info;
   }
+  clear() { this.cache.clear(); }
 }
 
 const hopByHop = new Set(['connection', 'keep-alive', 'transfer-encoding', 'upgrade', 'proxy-connection', 'te', 'trailer', 'content-length', 'server', 'set-cookie', 'location', 'access-control-allow-origin', 'access-control-allow-credentials']);
 
-export async function mediaRoutes(app: FastifyInstance, { sql }: { sql: Sql }) {
+export async function mediaRoutes(app: FastifyInstance, { sql, playback }: { sql: Sql; playback: PlaybackCache }) {
   /**
    * MediaMTX asks this endpoint before every publish and read (authMethod: http).
    * Publishing needs a valid stream key (the path is live/<key>); reading is only allowed from this machine,
@@ -62,35 +74,60 @@ export async function mediaRoutes(app: FastifyInstance, { sql }: { sql: Sql }) {
     return reply.status(401).send({ ok: false });
   });
 
-  const playback = new PlaybackCache(sql);
-
   for (const type of ['application/sdp', 'application/trickle-ice-sdpfrag']) {
     app.addContentTypeParser(type, { parseAs: 'string', bodyLimit: 64 * 1024 }, (_req, body, done) => done(null, body));
   }
 
   /**
-   * Public playback (hotlink): /live/<playbackId>/index.m3u8 (HLS), /live/<playbackId>/whep (WebRTC),
+   * Public playback (hotlink and embed): /live/<playbackId>/index.m3u8 (HLS), /live/<playbackId>/whep (WebRTC),
    * and the MediaMTX player pages at /live/<playbackId>/ and /live/<playbackId>/webrtc/.
    * MediaMTX only listens on 127.0.0.1; this proxy swaps the public playback id for the secret ingest path.
+   *
+   * The playback id may carry a signed token: /live/<playbackId>~<token>/… (in the path, so the relative
+   * segment URLs in HLS playlists keep it). Access rules per stream:
+   * - a valid token always gives access;
+   * - "require token": nothing else does;
+   * - allowed domains: only browsers on those sites (Origin header) get access;
+   * - otherwise playback is public.
    */
   async function proxy(req: FastifyRequest, reply: FastifyReply) {
-    const { pid, '*': restRaw } = req.params as { pid: string; '*': string };
+    const { pid: raw, '*': restRaw } = req.params as { pid: string; '*': string };
     const rest = restRaw ?? '';
-    if (!/^[a-z0-9]{6,32}$/.test(pid) || rest.includes('..')) return publicHeaders(reply).status(404).send({ error: 'not_found' });
-    if (req.method === 'OPTIONS') return publicHeaders(reply).status(204).send();
-    const key = await playback.keyFor(pid);
-    if (!key) return publicHeaders(reply).status(404).send({ error: 'not_found' });
-    publicHeaders(reply);
-    return forward(req, reply, key, `/live/${pid}/`, rest);
+    const m = /^([a-z0-9]{6,32})(?:~([0-9a-z]{1,8}\.[A-Za-z0-9_-]{22}))?$/.exec(raw);
+    if (!m || rest.includes('..')) return publicHeaders(reply, '*').status(404).send({ error: 'not_found' });
+    const [, pid, token] = m;
+    const info = await playback.lookup(pid);
+    if (!info) return publicHeaders(reply, '*').status(404).send({ error: 'not_found' });
+
+    const origin = typeof req.headers.origin === 'string' ? req.headers.origin : '';
+    let allowOrigin = '*';
+    let allowed = true;
+    if (token) {
+      allowed = verifyPlaybackToken(pid, info.tokenSecret, token);
+    } else if (info.requireToken) {
+      allowed = false;
+    } else if (info.allowedDomains.length) {
+      const host = headerHost(origin);
+      allowed = !!host && hostAllowed(host, info.allowedDomains);
+      allowOrigin = allowed ? origin : 'null';
+    }
+    publicHeaders(reply, allowOrigin);
+    if (req.method === 'OPTIONS') return reply.status(204).send();
+    if (!allowed) return reply.status(403).send({ error: 'playback_restricted' });
+    return forward(req, reply, info.key, `/live/${raw}/`, rest);
   }
 
-  const publicHeaders = (reply: FastifyReply) => reply
-      .header('access-control-allow-origin', '*')
+  const publicHeaders = (reply: FastifyReply, origin: string) => {
+    reply
+      .header('access-control-allow-origin', origin)
       .header('access-control-allow-methods', 'GET, HEAD, POST, PATCH, DELETE, OPTIONS')
       .header('access-control-allow-headers', 'Content-Type, If-Match, Authorization')
       .header('access-control-expose-headers', 'ETag, ID, Accept-Patch, Link, Location')
       .header('cross-origin-resource-policy', 'cross-origin')
       .removeHeader('x-frame-options');
+    if (origin !== '*') reply.header('vary', 'Origin');
+    return reply;
+  };
 
   /** Forwards a request to MediaMTX for ingest key `key`; `base` is the public URL prefix that stands for /live/<key>/. */
   async function forward(req: FastifyRequest, reply: FastifyReply, key: string, base: string, rest: string) {

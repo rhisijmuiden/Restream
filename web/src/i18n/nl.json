@@ -24,7 +24,8 @@
     "info": "Info",
     "menu": "Menu",
     "close": "Menu sluiten",
-    "soon": "Binnenkort"
+    "soon": "Binnenkort",
+    "accounts": "Accounts"
   },
   "channel": {
     "label": "Releasekanaal",
@@ -64,7 +65,8 @@
     "back": "Terug",
     "continue": "Doorgaan",
     "download": "Downloaden",
-    "unknown": "Onbekend"
+    "unknown": "Onbekend",
+    "edit": "Bewerken"
   },
   "login": {
     "eyebrow": "Eén signaal · elk platform",
@@ -111,7 +113,6 @@
     "stop": "Stop",
     "stopAll": "Alles stoppen",
     "record": "Opnemen",
-    "recordSoon": "Opnemen komt in fase 3",
     "confirmStopAll": "Alle bestemmingen van deze stream stoppen?",
     "noIncluded": "Voeg eerst een bestemming toe, of neem er een op in Go live.",
     "goLiveWaiting": "Nog geen ingest: de bestemmingen verbinden zodra de stream binnenkomt.",
@@ -150,7 +151,16 @@
     "mediaOfflineText": "Restream kan MediaMTX niet bereiken, dus er kan geen stream binnenkomen. Herstellen installeert en start hem opnieuw (duurt een minuut), of controleer hem op de server met: systemctl status restream-media",
     "overLimitTitle": "Resolutie hoger dan 1080p",
     "overLimitText": "Restream ondersteunt in deze versie maximaal 1080p50. Zet je encoder op 1920×1080 of lager; passthrough-bestemmingen kunnen deze stream weigeren.",
-    "repairMedia": "Mediaserver herstellen"
+    "repairMedia": "Mediaserver herstellen",
+    "recordHint": "Neem de binnenkomende stream op als MP4-bestand op deze server",
+    "confirmStopRecording": "Opname stoppen? Het bestand blijft bewaard onder Opnames.",
+    "stopRecording": "Opname stoppen",
+    "recordWaiting": "De opname start zodra de encoder beeld stuurt",
+    "recordArmed": "REC · wacht op signaal",
+    "eventNow": "Event nu live",
+    "eventNext": "Volgend event",
+    "eventAuto": "Gaat automatisch live op de begintijd",
+    "watch": "Bekijken op het platform"
   },
   "soon": {
     "title": "Komt in fase {{phase}}",
@@ -324,7 +334,28 @@
     "backup_command_failed": "Een back-uphulpmiddel is op de server mislukt.",
     "backup_tool_missing": "Een back-uphulpmiddel (pg_dump, tar) ontbreekt op de server. Voer de updater uit.",
     "invalid_private_key": "Dat is geen geldige OpenSSH-privésleutel (zonder wachtwoordzin).",
-    "passphrase_mismatch": "De wachtwoordzinnen zijn niet gelijk."
+    "passphrase_mismatch": "De wachtwoordzinnen zijn niet gelijk.",
+    "oauth_failed": "Het koppelen van het account is mislukt. Probeer het opnieuw; controleer de app-instellingen als het blijft mislukken.",
+    "oauth_denied": "Er is geen toegang gegeven op het platform.",
+    "no_channel": "Dit Google/Twitch-account heeft geen kanaal om naar te streamen.",
+    "no_pages": "Dit Facebook-account beheert geen pagina's. Restream streamt naar pagina's.",
+    "public_url_missing": "Stel eerst de publieke URL van deze server in (Beheer › Instellingen).",
+    "app_not_configured": "De app voor dit platform is nog niet geregistreerd.",
+    "invalid_domain": "Een van de websites is geen geldige domeinnaam.",
+    "account_required": "Kies een gekoppeld account van dit platform.",
+    "account_not_supported": "Alleen YouTube, Facebook en Twitch werken met een gekoppeld account.",
+    "account_in_use": "Dit account is nu live. Stop eerst de bestemmingen.",
+    "recording_active": "Deze opname loopt nog.",
+    "file_missing": "Het bestand van deze opname ontbreekt op de server.",
+    "disk_full": "Te weinig vrije schijfruimte om op te nemen (minstens 1 GB nodig).",
+    "event_in_past": "De begintijd ligt in het verleden.",
+    "event_end_before_start": "Het eind moet na het begin liggen.",
+    "event_too_long": "Een event duurt hooguit 24 uur.",
+    "event_not_editable": "Dit event kan niet meer worden gewijzigd.",
+    "event_stream_change": "De stream van een event kan niet worden gewijzigd.",
+    "event_not_live": "Dit event is niet live.",
+    "event_cleanup_pending": "Restream haalt dit event nog van de platforms. Probeer het over een minuut opnieuw.",
+    "invalid_destination": "Een gekozen bestemming hoort niet bij deze stream."
   },
   "time": {
     "seconds": "{{n}}s",
@@ -342,7 +373,9 @@
     "connecting": "Verbinden",
     "live": "Live",
     "reconnecting": "Opnieuw verbinden",
-    "reconnectingN": "Opnieuw verbinden ({{n}})"
+    "reconnectingN": "Opnieuw verbinden ({{n}})",
+    "preparing": "Uitzending voorbereiden",
+    "preparingFailed": "Platform weigert, opnieuw…"
   },
   "streams": {
     "title": "Streams en keys",
@@ -376,7 +409,14 @@
     "enable": "Inschakelen",
     "disabled": "Uitgeschakeld",
     "confirmDisable": "Deze stream uitschakelen? De encoder wordt losgekoppeld en nieuwe verbindingen worden geweigerd.",
-    "confirmDelete": "{{name}} en alle bestemmingen verwijderen? Dit kan niet ongedaan worden gemaakt."
+    "confirmDelete": "{{name}} en alle bestemmingen verwijderen? Dit kan niet ongedaan worden gemaakt.",
+    "details": "Uitzendgegevens",
+    "detailsHint": "Titel en beschrijving die Restream gebruikt als het bij Go live zelf een uitzending aanmaakt op een gekoppeld account (YouTube, Facebook, Twitch). Events hebben hun eigen titel.",
+    "broadcastTitle": "Titel",
+    "broadcastDescription": "Beschrijving",
+    "recording": "Opnemen",
+    "recordingHint": "Opnames zijn MP4-bestanden op deze server; je vindt ze onder Opnames. Je kunt altijd een opname starten met de knop Opnemen op het dashboard.",
+    "autoRecord": "Automatisch opnemen bij Go live (stopt met Alles stoppen)"
   },
   "destinations": {
     "title": "Bestemmingen",
@@ -419,7 +459,16 @@
     "fps": "Framerate",
     "fpsDefault": "50 fps (standaard)",
     "recommended": "Aanbevolen voor dit platform: {{rate}}",
-    "confirmDelete": "Bestemming {{name}} verwijderen?"
+    "confirmDelete": "Bestemming {{name}} verwijderen?",
+    "viaAccountName": "via account {{name}}",
+    "accountMissing": "Gekoppeld account ontbreekt — kies een ander",
+    "connectWith": "Verbinden met",
+    "withKey": "Streamkey",
+    "withAccount": "Gekoppeld account",
+    "withKeyHint": "Plak de streamkey uit de studio van het platform. Werkt voor elk platform en account.",
+    "withAccountHint": "Restream maakt de uitzending zelf aan bij Go live, met de titel van de stream, en beëindigt hem bij Stop. Geplande events worden op het platform aangekondigd.",
+    "account": "Account",
+    "noAccounts": "Nog geen {{platform}}-account gekoppeld — koppel er een onder Accounts"
   },
   "mail": {
     "title": "Mailserver",
@@ -616,5 +665,182 @@
     "signedOutTitle": "Restore bezig",
     "signedOutText": "De restore heeft iedereen uitgelogd. Log in met een account uit de back-up; het resultaat staat onder Back-ups › Activiteit.",
     "signInAgain": "Opnieuw inloggen"
+  },
+  "privacy": {
+    "public": "Openbaar",
+    "unlisted": "Verborgen",
+    "private": "Privé"
+  },
+  "embed": {
+    "title": "Insluiten op een website",
+    "subtitle": "Een speler in je eigen stijl die je met één regel code op elke website zet. Kies wie de stream mag afspelen; dat geldt ook voor de HLS- en WebRTC-links hierboven.",
+    "access": "Wie mag kijken",
+    "mode": {
+      "public": "Iedereen, op elke website",
+      "domains": "Alleen op mijn websites",
+      "token": "Alleen met een link die ik uitdeel"
+    },
+    "modeHint": {
+      "public": "De speler en de links werken overal.",
+      "domains": "De speler werkt alleen als hij is ingesloten op de websites die je opgeeft. Directe links spelen alleen af vanaf die sites.",
+      "token": "Elke speler en link heeft een ondertekende link van deze pagina nodig. Links kunnen verlopen en je trekt ze in één keer allemaal in."
+    },
+    "domains": "Websites",
+    "domainsHint": "Eén per regel. *.voorbeeld.nl geldt ook voor voorbeeld.nl en alle subdomeinen.",
+    "saveAccess": "Toegang opslaan",
+    "links": "Ondertekende links",
+    "linksHintToken": "Maak een link per website of persoon. Iedereen met de link kan kijken tot hij verloopt.",
+    "linksHintDomains": "Optioneel: een ondertekende link speelt ook buiten je websites af, bijvoorbeeld in een tv-app of VLC.",
+    "validity": "Geldig",
+    "validDays_one": "{{count}} dag geldig",
+    "validDays_other": "{{count}} dagen geldig",
+    "validForever": "Verloopt nooit",
+    "validUntil": "Geldig tot {{date}}",
+    "createLink": "Link maken",
+    "revoke": "Alle links intrekken",
+    "confirmRevoke": "Alle links van deze stream intrekken? Spelers die er een gebruiken stoppen binnen een minuut, ook op websites.",
+    "code": "Insluitcode",
+    "autoplay": "Automatisch starten (zonder geluid)",
+    "showTitle": "Titel tonen",
+    "lowLatency": "Lage vertraging (WebRTC)",
+    "preview": "Voorbeeld",
+    "hidePreview": "Voorbeeld verbergen",
+    "codeHint": "Plak deze code in je website. De speler schaalt mee met de pagina en kan naar volledig scherm.",
+    "autoplayHint": "Browsers starten video alleen automatisch zonder geluid; kijkers zetten het geluid zelf aan.",
+    "needLink": "Maak eerst een ondertekende link; de insluitcode gebruikt die."
+  },
+  "accounts": {
+    "title": "Gekoppelde accounts",
+    "subtitle": "Koppel YouTube-kanalen, Facebook-pagina's en Twitch-kanalen één keer. Bestemmingen gaan dan live zonder streamkeys te kopiëren, en events worden op de platforms aangekondigd.",
+    "connected_one": "Account gekoppeld.",
+    "connected_other": "{{count}} accounts gekoppeld.",
+    "publicUrlMissing": "Stel eerst de publieke URL van deze server in; de platforms sturen je daar na het inloggen naartoe terug.",
+    "openSettings": "Instellingen openen",
+    "connect": "Koppelen",
+    "appMissing": "Een beheerder registreert eerst de app voor dit platform (onderaan deze pagina).",
+    "none": "Geen accounts gekoppeld.",
+    "usedBy_one": "gebruikt door {{count}} bestemming",
+    "usedBy_other": "gebruikt door {{count}} bestemmingen",
+    "reconnect": "Toegang verlopen of ingetrokken — koppel opnieuw",
+    "ok": "Gekoppeld",
+    "error": "Actie nodig",
+    "remove": "Account verwijderen",
+    "confirmRemove": "{{name}} verwijderen? Bestemmingen die het gebruiken werken pas weer als je een ander account of een streamkey kiest.",
+    "kind": {
+      "youtube": "YouTube-kanalen",
+      "facebook": "Facebook-pagina's",
+      "twitch": "Twitch-kanalen"
+    },
+    "what": {
+      "youtube": "Maakt de live-uitzending aan bij Go live, plant events met een eigen kijklink en beëindigt de uitzending bij Stop.",
+      "facebook": "Elke pagina die je beheert wordt toegevoegd. Gaat live op de pagina en plant events als aangekondigde live video's.",
+      "twitch": "Haalt zelf de streamkey op en zet de titel van de stream. Events komen in het streamschema (Affiliates en Partners)."
+    },
+    "appsTitle": "Platform-apps",
+    "appsText": "Elk platform heeft een app nodig die je registreert in de ontwikkelaarsconsole, met de redirect-URL hieronder. Dit doe je één keer; het client secret wordt versleuteld opgeslagen.",
+    "app": {
+      "youtube": "Google Cloud OAuth-client",
+      "facebook": "Meta-app",
+      "twitch": "Twitch-app"
+    },
+    "steps": {
+      "youtube": [
+        "Maak een project in Google Cloud en zet de YouTube Data API v3 aan.",
+        "Stel het OAuth-toestemmingsscherm in (Extern) en voeg je Google-accounts toe als testgebruiker, of publiceer het.",
+        "Maak inloggegevens › OAuth-client-ID › Webapplicatie, met de redirect-URL hieronder."
+      ],
+      "facebook": [
+        "Maak een app bij Meta for Developers (type Zakelijk) en voeg Facebook Login for Business toe.",
+        "Zet de redirect-URL hieronder bij Geldige OAuth-omleidings-URI's.",
+        "Vraag de rechten pages_show_list, pages_read_engagement, pages_manage_posts en publish_video aan (App Review voor pagina's die niet van jou zijn)."
+      ],
+      "twitch": [
+        "Registreer een applicatie in de Twitch-ontwikkelaarsconsole (categorie: Broadcaster Suite).",
+        "Gebruik de redirect-URL hieronder als OAuth Redirect URL.",
+        "Kies clienttype Confidential en maak een nieuw secret."
+      ]
+    },
+    "openConsole": "Ontwikkelaarsconsole openen",
+    "redirectUri": "Redirect-URL",
+    "clientId": "Client-ID / App-ID",
+    "clientSecret": "Client secret",
+    "secretKeep": "Laat leeg om het opgeslagen secret te houden."
+  },
+  "events": {
+    "title": "Events",
+    "subtitle": "Plan uitzendingen vooruit. Restream kondigt ze aan op de gekoppelde platforms, gaat op de begintijd live en stopt aan het eind.",
+    "add": "Event plannen",
+    "addTitle": "Event plannen",
+    "editTitle": "Event bewerken",
+    "create": "Event plannen",
+    "emptyTitle": "Geen events gepland",
+    "emptyText": "Plan een live-event: kijkers vinden het vooraf op YouTube, Facebook en Twitch, en Restream gaat op tijd live.",
+    "liveNow": "Nu live",
+    "upcoming": "Gepland",
+    "past": "Afgelopen 60 dagen",
+    "confirmStart": "{{title}} nu starten? De bestemmingen gaan live.",
+    "confirmStop": "{{title}} stoppen? De bestemmingen stoppen.",
+    "confirmCancel": "{{title}} annuleren? Het wordt van de platforms verwijderd.",
+    "status": {
+      "live": "Live",
+      "ended": "Afgelopen",
+      "missed": "Niet gestart",
+      "cancelled": "Geannuleerd"
+    },
+    "target": {
+      "pending": "aankondigen…",
+      "registered": "aangekondigd",
+      "used": "live geweest",
+      "skipped": "streamkey",
+      "failed": "niet aangekondigd"
+    },
+    "rec": "REC",
+    "openOnPlatform": "Openen op het platform",
+    "retry": "Opnieuw proberen",
+    "startNow": "Nu starten",
+    "cancelEvent": "Annuleren",
+    "stop": "Event stoppen",
+    "manualStart": "Handmatig starten",
+    "titleLabel": "Titel",
+    "titlePlaceholder": "Kerstnachtdienst",
+    "stream": "Stream",
+    "starts": "Begint",
+    "ends": "Eindigt",
+    "endsHint": "Optioneel. Nodig om automatisch te stoppen.",
+    "description": "Beschrijving",
+    "descriptionHint": "Zichtbaar op YouTube en Facebook.",
+    "destinations": "Bestemmingen",
+    "announced": "aangekondigd op {{account}}",
+    "keyOnly": "streamkey, niet aangekondigd",
+    "destinationsHint": "Bestemmingen op een gekoppeld account worden direct op het platform aangekondigd. De andere gaan gewoon live bij de start.",
+    "autoStart": "Automatisch live op de begintijd",
+    "autoStop": "Automatisch stoppen aan het eind",
+    "record": "Dit event opnemen",
+    "privacy": "Zichtbaarheid"
+  },
+  "recordings": {
+    "title": "Opnames",
+    "subtitle": "Elke uitzending die je opneemt, als MP4-bestand op deze server. Bekijk hem in de browser of download hem.",
+    "statCount": "Opnames",
+    "activeNow_one": "{{count}} opname loopt",
+    "activeNow_other": "{{count}} opnames lopen",
+    "statUsed": "Opslag gebruikt",
+    "diskFree": "{{free}} vrij op de schijf",
+    "diskUsed": "Schijf {{pct}}% vol",
+    "retention": "Opnames bewaren",
+    "keepForever": "Altijd",
+    "keepDays_one": "{{count}} dag",
+    "keepDays_other": "{{count}} dagen",
+    "retentionHint": "Oudere opnames worden automatisch verwijderd. Back-ups nemen de opnames mee.",
+    "emptyTitle": "Nog geen opnames",
+    "emptyText": "Druk tijdens een uitzending op Opnemen op het dashboard, of zet automatisch opnemen aan voor een stream of event.",
+    "play": "Afspelen",
+    "recording": "Neemt op",
+    "failed": "Mislukt",
+    "download": "Downloaden",
+    "rename": "Naam wijzigen",
+    "confirmDelete": "De opname {{name}} verwijderen? Het bestand wordt van de server gehaald.",
+    "titleLabel": "Titel",
+    "titleHint": "Wordt ook de bestandsnaam van de download."
   }
 }
