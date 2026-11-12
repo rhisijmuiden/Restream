@@ -8,7 +8,9 @@ Restream is een zelf gehoste multiplexer op Debian 13. Je stuurt er één stream
 
 Wel: ingest met streamkey, live dashboard met preview, outputs per stream met eigen bitrate, Go Live/Stop, live events plannen bij de platforms, opnameknop, live kijkersaantallen, samengevoegde chat, loginpagina als startpagina.
 
-Niet: publieke videospeler, VOD-hosting, video bewerken.
+Ook: de stream zelf aanbieden als hotlink (HLS/WebRTC-URL) en als embed-speler voor websites.
+
+Niet: VOD-hosting, video bewerken.
 
 ## Fases en prioriteiten
 
@@ -23,6 +25,7 @@ Fase 0 t/m 2 vormen samen v1.0. Elke fase gaat eerst naar `test` en pas na akkoo
 - Ingest via RTMP en SRT met instelbare streamkeys, dashboard met status en preview
 - Outputs met streamkey: YouTube, Facebook, Twitch, eigen RTMP- en SRT-servers
 - Go Live en Stop per stream en per output, bitrate per bestemming, automatisch herverbinden
+- Eigen afspeel-URL per stream (HLS en WebRTC) om te hotlinken
 
 ### Fase 2 · Vaste beheerfuncties (P0)
 - Eigen SMTP-server instellen (TLS en STARTTLS), testmail en meldingen bij uitval
@@ -31,7 +34,8 @@ Fase 0 t/m 2 vormen samen v1.0. Elke fase gaat eerst naar `test` en pas na akkoo
 
 **Gate: v1.0 in productie**
 
-### Fase 3 · Opnemen en plannen (P1)
+### Fase 3 · Opnemen, plannen en embedden (P1)
+- Embed-speler met kopieerbare iframe-code, eigen huisstijl en optioneel alleen voor toegestane domeinen of met een token
 - Opnameknop tijdens de uitzending, overzicht van opnames met download
 - Accounts koppelen via OAuth (YouTube, Facebook, Twitch) naast losse streamkeys
 - Live events plannen, automatisch aanmelden bij de platforms en op tijd live gaan
