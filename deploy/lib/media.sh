@@ -5,6 +5,9 @@
 MEDIAMTX_VERSION="v1.21.3"
 # Public ports: RTMP ingest, SRT ingest, WebRTC media (UDP, with TCP as fallback).
 MEDIA_PORTS=(1935/tcp 8890/udp 8189/udp 8189/tcp)
+# MediaMTX config lives in its own directory: /etc/restream holds secrets and is closed to the mediamtx user,
+# and MediaMTX needs to read the directory of its config file to watch it for changes.
+MEDIA_ETC_DIR="/etc/restream-media"
 
 media_log() { if declare -F log >/dev/null; then log "$@"; else echo "$@"; fi; }
 
@@ -56,13 +59,16 @@ ensure_media() {
   # WebRTC viewers connect to the public host name (or IP) of this server.
   host=$(sed -n 's#^PUBLIC_URL=https\{0,1\}://\([^/:]*\).*#\1#p' "$etc_dir/restream.env" 2>/dev/null | head -1)
   [[ -n "$host" ]] || host=$(hostname -I 2>/dev/null | awk '{print $1}')
+  install -d -m 0750 -o root -g mediamtx "$MEDIA_ETC_DIR"
   tmpcfg=$(mktemp)
   sed "s#__PUBLIC_HOST__#${host}#g" "$app_dir/deploy/mediamtx/mediamtx.yml" > "$tmpcfg"
-  if ! cmp -s "$tmpcfg" "$etc_dir/mediamtx.yml"; then
-    install -m 0640 -o root -g mediamtx "$tmpcfg" "$etc_dir/mediamtx.yml"
+  if ! cmp -s "$tmpcfg" "$MEDIA_ETC_DIR/mediamtx.yml"; then
+    install -m 0640 -o root -g mediamtx "$tmpcfg" "$MEDIA_ETC_DIR/mediamtx.yml"
     changed=1
   fi
   rm -f "$tmpcfg"
+  # Versions up to 1.2.0 put the config in $etc_dir, where MediaMTX could not read it.
+  rm -f "$etc_dir/mediamtx.yml"
 
   if ! cmp -s "$app_dir/deploy/systemd/restream-media.service" /etc/systemd/system/restream-media.service; then
     install -m 0644 "$app_dir/deploy/systemd/restream-media.service" /etc/systemd/system/restream-media.service
