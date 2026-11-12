@@ -2,7 +2,7 @@
 
 Self-hosted stream multiplexer for Debian 13, installed with a single installer script on a bare server. Send one RTMP or SRT stream to the server, press **Go live**, and Restream distributes it to YouTube, Facebook, Twitch, Instagram, Kick, X and your own RTMP/SRT servers, each in its own bitrate and resolution.
 
-> Status: v1.0 (phases 0 to 2) is on the test channel. Phase 2 added your own SMTP mail server with DKIM and notifications when streams, destinations or the media server fail, and encrypted full and incremental backups to SCP, FTPS or FTP with restore from that location. Phase 1 brought RTMP/SRT ingest, destinations, Go live and hotlinks; phase 0 the installer, 2FA and Microsoft 365 sign-in, users, EN/NL and updates from the UI. See [docs/ROADMAP.md](docs/ROADMAP.md) (Dutch) and [CHANGELOG.md](CHANGELOG.md).
+> Status: v1.1 (phases 0 to 3) is on the test channel. Phase 3 added the embeddable player (optionally only on your own websites or with signed links), one-click recording with downloads, connected YouTube/Facebook/Twitch accounts via OAuth, and scheduled events that are announced on the platforms. v1.0 (phases 0 to 2) brought ingest, destinations, hotlinks, the installer, 2FA, mail, backups and updates. See [docs/ROADMAP.md](docs/ROADMAP.md) (Dutch) and [CHANGELOG.md](CHANGELOG.md).
 
 ## Install
 
@@ -49,6 +49,11 @@ Maintenance on the server:
    - **Transcode** re-encodes for that destination with its own bitrate, resolution (1080p/720p/480p) and frame rate, H.264 + AAC with 2-second keyframes. Roughly 1 to 2 CPU cores per 1080p output.
 3. On the dashboard, **Go live** starts every destination marked "In Go live"; each destination also has its own Go live / Stop. Outputs that drop are restarted with backoff (2 to 30 seconds), and outputs that are live wait for the ingest and start by themselves when it comes back, also after a server restart.
 4. **Hotlink**: each stream has public HLS (`https://<host>/live/<id>/index.m3u8`) and WebRTC/WHEP (`https://<host>/live/<id>/whep`) URLs plus ready-made player pages. The id is separate from the stream key, and playback can be switched off per stream.
+
+5. **Embed**: under Streams & keys each stream has an embed code (`<iframe src="https://<host>/embed/<id>">`) for a player in the house style, with autoplay, title and low-latency (WebRTC) options. Choose who may watch: everyone, only your own websites (the browser enforces this with `frame-ancestors`, and direct HLS/WHEP requests must come from those sites), or only with a signed link that can expire. **Revoke all links** invalidates every link at once.
+6. **Record**: the Record button on the dashboard writes the ingest to a fragmented MP4 in `/var/lib/restream/recordings` (no re-encoding; playable even after a power cut). Recordings are listed under **Recordings** to watch in the browser or download, with automatic clean-up after a chosen number of days. A stream can record automatically on Go live, and events can record themselves. Backups include the recordings.
+7. **Connected accounts**: under **Accounts** an administrator registers the OAuth app of YouTube (Google Cloud), Facebook (Meta) and Twitch once, using the redirect URL shown there; operators then connect channels and pages. A destination "via connected account" needs no stream key: on Go live Restream creates the broadcast (YouTube: reusable stream + broadcast with auto start/stop; Facebook: live video on the page; Twitch: fetches the stream key and sets the title) and ends it on Stop.
+8. **Events**: plan a broadcast with title, description, start and end. Destinations on connected accounts are announced right away (YouTube scheduled broadcast, Facebook scheduled live video, Twitch schedule segment); at the start Restream puts the destinations live (they wait for the encoder), optionally records, and stops at the end. Changes and cancellations are pushed to the platforms.
 
 How it fits together: MediaMTX receives the ingest and asks Restream (`/api/internal/mediamtx/auth`, local only) whether the key is valid. Each live destination is one FFmpeg process that reads the local RTSP feed from MediaMTX and publishes to the platform. Public playback goes through Restream, which maps the playback id to the stream, so MediaMTX itself only listens on 127.0.0.1 apart from the ingest and WebRTC media ports. Restream v1 supports up to 1080p50; the dashboard warns when the ingest is larger.
 
@@ -97,12 +102,8 @@ The media engine is off in development. To try streaming locally, run MediaMTX w
 
 ## Planned features
 
-- Destinations via linked account (OAuth) next to stream keys
-- An embeddable player for websites, optionally restricted to allowed domains or tokens
-- Scheduled live events, registered on the platforms as upcoming broadcasts
-- One-click recording of the broadcast
-- Live viewer counts per platform and a unified chat
-- Login-only web interface with users, roles and 2FA
+- Live viewer counts per platform and a unified chat (phase 4)
+- Instagram, LinkedIn, Kick and X, backup ingest with failover, API and webhooks (phase 5)
 
 Standard for every release:
 
@@ -120,7 +121,7 @@ Standard for every release:
 | Distribution | FFmpeg, one process per destination, supervised by the Node.js server |
 | Backend | Node.js 22, TypeScript, Fastify, argon2id, otplib, openid-client |
 | Database | PostgreSQL 17 |
-| Jobs & scheduling (phase 3) | Redis + BullMQ |
+| Jobs & scheduling | In the Node.js server, state in PostgreSQL (no extra service) |
 | Frontend | React 19, Vite, Tailwind CSS 4, TanStack Query, i18next |
 | Web server | Nginx + Let's Encrypt |
 | OS | Debian 13 (trixie), native systemd services |

@@ -59,7 +59,7 @@ describe('ffmpeg arguments', () => {
 
   it('parses progress and redacts secrets', () => {
     expect(parseProgress('fps=50.0\nbitrate=6012.3kbits/s\ntotal_size=1000\nspeed=1.01x\nprogress=continue\n'))
-      .toEqual({ fps: 50, bitrateKbps: 6012, totalBytes: 1000, speed: 1.01 });
+      .toEqual({ fps: 50, bitrateKbps: 6012, totalBytes: 1000, speed: 1.01, outTimeUs: null });
     expect(parseProgress('bitrate=N/A\nspeed=N/A\n').bitrateKbps).toBeNull();
     expect(redact('Error opening rtmp://x/app/abcd-efgh', ['abcd-efgh'])).toBe('Error opening rtmp://x/app/••••');
   });

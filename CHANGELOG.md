@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.0 · Phase 3: embed, recording, connected accounts and events
+
+- **Embed player** at `/embed/<id>`: house-style player with live badge, title, volume, picture-in-picture and full screen; LL-HLS by default (hls.js or native), WebRTC with `?mode=webrtc` and automatic fallback to HLS; waits for the broadcast and starts by itself; English and Dutch. Copyable iframe code with autoplay, title and low-latency options and a preview in the console.
+- **Playback access** per stream: everyone, only listed websites (CSP `frame-ancestors`, referrer check, and `Origin` check for direct HLS/WHEP), or only with signed links (HMAC tokens in the path, optional expiry, revoke all at once). Applies to embed, HLS and WebRTC alike.
+- **Recording**: Record button on the dashboard (running time and size), automatic recording on Go live per stream, and per event. Fragmented MP4 without re-encoding (HEVC tagged for Apple), new part when the ingest drops, refuses to start with less than 1 GB free, closes recordings cut off by a crash. Recordings page: watch in the browser (with seeking), download with a readable file name, rename, delete, retention in days, disk usage.
+- **Connected accounts** via OAuth: YouTube channels (Google, PKCE, refresh tokens), Facebook pages (long-lived page tokens, Graph API v26.0) and Twitch channels. Tokens are stored encrypted and refreshed automatically; accounts that lose access are marked. Administrators register the platform apps in the console with step-by-step instructions and the redirect URL.
+- **Destinations via connected account**: no stream key needed. Go live creates the broadcast with the stream's title and description (YouTube visibility per destination), shows a "watch" link on the dashboard, and Stop ends it on the platform. Platform errors are shown on the destination and retried.
+- **Events**: plan title, description, start, end, visibility, recording and destinations. Announced on YouTube (scheduled broadcast), Facebook (scheduled live video) and Twitch (stream schedule) with watch links; edits and cancellations are pushed to the platforms. Goes live automatically at the start (or by hand) and stops at the end; the dashboard shows the next event.
+
 ## 1.0.0 · Phase 2: mail, notifications and backups
 
 - **Mail server**: your own SMTP server with STARTTLS (required, TLS 1.2 or newer), implicit TLS or a plain local relay, certificate checking, sign-in, sender and reply-to. Test the connection without sending, or send a test message.

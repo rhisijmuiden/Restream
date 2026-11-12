@@ -33,7 +33,7 @@ export interface SystemInfo {
 }
 
 export type Platform = 'youtube' | 'facebook' | 'twitch' | 'rtmp' | 'srt';
-export type OutputStateName = 'off' | 'waiting' | 'connecting' | 'live' | 'reconnecting';
+export type OutputStateName = 'off' | 'waiting' | 'preparing' | 'connecting' | 'live' | 'reconnecting';
 export interface IngestStatus {
   online: boolean; since: string | null; protocol: string | null;
   video: { codec: string; width: number | null; height: number | null } | null;
@@ -44,14 +44,48 @@ export interface Destination {
   id: string; name: string; platform: Platform; serverUrl: string; streamKeyMasked: string; passphraseSet: boolean;
   enabled: boolean; mode: 'copy' | 'transcode'; videoBitrate: number; audioBitrate: number; maxHeight: 480 | 720 | 1080; fps: 25 | 30 | 50 | 60 | null;
   live: boolean; liveSince: string | null;
+  auth: 'key' | 'account'; account: { id: string; name: string; imageUrl: string; status: string } | null;
+  privacy: Privacy; watchUrl: string | null;
   status: { state: OutputStateName; since: string | null; bitrateKbps: number | null; fps: number | null; speed: number | null; attempts: number; lastError: string | null };
+}
+export type Privacy = 'public' | 'unlisted' | 'private';
+export interface RecordingState {
+  state: 'off' | 'waiting' | 'recording'; recordingId: string | null; since: string | null; sizeBytes: number; durationSeconds: number; lastError: string | null;
 }
 export interface Stream {
   id: string; name: string; enabled: boolean; playbackEnabled: boolean; playbackId: string; createdAt: string;
+  allowedDomains: string[]; requireToken: boolean; record: boolean; autoRecord: boolean; title: string; description: string;
+  recording: RecordingState;
   ingest: { rtmpServer: string; streamKey: string | null; rtmpUrl: string | null; srtUrl: string | null };
-  playback: { hls: string; whep: string; hlsPage: string; webrtcPage: string };
+  playback: { hls: string; whep: string; hlsPage: string; webrtcPage: string; embed: string };
   status: IngestStatus;
   destinations: Destination[];
 }
 export interface StreamsResponse { mediaEnabled: boolean; mediamtxOnline: boolean; streams: Stream[] }
 export interface PlatformPreset { server: string; protocols: string[]; keyRequired: boolean; recommendedKbps: number }
+
+export type OAuthProvider = 'youtube' | 'facebook' | 'twitch';
+export interface Account {
+  id: string; provider: OAuthProvider; name: string; handle: string; imageUrl: string; status: 'ok' | 'error'; lastError: string | null;
+  createdAt: string; destinations: number;
+}
+export interface AccountsResponse { publicUrlSet: boolean; apps: Record<OAuthProvider, { configured: boolean }>; accounts: Account[] }
+export type OAuthApps = Record<OAuthProvider, { clientId: string; clientSecretSet: boolean; redirectUri: string }>;
+
+export interface Recording {
+  id: string; streamId: string | null; streamName: string; eventId: string | null; title: string; status: 'recording' | 'finished' | 'failed';
+  sizeBytes: number; durationSeconds: number; video: string | null; audio: string | null; error: string | null;
+  startedAt: string; endedAt: string | null; startedBy: string | null; fileName: string;
+}
+export interface RecordingsResponse { retentionDays: number; disk: { totalBytes: number; freeBytes: number } | null; usedBytes: number; recordings: Recording[] }
+
+export type EventStatus = 'scheduled' | 'live' | 'ended' | 'cancelled';
+export interface EventTarget {
+  destinationId: string; name: string; platform: Platform; viaAccount: boolean;
+  status: 'pending' | 'registered' | 'used' | 'skipped' | 'failed'; watchUrl: string | null; error: string | null;
+}
+export interface LiveEvent {
+  id: string; streamId: string; streamName: string | null; title: string; description: string; startsAt: string; endsAt: string | null;
+  autoStart: boolean; autoStop: boolean; record: boolean; privacy: Privacy; status: EventStatus; startedAt: string | null; endedAt: string | null;
+  targets: EventTarget[];
+}

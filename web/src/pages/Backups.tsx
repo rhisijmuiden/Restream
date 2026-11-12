@@ -7,7 +7,7 @@ import {
   ArchiveRestore, CheckCircle2, CloudUpload, DatabaseBackup, Fingerprint, KeyRound, Layers, Lock, PlugZap, RefreshCw, ShieldAlert, Trash2, TriangleAlert,
 } from 'lucide-react';
 import { api, ApiError } from '../lib/api';
-import { formatDate } from '../lib/format';
+import { formatBytes, formatDate } from '../lib/format';
 import { Badge, Button, Card, CopyButton, ErrorText, Field, Input, Modal, PageHeader, Select, Toggle, inputClass } from '../components/ui';
 
 type Protocol = 'scp' | 'ftps' | 'ftps-implicit' | 'ftp';
@@ -28,12 +28,6 @@ interface Job {
 
 const ports: Record<Protocol, number> = { scp: 22, ftps: 21, 'ftps-implicit': 990, ftp: 21 };
 
-export function formatBytes(n: number) {
-  const u = ['B', 'KB', 'MB', 'GB', 'TB'];
-  let i = 0;
-  while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
-  return `${n.toFixed(i ? 1 : 0)} ${u[i]}`;
-}
 
 export function Backups() {
   const { t, i18n } = useTranslation();

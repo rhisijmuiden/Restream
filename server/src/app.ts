@@ -15,7 +15,13 @@ import { userRoutes } from './routes/users.js';
 import { systemRoutes } from './routes/system.js';
 import { settingsRoutes } from './routes/settings.js';
 import { streamRoutes } from './routes/streams.js';
-import { mediaRoutes } from './routes/media.js';
+import { mediaRoutes, PlaybackCache } from './routes/media.js';
+import { embedRoutes } from './routes/embed.js';
+import { recordingRoutes } from './routes/recordings.js';
+import { accountRoutes } from './routes/accounts.js';
+import { eventRoutes } from './routes/events.js';
+import { Provisioner } from './platforms/provisioner.js';
+import { EventScheduler } from './events/scheduler.js';
 import { MediaSupervisor } from './media/supervisor.js';
 import { mailRoutes } from './routes/mail.js';
 import { backupRoutes } from './routes/backups.js';
@@ -78,8 +84,20 @@ export async function buildApp(sql: Sql, opts: { logger?: boolean; background?: 
   await app.register(settingsRoutes, { sql });
 
   const media = new MediaSupervisor(sql, app.log);
-  await app.register(streamRoutes, { sql, media });
-  await app.register(mediaRoutes, { sql });
+  const playback = new PlaybackCache(sql);
+  const provisioner = new Provisioner(sql, app.log);
+  const scheduler = new EventScheduler(sql, app.log);
+  provisioner.onReady = () => media.nudge();
+  scheduler.onChange = () => { provisioner.nudge(); media.nudge(); };
+  app.decorate('provisioner', provisioner);
+  app.decorate('scheduler', scheduler);
+  app.decorate('media', media);
+  await app.register(streamRoutes, { sql, media, playback, provisioner });
+  await app.register(mediaRoutes, { sql, playback });
+  await app.register(embedRoutes, { sql, playback });
+  await app.register(recordingRoutes, { sql, media });
+  await app.register(accountRoutes, { sql });
+  await app.register(eventRoutes, { sql, scheduler, provisioner });
   if (config.media.enabled) app.addHook('onReady', async () => media.start());
 
   // Mail notifications and scheduled backups run in the server process (not in tests unless asked).
@@ -90,9 +108,9 @@ export async function buildApp(sql: Sql, opts: { logger?: boolean; background?: 
   await app.register(mailRoutes, { sql });
   await app.register(backupRoutes, { sql, backups });
   if (opts.background ?? process.env.NODE_ENV === 'production') {
-    app.addHook('onReady', async () => { notifier.start(); await backups.start(); });
+    app.addHook('onReady', async () => { notifier.start(); await backups.start(); provisioner.start(); scheduler.start(); });
   }
-  app.addHook('onClose', async () => { notifier.stop(); backups.stop(); await media.close(); });
+  app.addHook('onClose', async () => { notifier.stop(); backups.stop(); scheduler.stop(); provisioner.stop(); await media.close(); });
 
   if (existsSync(config.webDist)) {
     await app.register(fastifyStatic, { root: config.webDist, wildcard: false, index: ['index.html'] });
@@ -108,5 +126,8 @@ declare module 'fastify' {
   interface FastifyInstance {
     backups: BackupService;
     notifier: Notifier;
+    provisioner: Provisioner;
+    scheduler: EventScheduler;
+    media: MediaSupervisor;
   }
 }

@@ -75,6 +75,8 @@ export interface Progress {
   fps: number | null;
   speed: number | null;
   totalBytes: number | null;
+  /** Media time written so far, in microseconds. */
+  outTimeUs: number | null;
 }
 
 /** Parses one block of `-progress` output (key=value lines). */
@@ -87,5 +89,35 @@ export function parseProgress(block: string): Progress {
     fps: num(kv.fps),
     speed: kv.speed ? num(kv.speed.replace('x', '')) : null,
     totalBytes: num(kv.total_size),
+    outTimeUs: num(kv.out_time_us ?? kv.out_time_ms),
   };
+}
+
+/** Audio codecs an MP4 recording keeps as they are. */
+const mp4Audio = new Set(['MPEG-4 Audio', 'MPEG-1/2 Audio', 'Opus', 'AC-3']);
+const mp4Video = new Set(['H264', 'H265', 'AV1', 'VP9']);
+
+/**
+ * FFmpeg arguments for a recording: the ingest is copied into a fragmented MP4, which stays playable
+ * when the recording is cut off (power loss, ingest drop) and can be downloaded while it grows.
+ */
+export function recordArgs(input: string, src: SourceInfo, file: string): string[] {
+  const args = [
+    '-hide_banner', '-nostdin', '-loglevel', 'warning',
+    '-progress', 'pipe:1', '-stats_period', '2',
+    '-rtsp_transport', 'tcp', '-timeout', '10000000',
+    '-i', input,
+    '-map', '0:v:0?', '-map', '0:a:0?',
+  ];
+  if (src.videoCodec === null || mp4Video.has(src.videoCodec)) {
+    args.push('-c:v', 'copy');
+    // Apple players need the hvc1 tag for HEVC in MP4.
+    if (src.videoCodec === 'H265') args.push('-tag:v', 'hvc1');
+  } else {
+    args.push('-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p');
+  }
+  if (src.audioCodec === null || mp4Audio.has(src.audioCodec)) args.push('-c:a', 'copy');
+  else args.push('-c:a', 'aac', '-b:a', '192k', '-ar', '48000');
+  args.push('-f', 'mp4', '-movflags', '+frag_keyframe+empty_moov+default_base_moof', '-frag_duration', '2000000', '-y', file);
+  return args;
 }

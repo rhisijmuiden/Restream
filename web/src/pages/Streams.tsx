@@ -8,6 +8,8 @@ import { useMe } from '../lib/auth';
 import { useStreams } from '../lib/streams';
 import { Button, Card, CopyButton, ErrorText, Field, Input, Modal, PageHeader, Toggle } from '../components/ui';
 import { IngestBadge } from '../components/media';
+import { StreamEmbed } from '../components/StreamEmbed';
+import { inputClass } from '../components/ui';
 
 export function Streams() {
   const { t } = useTranslation();
@@ -170,6 +172,55 @@ function StreamCard({ s, role, onEdit }: { s: Stream; role: string; onEdit: () =
           )}
         </section>
       </div>
+      {s.playbackEnabled && <div className="mt-6"><StreamEmbed s={s} canOperate={canOperate} /></div>}
+      <div className="mt-6"><BroadcastDetails s={s} canOperate={canOperate} /></div>
     </Card>
+  );
+}
+
+/** Title and description for broadcasts Restream creates on connected accounts, and automatic recording. */
+function BroadcastDetails({ s, canOperate }: { s: Stream; canOperate: boolean }) {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const [title, setTitle] = useState(s.title);
+  const [description, setDescription] = useState(s.description);
+  const [lastFor, setLastFor] = useState(`${s.id}|${s.title}|${s.description}`);
+  const sig = `${s.id}|${s.title}|${s.description}`;
+  if (sig !== lastFor) { setLastFor(sig); setTitle(s.title); setDescription(s.description); }
+  const [saved, setSaved] = useState(false);
+  const save = useMutation({
+    mutationFn: (body: object) => api(`/api/streams/${s.id}`, { method: 'PATCH', body }),
+    onSuccess: () => { setSaved(true); setTimeout(() => setSaved(false), 2000); qc.invalidateQueries({ queryKey: ['streams'] }); },
+  });
+  const dirty = title !== s.title || description !== s.description;
+  return (
+    <section className="grid gap-8 border-t border-line pt-6 lg:grid-cols-2">
+      <form className="flex flex-col gap-4" onSubmit={(e) => { e.preventDefault(); save.mutate({ title, description }); }}>
+        <div className="flex flex-col gap-1">
+          <h3 className="font-display text-base font-semibold">{t('streams.details')}</h3>
+          <p className="text-xs leading-relaxed text-fg-3">{t('streams.detailsHint')}</p>
+        </div>
+        <Field label={t('streams.broadcastTitle')}>
+          {(id) => <Input id={id} value={title} onChange={(e) => setTitle(e.target.value)} maxLength={100} placeholder={s.name} disabled={!canOperate} />}
+        </Field>
+        <Field label={t('streams.broadcastDescription')}>
+          {(id) => <textarea id={id} rows={3} value={description} onChange={(e) => setDescription(e.target.value)} maxLength={5000} disabled={!canOperate} className={`${inputClass} py-2.5`} />}
+        </Field>
+        {canOperate && (
+          <div className="flex items-center gap-3">
+            <Button type="submit" variant="primary" disabled={!dirty} loading={save.isPending}>{t('common.save')}</Button>
+            {saved && <span className="text-sm text-ok">{t('common.saved')}</span>}
+          </div>
+        )}
+        <ErrorText error={save.error} />
+      </form>
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1">
+          <h3 className="font-display text-base font-semibold">{t('streams.recording')}</h3>
+          <p className="text-xs leading-relaxed text-fg-3">{t('streams.recordingHint')}</p>
+        </div>
+        <Toggle checked={s.autoRecord} disabled={!canOperate} onChange={(v) => save.mutate({ autoRecord: v })} label={t('streams.autoRecord')} />
+      </div>
+    </section>
   );
 }

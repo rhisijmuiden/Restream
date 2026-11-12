@@ -13,3 +13,10 @@ export function formatDuration(sec: number) {
 }
 
 export const shortSha = (s: string) => (s && s !== 'unknown' ? s.slice(0, 7) : s);
+
+export function formatBytes(n: number) {
+  const u = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let i = 0;
+  while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+  return `${n.toFixed(i ? 1 : 0)} ${u[i]}`;
+}
