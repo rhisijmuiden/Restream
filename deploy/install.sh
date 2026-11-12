@@ -87,6 +87,17 @@ EXISTING_ENV=0; [[ -f "$ETC_DIR/restream.env" ]] && EXISTING_ENV=1
 if [[ -z "$ADMIN_EMAIL" && $EXISTING_ENV -eq 0 ]]; then ask ADMIN_EMAIL "Email of the first administrator" "admin@${DOMAIN:-restream.local}"; fi
 
 PUBLIC_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+if [[ -n "$DOMAIN" ]]; then
+  # The domain must point straight at this server: a CDN proxy (such as Cloudflare's orange cloud) only passes
+  # web traffic, so RTMP, SRT and WebRTC would not reach Restream, and Let's Encrypt may fail.
+  dns_ips=$(getent ahostsv4 "$DOMAIN" 2>/dev/null | awk '{print $1}' | sort -u | tr '\n' ' ')
+  if [[ -z "$dns_ips" ]]; then
+    warn "$DOMAIN does not resolve yet. Point an A record at this server first, or Let's Encrypt will fail."
+  elif ! grep -qwFf <(hostname -I | tr ' ' '\n' | grep -v '^$') <<<"$dns_ips"; then
+    warn "$DOMAIN points to ${dns_ips% }, not to this server ($(hostname -I | xargs))."
+    warn "Using Cloudflare? Set the record to 'DNS only' (grey cloud): its proxy does not pass RTMP, SRT or WebRTC."
+  fi
+fi
 HOST_NAME=${DOMAIN:-$PUBLIC_IP}
 PUBLIC_URL="https://${HOST_NAME}"
 

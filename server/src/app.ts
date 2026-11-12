@@ -55,6 +55,11 @@ export async function buildApp(sql: Sql, opts: { logger?: boolean; background?: 
   });
   await app.register(rateLimit, { global: false });
 
+  // API answers are live state (stream status, sessions): never let a browser or a CDN such as Cloudflare cache them.
+  app.addHook('onSend', async (req, reply) => {
+    if (req.url.startsWith('/api/') && !reply.hasHeader('cache-control')) reply.header('cache-control', 'private, no-store');
+  });
+
   app.decorateRequest('session', null);
   app.decorateRequest('user', null);
 

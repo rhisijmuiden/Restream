@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.2 · Fix: dashboard stuck behind a proxy or CDN
+
+- API answers now carry `Cache-Control: private, no-store`, so a browser or a CDN never shows an old stream status.
+- The installer warns when the domain does not point at this server, for example behind Cloudflare's proxy (orange cloud), which does not pass RTMP, SRT or WebRTC and can break Let's Encrypt.
+
 ## 1.2.1 · Fix: media server did not start on a fresh install
 
 - MediaMTX could not open its config: it ran as the `mediamtx` user but the file was in `/etc/restream`, which only root and `restream` may enter. The config now lives in `/etc/restream-media` (root:mediamtx, 0750), so `/etc/restream` stays closed for secrets. Updating, or **Repair media server** in the console, moves it on existing servers.
