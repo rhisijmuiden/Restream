@@ -7,7 +7,14 @@ import { HttpError, requireAuth } from '../lib/guards.js';
 import { decrypt, encrypt } from '../lib/crypto.js';
 import { audit } from '../lib/audit.js';
 import { getSettings, oauthProviders, setSettings, type OAuthProvider } from '../lib/settings.js';
-import { appConfigured, authorizeUrl, exchangeCode, PlatformError, redirectUri } from '../platforms/api.js';
+import { appConfigured, authorizeUrl, exchangeCode, PlatformError, redirectUri, scopes } from '../platforms/api.js';
+
+/** Permissions Restream asks for now that the account did not grant (it was connected by an older version). */
+function missingScopes(p: OAuthProvider, granted: string): string[] {
+  if (p !== 'facebook') return [];
+  const have = new Set(granted.split(/[\s,]+/).filter(Boolean));
+  return scopes.facebook.split(',').filter((s) => !have.has(s));
+}
 
 const FLOW_COOKIE = 'restream_oauth';
 const providerParam = z.object({ provider: z.enum(oauthProviders) });
@@ -25,8 +32,8 @@ export async function accountRoutes(app: FastifyInstance, { sql }: { sql: Sql })
 
   app.get('/api/accounts', viewer, async () => {
     const s = await getSettings(sql);
-    const rows = await sql<{ id: string; provider: OAuthProvider; name: string; handle: string; image_url: string; status: string; last_error: string | null; created_at: Date; uses: number }[]>`
-      SELECT a.id, a.provider, a.name, a.handle, a.image_url, a.status, a.last_error, a.created_at,
+    const rows = await sql<{ id: string; provider: OAuthProvider; name: string; handle: string; image_url: string; status: string; last_error: string | null; created_at: Date; uses: number; scopes: string }[]>`
+      SELECT a.id, a.provider, a.name, a.handle, a.image_url, a.status, a.last_error, a.created_at, a.scopes,
              (SELECT count(*)::int FROM destinations d WHERE d.account_id = a.id) AS uses
       FROM platform_accounts a ORDER BY a.provider, a.name`;
     return {
@@ -35,6 +42,8 @@ export async function accountRoutes(app: FastifyInstance, { sql }: { sql: Sql })
       accounts: rows.map((r) => ({
         id: r.id, provider: r.provider, name: r.name, handle: r.handle, imageUrl: r.image_url, status: r.status,
         lastError: r.last_error, createdAt: r.created_at, destinations: r.uses,
+        // Connected before Restream asked for every permission it now uses (e.g. Facebook comments for the live chat).
+        missingScopes: missingScopes(r.provider, r.scopes),
       })),
     };
   });

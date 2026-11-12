@@ -67,7 +67,7 @@ export interface PlatformPreset { server: string; protocols: string[]; keyRequir
 export type OAuthProvider = 'youtube' | 'facebook' | 'twitch';
 export interface Account {
   id: string; provider: OAuthProvider; name: string; handle: string; imageUrl: string; status: 'ok' | 'error'; lastError: string | null;
-  createdAt: string; destinations: number;
+  createdAt: string; destinations: number; missingScopes: string[];
 }
 export interface AccountsResponse { publicUrlSet: boolean; apps: Record<OAuthProvider, { configured: boolean }>; accounts: Account[] }
 export type OAuthApps = Record<OAuthProvider, { clientId: string; clientSecretSet: boolean; redirectUri: string }>;
@@ -89,3 +89,21 @@ export interface LiveEvent {
   autoStart: boolean; autoStop: boolean; record: boolean; privacy: Privacy; status: EventStatus; startedAt: string | null; endedAt: string | null;
   targets: EventTarget[];
 }
+
+export type ChatState = 'off' | 'connecting' | 'on' | 'error' | 'unsupported';
+export interface LiveDestination {
+  destinationId: string; name: string; platform: Platform; onAir: boolean; supported: boolean;
+  viewers: number | null; updatedAt: string | null; error: string | null; chat: ChatState; chatError: string | null;
+}
+export interface BroadcastOutput {
+  id: string; destinationId: string | null; platform: Platform; name: string; watchUrl: string | null; stats: boolean;
+  peakViewers: number; avgViewers: number; chatMessages: number;
+}
+export interface Broadcast {
+  id: string; streamId: string | null; streamName: string; eventId: string | null; title: string;
+  startedAt: string; endedAt: string | null; live: boolean; durationSeconds: number;
+  peakViewers: number; avgViewers: number; chatMessages: number; currentViewers: number | null; outputs: BroadcastOutput[];
+}
+export interface BroadcastDetail extends Broadcast { series: { at: string; total: number; outputs: Record<string, number> }[] }
+export interface ChatMessage { seq: number; outputId: string; destination: string; platform: Platform; author: string; text: string; highlight: string | null; at: string }
+export interface LiveResponse { broadcast: Broadcast | null; destinations: LiveDestination[]; totalViewers: number | null; chat: ChatMessage[]; cursor: number }

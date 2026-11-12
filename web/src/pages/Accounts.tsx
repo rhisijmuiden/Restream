@@ -94,6 +94,9 @@ export function Accounts() {
                           {a.handle && `${a.handle} · `}{t('accounts.usedBy', { count: a.destinations })}
                         </span>
                         {a.status === 'error' && <span className="truncate font-mono text-[11px] text-warn" title={a.lastError ?? ''}>{t('accounts.reconnect')}</span>}
+                        {a.status !== 'error' && a.missingScopes.length > 0 && (
+                          <span className="text-[11px] leading-snug text-warn" title={a.missingScopes.join(', ')}>{t('accounts.reconnectForChat')}</span>
+                        )}
                       </div>
                       {canOperate && (
                         <Button variant="ghost" className="min-h-9 px-2.5 text-danger hover:text-danger" onClick={() => remove.mutate(a)} aria-label={t('accounts.remove')}><Trash2 size={15} /></Button>

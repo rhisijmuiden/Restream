@@ -14,13 +14,15 @@ export const endpoints = {
   facebookGraph: 'https://graph.facebook.com/v26.0',
   twitchAuth: 'https://id.twitch.tv/oauth2',
   twitchApi: 'https://api.twitch.tv/helix',
+  /** Twitch chat (IRC over WebSocket); read anonymously, so no extra scope is needed. */
+  twitchChat: 'wss://irc-ws.chat.twitch.tv:443',
 };
 
 export const scopes: Record<OAuthProvider, string> = {
   // Manage the channel's live broadcasts (and later read live chat and viewer counts).
   youtube: 'https://www.googleapis.com/auth/youtube',
-  // Pages the user manages, and posting live videos on them.
-  facebook: 'pages_show_list,pages_read_engagement,pages_manage_posts,publish_video',
+  // Pages the user manages, posting live videos on them, and reading the comments on them (live chat).
+  facebook: 'pages_show_list,pages_read_engagement,pages_read_user_content,pages_manage_posts,publish_video',
   twitch: 'channel:read:stream_key channel:manage:broadcast channel:manage:schedule',
 };
 
@@ -351,5 +353,76 @@ export const twitch = {
     await call('twitch', `${endpoints.twitchApi}/schedule/segment?${new URLSearchParams({ broadcaster_id: userId, id })}`, {
       method: 'DELETE', token, headers: twitch.headers(s),
     });
+  },
+};
+
+// ---------------------------------------------------------------------------------------------
+// Live viewers and chat (phase 4)
+
+/** A chat message as Restream stores it, whatever platform it came from. */
+export interface ChatMessage { id: string; author: string; text: string; at: Date; highlight: string | null }
+
+const clip = (v: unknown, n: number) => String(v ?? '').replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, n);
+
+export const youtubeLive = {
+  /** Concurrent viewers and the chat id of a broadcast (videos.list, 1 quota unit). */
+  async details(token: string, videoId: string): Promise<{ viewers: number | null; chatId: string | null; ended: boolean }> {
+    const r = await call<{ items?: { liveStreamingDetails?: { concurrentViewers?: string; activeLiveChatId?: string; actualEndTime?: string } }[] }>(
+      'youtube', `${endpoints.youtube}/videos?part=liveStreamingDetails&id=${encodeURIComponent(videoId)}`, { token });
+    const d = r.items?.[0]?.liveStreamingDetails;
+    if (!r.items?.length) throw new PlatformError('youtube', 'broadcast not found', 404);
+    return { viewers: d?.concurrentViewers !== undefined ? Number(d.concurrentViewers) || 0 : null, chatId: d?.activeLiveChatId ?? null, ended: !!d?.actualEndTime };
+  },
+
+  /** New chat messages since pageToken (liveChatMessages.list, 5 quota units). */
+  async chat(token: string, chatId: string, pageToken: string | null) {
+    type Item = {
+      id: string;
+      snippet?: { type?: string; publishedAt?: string; displayMessage?: string; textMessageDetails?: { messageText?: string };
+        superChatDetails?: { amountDisplayString?: string }; superStickerDetails?: { amountDisplayString?: string } };
+      authorDetails?: { displayName?: string };
+    };
+    const r = await call<{ items?: Item[]; nextPageToken?: string; pollingIntervalMillis?: number; offlineAt?: string }>('youtube',
+      `${endpoints.youtube}/liveChat/messages?${new URLSearchParams({ liveChatId: chatId, part: 'snippet,authorDetails', maxResults: '200', ...(pageToken ? { pageToken } : {}) })}`, { token });
+    const shown = new Set(['textMessageEvent', 'superChatEvent', 'superStickerEvent', 'memberMilestoneChatEvent', 'newSponsorEvent', 'membershipGiftingEvent']);
+    const messages: ChatMessage[] = (r.items ?? [])
+      .filter((i) => shown.has(i.snippet?.type ?? 'textMessageEvent'))
+      .map((i) => ({
+        id: i.id,
+        author: clip(i.authorDetails?.displayName, 100) || '?',
+        text: clip(i.snippet?.displayMessage ?? i.snippet?.textMessageDetails?.messageText, 1000),
+        at: new Date(i.snippet?.publishedAt ?? Date.now()),
+        highlight: clip(i.snippet?.superChatDetails?.amountDisplayString ?? i.snippet?.superStickerDetails?.amountDisplayString, 40) || null,
+      }))
+      .filter((m) => m.text || m.highlight);
+    return { messages, nextPageToken: r.nextPageToken ?? pageToken, pollMs: r.pollingIntervalMillis ?? 5000, offline: !!r.offlineAt };
+  },
+};
+
+export const facebookLive = {
+  /** Viewers watching the live video right now. */
+  async viewers(token: string, liveVideoId: string): Promise<number> {
+    const r = await call<{ live_views?: number }>('facebook', `${endpoints.facebookGraph}/${encodeURIComponent(liveVideoId)}?fields=live_views`, { token });
+    return Number(r.live_views ?? 0) || 0;
+  },
+
+  /** The newest comments on the live video (needs pages_read_user_content). */
+  async comments(token: string, liveVideoId: string): Promise<ChatMessage[]> {
+    const r = await call<{ data?: { id: string; message?: string; created_time?: string; from?: { name?: string } }[] }>('facebook',
+      `${endpoints.facebookGraph}/${encodeURIComponent(liveVideoId)}/comments?${new URLSearchParams({
+        fields: 'id,message,created_time,from{name}', order: 'reverse_chronological', filter: 'stream', live_filter: 'no_filter', limit: '100',
+      })}`, { token });
+    return (r.data ?? []).map((c) => ({
+      id: c.id, author: clip(c.from?.name, 100) || 'Facebook', text: clip(c.message, 1000),
+      at: new Date(c.created_time ?? Date.now()), highlight: null,
+    })).filter((m) => m.text).reverse();
+  },
+};
+
+export const twitchLive = {
+  /** Viewers of the channel's current stream; 0 while Twitch does not see it live (yet). */
+  async viewers(s: Settings, token: string, userId: string): Promise<number> {
+    const r = await call<{ data?: { viewer_count?: number }[] }>('twitch', `${endpoints.twitchApi}/streams?user_id=${encodeURIComponent(userId)}`, { token, headers: twitch.headers(s) });
+    return Number(r.data?.[0]?.viewer_count ?? 0) || 0;
   },
 };

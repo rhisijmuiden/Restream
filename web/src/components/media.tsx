@@ -8,8 +8,8 @@ export function PlatformChip({ platform, size = 36 }: { platform: Platform; size
   const m = platformMeta[platform];
   return (
     <div
-      className="flex shrink-0 items-center justify-center rounded-lg font-mono text-[10px] font-semibold text-ink"
-      style={{ background: m.color, width: size, height: size }}
+      className={clsx('flex shrink-0 items-center justify-center font-mono font-semibold text-ink', size < 30 ? 'rounded-md' : 'rounded-lg')}
+      style={{ background: m.color, width: size, height: size, fontSize: size < 30 && m.short.length > 2 ? 7.5 : 10, letterSpacing: size < 30 && m.short.length > 2 ? '-0.03em' : undefined }}
       aria-hidden
     >
       {m.short}

@@ -2,7 +2,7 @@
 
 Self-hosted stream multiplexer for Debian 13, installed with a single installer script on a bare server. Send one RTMP or SRT stream to the server, press **Go live**, and Restream distributes it to YouTube, Facebook, Twitch, Instagram, Kick, X and your own RTMP/SRT servers, each in its own bitrate and resolution.
 
-> Status: v1.1 (phases 0 to 3) is on the test channel. Phase 3 added the embeddable player (optionally only on your own websites or with signed links), one-click recording with downloads, connected YouTube/Facebook/Twitch accounts via OAuth, and scheduled events that are announced on the platforms. v1.0 (phases 0 to 2) brought ingest, destinations, hotlinks, the installer, 2FA, mail, backups and updates. See [docs/ROADMAP.md](docs/ROADMAP.md) (Dutch) and [CHANGELOG.md](CHANGELOG.md).
+> Status: v1.2 (phases 0 to 4) is on the test channel. Phase 4 added live viewer counts per platform, one combined YouTube/Facebook/Twitch chat and statistics per broadcast. Phase 3 added the embeddable player (optionally only on your own websites or with signed links), one-click recording with downloads, connected YouTube/Facebook/Twitch accounts via OAuth, and scheduled events that are announced on the platforms. v1.0 (phases 0 to 2) brought ingest, destinations, hotlinks, the installer, 2FA, mail, backups and updates. See [docs/ROADMAP.md](docs/ROADMAP.md) (Dutch) and [CHANGELOG.md](CHANGELOG.md).
 
 ## Install
 

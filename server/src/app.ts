@@ -20,6 +20,8 @@ import { embedRoutes } from './routes/embed.js';
 import { recordingRoutes } from './routes/recordings.js';
 import { accountRoutes } from './routes/accounts.js';
 import { eventRoutes } from './routes/events.js';
+import { liveRoutes } from './routes/live.js';
+import { LiveMonitor } from './live/monitor.js';
 import { Provisioner } from './platforms/provisioner.js';
 import { EventScheduler } from './events/scheduler.js';
 import { MediaSupervisor } from './media/supervisor.js';
@@ -92,12 +94,15 @@ export async function buildApp(sql: Sql, opts: { logger?: boolean; background?: 
   app.decorate('provisioner', provisioner);
   app.decorate('scheduler', scheduler);
   app.decorate('media', media);
+  const live = new LiveMonitor(sql, app.log, media);
+  app.decorate('live', live);
   await app.register(streamRoutes, { sql, media, playback, provisioner });
   await app.register(mediaRoutes, { sql, playback });
   await app.register(embedRoutes, { sql, playback });
   await app.register(recordingRoutes, { sql, media });
   await app.register(accountRoutes, { sql });
   await app.register(eventRoutes, { sql, scheduler, provisioner });
+  await app.register(liveRoutes, { sql, live });
   if (config.media.enabled) app.addHook('onReady', async () => media.start());
 
   // Mail notifications and scheduled backups run in the server process (not in tests unless asked).
@@ -108,9 +113,9 @@ export async function buildApp(sql: Sql, opts: { logger?: boolean; background?: 
   await app.register(mailRoutes, { sql });
   await app.register(backupRoutes, { sql, backups });
   if (opts.background ?? process.env.NODE_ENV === 'production') {
-    app.addHook('onReady', async () => { notifier.start(); await backups.start(); provisioner.start(); scheduler.start(); });
+    app.addHook('onReady', async () => { notifier.start(); await backups.start(); provisioner.start(); scheduler.start(); live.start(); });
   }
-  app.addHook('onClose', async () => { notifier.stop(); backups.stop(); scheduler.stop(); provisioner.stop(); await media.close(); });
+  app.addHook('onClose', async () => { notifier.stop(); backups.stop(); scheduler.stop(); provisioner.stop(); await live.stop(); await media.close(); });
 
   if (existsSync(config.webDist)) {
     await app.register(fastifyStatic, { root: config.webDist, wildcard: false, index: ['index.html'] });
@@ -129,5 +134,6 @@ declare module 'fastify' {
     provisioner: Provisioner;
     scheduler: EventScheduler;
     media: MediaSupervisor;
+    live: LiveMonitor;
   }
 }

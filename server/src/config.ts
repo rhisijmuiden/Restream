@@ -51,6 +51,18 @@ export const config = {
     srtPort: Number(process.env.SRT_PORT ?? 8890),
     pollMs: Number(process.env.MEDIA_POLL_MS ?? 2000),
   },
+  live: {
+    /** How often viewer counts are read from the platforms (and stored as a sample). */
+    viewersMs: Number(process.env.LIVE_VIEWERS_MS ?? 30_000),
+    /**
+     * Minimum time between two YouTube chat polls. Every poll costs 5 of the 10,000 daily quota units:
+     * 10 s is about 1,800 units per broadcast hour, so about five hours of chat per day.
+     */
+    youtubeChatMs: Number(process.env.LIVE_YOUTUBE_CHAT_MS ?? 10_000),
+    facebookChatMs: Number(process.env.LIVE_FACEBOOK_CHAT_MS ?? 5_000),
+    /** A broadcast that stays off air this long (while still set to live) is closed; a reconnect within it continues it. */
+    graceMs: Number(process.env.LIVE_GRACE_MS ?? 10 * 60_000),
+  },
 };
 
 export type Channel = 'production' | 'test';

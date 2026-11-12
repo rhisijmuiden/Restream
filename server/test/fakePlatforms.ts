@@ -9,6 +9,12 @@ export async function startFakePlatforms() {
   const calls: Call[] = [];
   let n = 0;
   const fail = new Set<string>();
+  /** Live state the phase 4 tests change: viewers per video/channel and chat waiting to be read. */
+  const live = {
+    viewers: new Map<string, number>(),
+    ytChat: [] as { id: string; snippet: Record<string, unknown>; authorDetails: Record<string, unknown> }[],
+    fbComments: new Map<string, { id: string; message: string; created_time: string; from: { name: string } }[]>(),
+  };
 
   const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
     const chunks: Buffer[] = [];
@@ -35,6 +41,16 @@ export async function startFakePlatforms() {
     if (key === 'PUT /youtube/liveBroadcasts') return send(200, { id: body.id });
     if (key === 'DELETE /youtube/liveBroadcasts') { res.writeHead(204); return res.end(); }
     if (key === 'POST /youtube/liveBroadcasts/bind') return send(200, { id: url.searchParams.get('id') });
+    if (key === 'GET /youtube/videos') {
+      const id = url.searchParams.get('id')!;
+      if (!live.viewers.has(id)) return send(200, { items: [] });
+      return send(200, { items: [{ id, liveStreamingDetails: { concurrentViewers: String(live.viewers.get(id)), activeLiveChatId: `chat-${id}` } }] });
+    }
+    if (key === 'GET /youtube/liveChat/messages') {
+      // The page token is the number of messages already handed out.
+      const from = Number(url.searchParams.get('pageToken') ?? 0);
+      return send(200, { items: live.ytChat.slice(from), nextPageToken: String(live.ytChat.length), pollingIntervalMillis: 50 });
+    }
     if (key === 'POST /youtube/liveBroadcasts/transition') return send(200, { id: url.searchParams.get('id') });
 
     // --- Facebook
@@ -42,7 +58,10 @@ export async function startFakePlatforms() {
     if (key === 'GET /graph/me/accounts') return send(200, { data: [{ id: 'page-1', name: 'Kerk Pagina', access_token: 'page-token-1' }, { id: 'page-2', name: 'Tweede', access_token: 'page-token-2' }] });
     let m = /^\/graph\/([\w-]+)\/live_videos$/.exec(url.pathname);
     if (m && req.method === 'POST') return send(200, { id: `lv-${++n}`, secure_stream_url: `rtmps://live-api-s.facebook.com:443/rtmp/FB-${n}` });
+    m = /^\/graph\/(lv-\d+)\/comments$/.exec(url.pathname);
+    if (m && req.method === 'GET') return send(200, { data: [...(live.fbComments.get(m[1]) ?? [])].reverse() });
     m = /^\/graph\/(lv-\d+)$/.exec(url.pathname);
+    if (m && req.method === 'GET' && url.searchParams.get('fields') === 'live_views') return send(200, { id: m[1], live_views: live.viewers.get(m[1]) ?? 0 });
     if (m && req.method === 'GET') return send(200, { secure_stream_url: `rtmps://live-api-s.facebook.com:443/rtmp/FB-${m[1]}`, permalink_url: `/kerk/videos/${m[1]}` });
     if (m && req.method === 'POST') return send(200, { success: true });
     if (m && req.method === 'DELETE') return send(200, { success: true });
@@ -51,6 +70,10 @@ export async function startFakePlatforms() {
     if (key === 'POST /twitch-auth/token') return send(200, { access_token: 'tw-access', refresh_token: 'tw-refresh', expires_in: 14000, scope: ['channel:read:stream_key'] });
     if (key === 'GET /helix/users') return send(200, { data: [{ id: 'tw-1', login: 'kerktv', display_name: 'KerkTV', profile_image_url: 'https://img/tw.png' }] });
     if (key === 'GET /helix/streams/key') return send(200, { data: [{ stream_key: 'live_tw_key' }] });
+    if (key === 'GET /helix/streams') {
+      const v = live.viewers.get(`tw:${url.searchParams.get('user_id')}`);
+      return send(200, { data: v === undefined ? [] : [{ viewer_count: v, type: 'live' }] });
+    }
     if (key === 'PATCH /helix/channels') { res.writeHead(204); return res.end(); }
     if (key === 'POST /helix/schedule/segment') return send(200, { data: { segments: [{ id: `seg-${++n}` }] } });
     if (key === 'PATCH /helix/schedule/segment') return send(200, { data: {} });
@@ -66,7 +89,7 @@ export async function startFakePlatforms() {
     facebookDialog: `${base}/fb/dialog`, facebookGraph: `${base}/graph`, twitchAuth: `${base}/twitch-auth`, twitchApi: `${base}/helix`,
   });
   return {
-    calls, fail,
+    calls, fail, live,
     find: (method: string, path: string) => calls.filter((c) => c.method === method && c.path === path),
     close: async () => { Object.assign(endpoints, saved); await new Promise((r) => server.close(r)); },
   };

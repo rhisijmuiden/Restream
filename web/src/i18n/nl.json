@@ -355,7 +355,8 @@
     "event_stream_change": "De stream van een event kan niet worden gewijzigd.",
     "event_not_live": "Dit event is niet live.",
     "event_cleanup_pending": "Restream haalt dit event nog van de platforms. Probeer het over een minuut opnieuw.",
-    "invalid_destination": "Een gekozen bestemming hoort niet bij deze stream."
+    "invalid_destination": "Een gekozen bestemming hoort niet bij deze stream.",
+    "broadcast_running": "Deze uitzending loopt nog."
   },
   "time": {
     "seconds": "{{n}}s",
@@ -764,7 +765,8 @@
     "redirectUri": "Redirect-URL",
     "clientId": "Client-ID / App-ID",
     "clientSecret": "Client secret",
-    "secretKeep": "Laat leeg om het opgeslagen secret te houden."
+    "secretKeep": "Laat leeg om het opgeslagen secret te houden.",
+    "reconnectForChat": "Koppel opnieuw om de reacties van deze pagina in de live chat te tonen."
   },
   "events": {
     "title": "Events",
@@ -842,5 +844,58 @@
     "confirmDelete": "De opname {{name}} verwijderen? Het bestand wordt van de server gehaald.",
     "titleLabel": "Titel",
     "titleHint": "Wordt ook de bestandsnaam van de download."
+  },
+  "live": {
+    "audience": "Live kijkers",
+    "peak": "Piek {{n}}",
+    "watchingNow": "kijken nu",
+    "viewers": "kijkers",
+    "offAir": "Kijkersaantallen verschijnen hier zodra een bestemming live is.",
+    "offAirShort": "Niet live",
+    "noStatsHint": "Kijkers en chat worden gelezen bij bestemmingen die een gekoppeld account gebruiken. Bestemmingen met een ingetypte streamkey sturen alleen beeld.",
+    "na": "n.v.t.",
+    "chat": "Live chat",
+    "openChat": "Volledig scherm",
+    "filter": "Chat per platform tonen",
+    "chatEmpty": "Nog geen berichten.",
+    "chatOffAir": "De chat van YouTube, Facebook en Twitch verschijnt hier zodra je live bent.",
+    "chatError": "Chat van {{name}} kan niet worden gelezen",
+    "newMessages_one": "{{count}} nieuw bericht",
+    "newMessages_other": "{{count}} nieuwe berichten",
+    "toLatest": "Nieuwste berichten"
+  },
+  "chat": {
+    "title": "Samengevoegde chat",
+    "subtitle": "Berichten van YouTube, Facebook en Twitch in één venster, voor de stream die live is.",
+    "readOnly": "Restream toont de chat; reageren en modereren doe je op de platforms zelf. De chat wordt bewaard bij de uitzending onder Statistieken."
+  },
+  "analytics": {
+    "title": "Statistieken",
+    "subtitle": "Elke uitzending met duur, piek en gemiddeld aantal kijkers, en achteraf de chat.",
+    "emptyTitle": "Nog geen uitzendingen",
+    "emptyText": "Een uitzending wordt hier automatisch vastgelegd vanaf het moment dat de eerste bestemming live gaat tot je stopt.",
+    "broadcasts": "Uitzendingen",
+    "onAirTotal": "Totaal live",
+    "bestPeak": "Hoogste piek",
+    "avgOfAvg": "Gemiddeld aantal kijkers",
+    "history": "Uitzendingen",
+    "live": "Live",
+    "duration": "Duur",
+    "peak": "Piek",
+    "average": "Gemiddeld",
+    "chatMessages": "Chatberichten",
+    "viewersOverTime": "Kijkers in de tijd (alle platforms)",
+    "noSamples": "Nog te weinig kijkersaantallen voor een grafiek.",
+    "chartLabel": "Kijkers in de tijd: piek {{peak}}, gemiddeld {{avg}}",
+    "total": "Totaal",
+    "perDestination": "Per bestemming",
+    "destination": "Bestemming",
+    "noStats": "Geen kijkersaantallen (streamkey)",
+    "chat": "Chat",
+    "exportCsv": "Exporteren als CSV",
+    "noChat": "Geen chatberichten in deze uitzending.",
+    "chatTruncated": "De eerste 1.000 berichten worden getoond; de CSV-export bevat ze allemaal.",
+    "delete": "Verwijderen",
+    "confirmDelete": "Deze uitzending met statistieken en chat verwijderen? Opnames blijven bewaard."
   }
 }
