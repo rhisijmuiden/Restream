@@ -17,7 +17,7 @@ Niet: VOD-hosting, video bewerken.
 Fase 0 t/m 2 vormen samen v1.0. Elke fase gaat eerst naar `test` en pas na akkoord naar `main`.
 
 ### Fase 0 · Fundament (P0)
-- Repo met `main` (productie) en `test`, huisstijl in de repo, installatiescript voor Debian 13
+- Repo met `main` (productie) en `test`, huisstijl in de repo, installer voor een kale Debian 13-server (één script, geen Docker)
 - Login met 2FA, gebruikers en rollen, adminpaneel met menu links
 - Engels en Nederlands vanaf dag één, Info-knop met versienummer
 
