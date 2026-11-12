@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.1 · Fix: media server did not start on a fresh install
+
+- MediaMTX could not open its config: it ran as the `mediamtx` user but the file was in `/etc/restream`, which only root and `restream` may enter. The config now lives in `/etc/restream-media` (root:mediamtx, 0750), so `/etc/restream` stays closed for secrets. Updating, or **Repair media server** in the console, moves it on existing servers.
+
 ## 1.2.0 · Phase 4: live viewers, combined chat and statistics
 
 - **Live viewers** on the dashboard: total right now, the peak of this broadcast and a bar per destination; each destination tile shows its own count. Read every 30 seconds from YouTube (concurrent viewers), Facebook (`live_views`) and Twitch (Helix streams) for destinations on a connected account. Destinations with a typed stream key show "n/a".
