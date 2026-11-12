@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Restream">
+  <rect width="64" height="64" rx="18" fill="#2EE6D6"/>
+  <g transform="translate(14 14) scale(1.5)" fill="none" stroke="#070A12" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 12h5M16 5h5M16 12h5M16 19h5M8 12l8-7M8 12h8M8 12l8 7"/>
+  </g>
+</svg>

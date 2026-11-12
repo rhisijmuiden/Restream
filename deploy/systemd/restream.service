@@ -1,0 +1,29 @@
+[Unit]
+Description=Restream multiplexer (web console and API)
+After=network-online.target postgresql.service
+Wants=network-online.target
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=restream
+Group=restream
+WorkingDirectory=/opt/restream
+EnvironmentFile=/etc/restream/restream.env
+ExecStart=/usr/bin/node /opt/restream/server/dist/index.js
+Restart=always
+RestartSec=3
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/restream
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

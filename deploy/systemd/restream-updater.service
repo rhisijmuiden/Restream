@@ -1,0 +1,8 @@
+[Unit]
+Description=Restream updater (runs an update requested from the web console)
+
+[Service]
+Type=oneshot
+# Run a copy, so the script is not replaced underneath bash while git updates the checkout.
+ExecStart=/bin/sh -c 'install -m 0700 /opt/restream/deploy/update.sh /run/restream-update.sh && exec /bin/bash /run/restream-update.sh --from-request'
+TimeoutStartSec=30min

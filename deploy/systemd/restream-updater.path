@@ -1,0 +1,9 @@
+[Unit]
+Description=Watch for Restream update requests from the web console
+
+[Path]
+PathExists=/var/lib/restream/update-request/request.json
+Unit=restream-updater.service
+
+[Install]
+WantedBy=multi-user.target

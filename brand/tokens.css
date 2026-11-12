@@ -1,0 +1,47 @@
+/*
+ * Restream brand tokens: "Signal" dark theme.
+ * Single source of truth for colours, type and radii. The web app imports this file.
+ */
+:root {
+  /* Surfaces */
+  --rs-bg: #070A12;          /* page background */
+  --rs-surface: #0D1220;     /* cards, sidebar */
+  --rs-surface-2: #141C30;   /* hover, active nav, inputs on cards */
+  --rs-border: #1E2740;
+  --rs-border-strong: #2A3554;
+
+  /* Text */
+  --rs-text: #E8ECF6;
+  --rs-text-2: #B4BDD3;
+  --rs-text-3: #8A94AD;
+
+  /* Brand */
+  --rs-accent: #2EE6D6;      /* signal cyan */
+  --rs-accent-hover: #8AF5EC;
+  --rs-accent-ink: #070A12;  /* text on accent */
+  --rs-accent-glow: rgba(46, 230, 214, 0.35);
+
+  /* Status */
+  --rs-live: #FF3B5C;
+  --rs-ok: #3DDC97;
+  --rs-warn: #FFB547;
+  --rs-danger: #FF5C6C;
+  --rs-info: #4C8DFF;
+
+  /* Platforms */
+  --rs-youtube: #FF4E45;
+  --rs-facebook: #4C8DFF;
+  --rs-twitch: #A970FF;
+  --rs-instagram: #FF5FA2;
+  --rs-kick: #53FC18;
+
+  /* Type */
+  --rs-font-display: 'Space Grotesk Variable', 'Space Grotesk', system-ui, sans-serif;
+  --rs-font-body: 'Inter Variable', Inter, system-ui, sans-serif;
+  --rs-font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* Shape */
+  --rs-radius-sm: 8px;
+  --rs-radius: 12px;
+  --rs-radius-lg: 20px;
+}
