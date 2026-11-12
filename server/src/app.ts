@@ -14,6 +14,9 @@ import { ssoRoutes } from './routes/sso.js';
 import { userRoutes } from './routes/users.js';
 import { systemRoutes } from './routes/system.js';
 import { settingsRoutes } from './routes/settings.js';
+import { streamRoutes } from './routes/streams.js';
+import { mediaRoutes } from './routes/media.js';
+import { MediaSupervisor } from './media/supervisor.js';
 
 export async function buildApp(sql: Sql, opts: { logger?: boolean } = {}): Promise<FastifyInstance> {
   const app = Fastify({
@@ -45,6 +48,8 @@ export async function buildApp(sql: Sql, opts: { logger?: boolean } = {}): Promi
 
   app.addHook('onRequest', async (req) => {
     if (!req.url.startsWith('/api/')) return;
+    // Called by MediaMTX on this machine; the route itself refuses anything that is not local.
+    if (req.url.startsWith('/api/internal/')) return;
     // CSRF defence in depth (cookies are SameSite=Strict): state changing calls need a custom header,
     // which browsers only send from same-origin scripts.
     if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && req.headers['x-restream'] !== '1') {
@@ -67,6 +72,12 @@ export async function buildApp(sql: Sql, opts: { logger?: boolean } = {}): Promi
   await app.register(userRoutes, { sql });
   await app.register(systemRoutes, { sql });
   await app.register(settingsRoutes, { sql });
+
+  const media = new MediaSupervisor(sql, app.log);
+  await app.register(streamRoutes, { sql, media });
+  await app.register(mediaRoutes, { sql });
+  if (config.media.enabled) app.addHook('onReady', async () => media.start());
+  app.addHook('onClose', async () => media.close());
 
   if (existsSync(config.webDist)) {
     await app.register(fastifyStatic, { root: config.webDist, wildcard: false, index: ['index.html'] });

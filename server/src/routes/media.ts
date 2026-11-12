@@ -1,0 +1,164 @@
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import { Readable } from 'node:stream';
+import { z } from 'zod';
+import type { Sql } from '../db.js';
+import { config } from '../config.js';
+import { decrypt, sha256 } from '../lib/crypto.js';
+import { requireAuth } from '../lib/guards.js';
+
+const loopback = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
+
+/** True only for requests made on this machine without passing through nginx. */
+export function isLocal(req: FastifyRequest) {
+  return loopback.has(req.socket.remoteAddress ?? '') && !req.headers['x-forwarded-for'] && !req.headers['x-real-ip'];
+}
+
+const hookBody = z.object({
+  action: z.string(),
+  path: z.string().default(''),
+  ip: z.string().default(''),
+  protocol: z.string().default(''),
+});
+
+/** Playback ids map to ingest keys; cached briefly because every HLS segment request needs one. */
+class PlaybackCache {
+  private cache = new Map<string, { key: string | null; at: number }>();
+  constructor(private sql: Sql) {}
+  async keyFor(pid: string): Promise<string | null> {
+    const hit = this.cache.get(pid);
+    if (hit && Date.now() - hit.at < 5000) return hit.key;
+    const [s] = await this.sql<{ ingest_key_enc: string; playback_enabled: boolean; enabled: boolean }[]>`
+      SELECT ingest_key_enc, playback_enabled, enabled FROM streams WHERE playback_id = ${pid}`;
+    const key = s && s.enabled && s.playback_enabled ? decrypt(s.ingest_key_enc) : null;
+    if (this.cache.size > 1000) this.cache.clear();
+    this.cache.set(pid, { key, at: Date.now() });
+    return key;
+  }
+}
+
+const hopByHop = new Set(['connection', 'keep-alive', 'transfer-encoding', 'upgrade', 'proxy-connection', 'te', 'trailer', 'content-length', 'server', 'set-cookie', 'location', 'access-control-allow-origin', 'access-control-allow-credentials']);
+
+export async function mediaRoutes(app: FastifyInstance, { sql }: { sql: Sql }) {
+  /**
+   * MediaMTX asks this endpoint before every publish and read (authMethod: http).
+   * Publishing needs a valid stream key (the path is live/<key>); reading is only allowed from this machine,
+   * which is where the FFmpeg outputs and the playback proxy below connect from.
+   */
+  app.post('/api/internal/mediamtx/auth', { config: { internal: true } }, async (req, reply) => {
+    if (!isLocal(req)) return reply.status(404).send({ error: 'not_found' });
+    const b = hookBody.parse(req.body);
+    if (b.action === 'publish') {
+      const m = /^live\/([A-Za-z0-9]{16,64})$/.exec(b.path);
+      if (!m || !['rtmp', 'srt'].includes(b.protocol)) return reply.status(401).send({ ok: false });
+      const [s] = await sql<{ id: string; enabled: boolean }[]>`SELECT id, enabled FROM streams WHERE ingest_key_hash = ${sha256(m[1])}`;
+      if (!s || !s.enabled) {
+        req.log.info({ ip: b.ip, protocol: b.protocol }, 'ingest refused: unknown or disabled stream key');
+        return reply.status(401).send({ ok: false });
+      }
+      req.log.info({ stream: s.id, ip: b.ip, protocol: b.protocol }, 'ingest accepted');
+      return { ok: true };
+    }
+    if (b.action === 'read' && loopback.has(b.ip)) return { ok: true };
+    return reply.status(401).send({ ok: false });
+  });
+
+  const playback = new PlaybackCache(sql);
+
+  for (const type of ['application/sdp', 'application/trickle-ice-sdpfrag']) {
+    app.addContentTypeParser(type, { parseAs: 'string', bodyLimit: 64 * 1024 }, (_req, body, done) => done(null, body));
+  }
+
+  /**
+   * Public playback (hotlink): /live/<playbackId>/index.m3u8 (HLS), /live/<playbackId>/whep (WebRTC),
+   * and the MediaMTX player pages at /live/<playbackId>/ and /live/<playbackId>/webrtc/.
+   * MediaMTX only listens on 127.0.0.1; this proxy swaps the public playback id for the secret ingest path.
+   */
+  async function proxy(req: FastifyRequest, reply: FastifyReply) {
+    const { pid, '*': restRaw } = req.params as { pid: string; '*': string };
+    const rest = restRaw ?? '';
+    if (!/^[a-z0-9]{6,32}$/.test(pid) || rest.includes('..')) return publicHeaders(reply).status(404).send({ error: 'not_found' });
+    if (req.method === 'OPTIONS') return publicHeaders(reply).status(204).send();
+    const key = await playback.keyFor(pid);
+    if (!key) return publicHeaders(reply).status(404).send({ error: 'not_found' });
+    publicHeaders(reply);
+    return forward(req, reply, key, `/live/${pid}/`, rest);
+  }
+
+  const publicHeaders = (reply: FastifyReply) => reply
+      .header('access-control-allow-origin', '*')
+      .header('access-control-allow-methods', 'GET, HEAD, POST, PATCH, DELETE, OPTIONS')
+      .header('access-control-allow-headers', 'Content-Type, If-Match, Authorization')
+      .header('access-control-expose-headers', 'ETag, ID, Accept-Patch, Link, Location')
+      .header('cross-origin-resource-policy', 'cross-origin')
+      .removeHeader('x-frame-options');
+
+  /** Forwards a request to MediaMTX for ingest key `key`; `base` is the public URL prefix that stands for /live/<key>/. */
+  async function forward(req: FastifyRequest, reply: FastifyReply, key: string, base: string, rest: string) {
+    let upstream: string; let prefix: string; let sub: string;
+    if (rest === 'webrtc' || rest.startsWith('webrtc/')) {
+      upstream = config.media.webrtcUrl; prefix = `${base}webrtc/`; sub = rest.slice('webrtc/'.length);
+    } else if (rest === 'whep' || rest.startsWith('whep/')) {
+      upstream = config.media.webrtcUrl; prefix = base; sub = rest;
+    } else {
+      upstream = config.media.hlsUrl; prefix = base; sub = rest;
+    }
+    if (rest === 'webrtc') return reply.redirect(`${base}webrtc/`);
+    const qs = req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : '';
+    const target = `${upstream}/live/${key}/${sub}${qs}`;
+
+    const headers: Record<string, string> = {};
+    for (const h of ['content-type', 'if-match', 'accept', 'range']) {
+      const v = req.headers[h];
+      if (typeof v === 'string') headers[h] = v;
+    }
+    // Only MediaMTX's own HLS session cookies are passed on.
+    const cookies = String(req.headers.cookie ?? '').split(';').map((c) => c.trim()).filter((c) => /^(cookieCheck|hlsSession)=/.test(c));
+    if (cookies.length) headers.cookie = cookies.join('; ');
+
+    let res: Response;
+    try {
+      res = await fetch(target, {
+        method: req.method,
+        headers,
+        body: ['POST', 'PATCH'].includes(req.method) ? (typeof req.body === 'string' ? req.body : JSON.stringify(req.body ?? '')) : undefined,
+        redirect: 'manual',
+        signal: AbortSignal.timeout(20000),
+      });
+    } catch {
+      return reply.status(502).send({ error: 'media_unavailable' });
+    }
+
+    reply.status(res.status);
+    res.headers.forEach((v, k) => { if (!hopByHop.has(k)) reply.header(k, v); });
+    const loc = res.headers.get('location');
+    if (loc) reply.header('location', loc.split(`/live/${key}/`).join(prefix));
+    const setCookies = res.headers.getSetCookie?.() ?? [];
+    if (setCookies.length) reply.header('set-cookie', setCookies);
+    if ((res.headers.get('content-type') ?? '').includes('text/html')) {
+      // MediaMTX player pages use inline scripts and are meant to be embedded.
+      reply.header('content-security-policy',
+        "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' blob:; connect-src 'self'; worker-src 'self' blob:; frame-ancestors *");
+    }
+    if (!res.body || req.method === 'HEAD') return reply.send();
+    const body = Readable.fromWeb(res.body as never);
+    if (res.headers.get('content-length')) reply.header('content-length', res.headers.get('content-length')!);
+    return reply.send(body);
+  }
+
+  const methods = ['GET', 'HEAD', 'POST', 'PATCH', 'DELETE', 'OPTIONS'] as const;
+  app.route({ method: [...methods], url: '/live/:pid/*', handler: proxy });
+  /** Signed-in preview for the console, also when public playback is switched off. Only WHEP and HLS. */
+  app.route({
+    method: ['GET', 'POST', 'PATCH', 'DELETE'],
+    url: '/api/preview/:id/*',
+    preHandler: requireAuth('viewer'),
+    handler: async (req, reply) => {
+      const { id, '*': rest } = z.object({ id: z.uuid(), '*': z.string().regex(/^(whep(\/[0-9a-f-]{36})?|[A-Za-z0-9_.-]+\.(m3u8|mp4|m4s)|)$/) }).parse(req.params);
+      const [s] = await sql<{ ingest_key_enc: string }[]>`SELECT ingest_key_enc FROM streams WHERE id = ${id}`;
+      if (!s) return reply.status(404).send({ error: 'not_found' });
+      return forward(req, reply, decrypt(s.ingest_key_enc), `/api/preview/${id}/`, rest);
+    },
+  });
+
+  app.get('/live/:pid', async (req, reply) => reply.redirect(`/live/${(req.params as { pid: string }).pid}/`));
+}

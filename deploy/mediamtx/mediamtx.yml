@@ -1,0 +1,59 @@
+# Managed by the Restream installer and updater: changes to this file are overwritten.
+# MediaMTX receives the RTMP/SRT ingest and serves HLS/WebRTC to Restream's playback proxy.
+# Public: RTMP 1935/tcp, SRT 8890/udp, WebRTC media 8189/udp+tcp. Everything else listens on 127.0.0.1.
+
+logLevel: info
+logDestinations: [stdout]
+readTimeout: 10s
+writeTimeout: 10s
+
+# Every publish and read is checked by Restream: a publish needs a valid stream key.
+authMethod: http
+authHTTPAddress: http://127.0.0.1:8080/api/internal/mediamtx/auth
+authHTTPExclude:
+  - action: api
+  - action: metrics
+
+api: yes
+apiAddress: 127.0.0.1:9997
+metrics: no
+pprof: no
+playback: no
+
+# Internal feed for the FFmpeg outputs.
+rtsp: yes
+rtspTransports: [tcp]
+rtspAddress: 127.0.0.1:8554
+rtspsAddress: 127.0.0.1:8322
+
+rtmp: yes
+rtmpAddress: :1935
+rtmpsAddress: 127.0.0.1:1936
+
+hls: yes
+hlsAddress: 127.0.0.1:8888
+hlsAllowOrigins: ['*']
+hlsVariant: lowLatency
+hlsSegmentCount: 7
+hlsSegmentDuration: 1s
+hlsPartDuration: 200ms
+
+webrtc: yes
+webrtcAddress: 127.0.0.1:8889
+webrtcLocalUDPAddress: :8189
+webrtcLocalTCPAddress: :8189
+webrtcIPsFromInterfaces: yes
+webrtcAdditionalHosts: [__PUBLIC_HOST__]
+
+srt: yes
+srtAddress: :8890
+
+moq: no
+
+pathDefaults:
+  source: publisher
+  # A reconnecting encoder takes over its own stream instead of being refused.
+  overridePublisher: yes
+
+paths:
+  all_others:

@@ -32,6 +32,8 @@ export function InfoDialog({ open, onClose, isAdmin }: { open: boolean; onClose:
             ['OS', d.os],
             ['Node.js', d.node],
             ['PostgreSQL', d.postgres],
+            ['MediaMTX', d.mediamtx ?? '—'],
+            ['FFmpeg', d.ffmpeg ?? '—'],
             [t('info.uptime'), formatDuration(d.uptimeSeconds)],
           ]}
         />

@@ -1,5 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import os from 'node:os';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { z } from 'zod';
 import type { Sql } from '../db.js';
 import { branchToChannel, config, readBuildInfo } from '../config.js';
@@ -10,6 +12,19 @@ import { decrypt } from '../lib/crypto.js';
 import { audit } from '../lib/audit.js';
 
 const startedAt = Date.now();
+const run = promisify(execFile);
+
+/** Versions of the media tools, looked up once per process (null when not installed or not reachable). */
+let ffmpegVersion: Promise<string | null> | null = null;
+async function mediaVersions() {
+  ffmpegVersion ??= run(config.media.ffmpegPath, ['-version'], { timeout: 3000 })
+    .then((r) => r.stdout.split('\n')[0]?.match(/version (\S+)/)?.[1] ?? null).catch(() => null);
+  const mediamtx = config.media.enabled
+    ? await fetch(`${config.media.apiUrl}/v3/info`, { signal: AbortSignal.timeout(1500) })
+      .then((r) => (r.ok ? r.json() as Promise<{ version?: string }> : null)).then((j) => j?.version?.trim() || null).catch(() => null)
+    : null;
+  return { mediamtx, ffmpeg: await ffmpegVersion };
+}
 
 export async function systemRoutes(app: FastifyInstance, { sql }: { sql: Sql }) {
   app.get('/api/health', async () => {
@@ -33,6 +48,7 @@ export async function systemRoutes(app: FastifyInstance, { sql }: { sql: Sql }) 
       uptimeSeconds: Math.round((Date.now() - startedAt) / 1000),
       repository: config.githubRepo,
       updaterEnabled: config.updaterEnabled,
+      ...(await mediaVersions()),
     };
   });
 
