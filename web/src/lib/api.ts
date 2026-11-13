@@ -96,7 +96,7 @@ export interface Account {
   createdAt: string; destinations: number; missingScopes: string[];
 }
 export interface AccountsResponse { publicUrlSet: boolean; apps: Record<OAuthProvider, { configured: boolean }>; accounts: Account[] }
-export type OAuthApps = Record<OAuthProvider, { clientId: string; clientSecretSet: boolean; redirectUri: string }>;
+export type OAuthApps = Record<OAuthProvider, { clientId: string; clientSecretSet: boolean; redirectUri: string; scopes: string[] }>;
 
 export interface Recording {
   id: string; streamId: string | null; streamName: string; eventId: string | null; title: string; status: 'recording' | 'finished' | 'failed';

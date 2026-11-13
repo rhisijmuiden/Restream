@@ -176,8 +176,8 @@ describe('phase 3 API', () => {
   });
 
   describe('connected accounts', () => {
-    async function connect(provider: string) {
-      const start = await op.get(`/api/accounts/oauth/${provider}/start`);
+    async function connect(provider: string, popup = false) {
+      const start = await op.get(`/api/accounts/oauth/${provider}/start${popup ? '?popup=1' : ''}`);
       expect(start.statusCode, start.body).toBe(302);
       const loc = new URL(start.headers.location as string);
       const flow = start.cookies.find((c) => c.name === 'restream_oauth')!;
@@ -197,7 +197,8 @@ describe('phase 3 API', () => {
         expect((await admin.req('PUT', `/api/accounts/apps/${p}`, { clientId: `${p}-client`, clientSecret: `${p}-secret` })).statusCode).toBe(200);
       }
       const apps = (await admin.get('/api/accounts/apps')).json();
-      expect(apps.youtube).toEqual({ clientId: 'youtube-client', clientSecretSet: true, redirectUri: 'https://stream.example.com/api/accounts/oauth/youtube/callback' });
+      expect(apps.youtube).toEqual({ clientId: 'youtube-client', clientSecretSet: true, redirectUri: 'https://stream.example.com/api/accounts/oauth/youtube/callback', scopes: ['https://www.googleapis.com/auth/youtube'] });
+      expect(apps.facebook.scopes).toContain('publish_video');
       expect(JSON.stringify(apps)).not.toContain('youtube-secret');
     });
 
@@ -205,12 +206,15 @@ describe('phase 3 API', () => {
       const yt = await connect('youtube');
       expect(yt.loc.searchParams.get('code_challenge_method')).toBe('S256');
       expect(yt.loc.searchParams.get('access_type')).toBe('offline');
-      expect(yt.r.headers.location).toBe('/accounts?connected=1');
+      expect(yt.r.headers.location).toBe('/accounts?connected=1&provider=youtube');
       const tokenCall = fake.find('POST', '/google/token')[0];
       expect(tokenCall.body).toMatchObject({ code: 'c0de', client_secret: 'youtube-secret', redirect_uri: 'https://stream.example.com/api/accounts/oauth/youtube/callback' });
       expect(tokenCall.body.code_verifier).toBeTruthy();
-      expect((await connect('facebook')).r.headers.location).toBe('/accounts?connected=2');
-      expect((await connect('twitch')).r.headers.location).toBe('/accounts?connected=1');
+      expect((await connect('facebook')).r.headers.location).toBe('/accounts?connected=2&provider=facebook');
+      expect((await connect('twitch')).r.headers.location).toBe('/accounts?connected=1&provider=twitch');
+      // Started from the pop-up window: ends on the page that reports back to the console and closes itself.
+      const again = await connect('youtube', true);
+      expect(again.r.headers.location).toBe('/oauth-done.html?connected=1&provider=youtube');
 
       const list = (await viewer.get('/api/accounts')).json();
       expect(list.accounts.map((a: { provider: string; name: string }) => `${a.provider}:${a.name}`))
@@ -232,6 +236,12 @@ describe('phase 3 API', () => {
         cookies: { restream_oauth: flow.value },
       });
       expect(denied.headers.location).toBe('/accounts?error=oauth_denied');
+      const popup = await op.get('/api/accounts/oauth/youtube/start?popup=1');
+      const deniedPopup = await ctx.app.inject({
+        method: 'GET', url: `/api/accounts/oauth/youtube/callback?error=access_denied&state=${new URL(popup.headers.location as string).searchParams.get('state')}`,
+        cookies: { restream_oauth: popup.cookies.find((c) => c.name === 'restream_oauth')!.value },
+      });
+      expect(deniedPopup.headers.location).toBe('/oauth-done.html?error=oauth_denied');
     });
   });
 

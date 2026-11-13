@@ -747,8 +747,7 @@
     "connected_other": "{{count}} accounts connected.",
     "publicUrlMissing": "Set the public URL of this server first; the platforms send you back to it after signing in.",
     "openSettings": "Open settings",
-    "connect": "Connect",
-    "appMissing": "An administrator first registers the app for this platform (below on this page).",
+    "appMissing": "An administrator first sets up the app for this platform (see the setup guide).",
     "none": "No accounts connected.",
     "usedBy_one": "used by {{count}} destination",
     "usedBy_other": "used by {{count}} destinations",
@@ -768,35 +767,236 @@
       "twitch": "Gets the stream key itself and sets the stream title. Events go into the stream schedule (Affiliates and Partners)."
     },
     "appsTitle": "Platform apps",
-    "appsText": "Each platform needs an app registered in its developer console, with the redirect URL below. You do this once; the client secret is stored encrypted.",
+    "appsText": "Each platform needs an app that you register once in its developer console. The guide walks you through it and gives every value to copy; the secret is stored encrypted.",
     "app": {
       "youtube": "Google Cloud OAuth client",
       "facebook": "Meta app",
       "twitch": "Twitch app"
     },
-    "steps": {
+    "secretKeep": "Leave empty to keep the stored secret.",
+    "reconnectForChat": "Connect again to show the comments of this page in the live chat.",
+    "connectWith": "Connect with {{platform}}",
+    "setUp": "Set up {{platform}}",
+    "askAdmin": "{{platform}} is not set up yet. Ask an administrator to follow the setup guide on this page.",
+    "whatHappens": "What happens when I connect?",
+    "how": {
+      "eyebrow": "How it works",
+      "title": "Connect a channel in three steps",
+      "text": "Restream works like other apps that post for you: you click Connect, a pop-up from the platform asks you to sign in and to allow Restream to go live on your behalf, and the channel appears here. Steps 1 and 2 are done once.",
+      "admin": "Administrator · once",
+      "operator": "Anyone with operator rights",
+      "step1": "Public URL of this server",
+      "step1Text": "The platform sends the pop-up back to this address after signing in.",
+      "step1Done": "Set. The platforms send the pop-up back to this server.",
+      "step2": "Register the platform app",
+      "step2Text": "A short, guided registration in the developer console of the platform. Click a platform to open its guide.",
+      "step3": "Click “Connect with …”",
+      "step3Text": "Sign in in the pop-up and click Allow. The pop-up closes and the channel or page appears below, ready for destinations and events."
+    },
+    "popup": {
+      "explainTitle": "Connecting with {{platform}}",
+      "waitingTitle": "Finish in the {{platform}} window",
+      "waitingText": "A pop-up from the platform is open. Sign in there and allow access; this page updates by itself.",
+      "show": "Show the pop-up",
+      "example": "Example of the permission screen",
+      "steps": {
+        "youtube": [
+          "Choose the Google account that owns the channel. Is the channel on a Brand Account? Choose the Brand Account in the list.",
+          "Does Google say it hasn't verified the app? That is your own app: click Advanced › Go to … (unsafe).",
+          "Google asks if the app may manage your YouTube account. Click Continue (or Allow).",
+          "The pop-up closes and the channel appears on this page."
+        ],
+        "facebook": [
+          "Sign in to Facebook, or click Continue as … .",
+          "Choose the pages Restream may use. Select every page you want to stream to.",
+          "Check the permissions (publish videos, manage posts, read comments) and click Save or Continue.",
+          "The pop-up closes and every chosen page appears on this page."
+        ],
+        "twitch": [
+          "Sign in to Twitch with the account of the channel.",
+          "Twitch asks if the app may read the stream key and manage the broadcast and schedule. Click Authorize.",
+          "The pop-up closes and the channel appears on this page."
+        ]
+      },
+      "require": {
+        "youtube": "The channel needs live streaming enabled (YouTube Studio › Go live). The first time, YouTube can take up to 24 hours to enable it.",
+        "facebook": "Facebook only allows live video through apps on pages with at least 100 followers, managed by an account that is at least 60 days old.",
+        "twitch": "Scheduling events needs Affiliate or Partner status; going live works for every channel."
+      },
+      "consent": {
+        "youtube": {
+          "site": "accounts.google.com",
+          "title": "{{app}} wants access to your Google Account",
+          "items": [
+            "Manage your YouTube account"
+          ],
+          "button": "Continue"
+        },
+        "facebook": {
+          "site": "facebook.com",
+          "title": "{{app}} is requesting access to your pages",
+          "items": [
+            "Publish videos on your pages",
+            "Create and manage content on your pages",
+            "Read content and comments on your pages",
+            "Show a list of the pages you manage"
+          ],
+          "button": "Save"
+        },
+        "twitch": {
+          "site": "id.twitch.tv",
+          "title": "{{app}} wants to access your account",
+          "items": [
+            "View your stream key",
+            "Manage your broadcast configuration",
+            "Manage your stream schedule"
+          ],
+          "button": "Authorize"
+        }
+      }
+    },
+    "appReady": "Ready",
+    "appNotSet": "Not set up",
+    "openGuide": "Guide & settings",
+    "startGuide": "Start setup guide",
+    "guideTitle": "Set up {{platform}}",
+    "guideIntro": {
+      "youtube": "You register Restream as an app in Google Cloud. It is free and takes about 10 minutes. Afterwards everyone with operator rights can connect channels with the familiar Google pop-up.",
+      "facebook": "You register Restream as an app at Meta for Developers. It is free and takes about 10 minutes. Afterwards pages are connected with the familiar Facebook pop-up.",
+      "twitch": "You register Restream as an application in the Twitch developer console. It takes about 5 minutes."
+    },
+    "guide": {
       "youtube": [
-        "Create a project in Google Cloud and enable the YouTube Data API v3.",
-        "Configure the OAuth consent screen (External) and add your Google accounts as test users, or publish it.",
-        "Create credentials › OAuth client ID › Web application, with the redirect URL below."
+        {
+          "title": "Create a Google Cloud project",
+          "text": "Sign in with the Google account that will manage the app (it doesn't have to own the channel) and create a project, for example “Restream”.",
+          "link": "googleProject"
+        },
+        {
+          "title": "Enable the YouTube Data API v3",
+          "text": "Check that your new project is selected at the top of the page and click Enable.",
+          "link": "googleApi"
+        },
+        {
+          "title": "Branding: the name in the pop-up",
+          "text": "Google Auth Platform › Branding (click Get started the first time). Enter the app name people will see in the pop-up, a support email, and under Authorized domains this domain:",
+          "copy": [
+            "domain"
+          ],
+          "link": "googleBranding"
+        },
+        {
+          "title": "Audience: External and published",
+          "text": "Choose External. Then click Publish app.",
+          "note": "In Testing mode only the test users you add can connect, and Google ends the connection after 7 days. Published without Google's verification works for your own channels; the pop-up then shows a warning you click through (Advanced › Go to …).",
+          "link": "googleAudience"
+        },
+        {
+          "title": "Data access: the YouTube permission",
+          "text": "Click Add or remove scopes, paste this scope under Manually add scopes (it is shown as “Manage your YouTube account”), click Add to table, Update and Save:",
+          "copy": [
+            "scopes"
+          ],
+          "link": "googleScopes"
+        },
+        {
+          "title": "Create the OAuth client",
+          "text": "Clients › Create client › Application type Web application. Add these two values and click Create:",
+          "copy": [
+            "origin",
+            "redirectUri"
+          ],
+          "note": "Copy the client secret right away: Google only shows it once. Lost it? Add a new secret to the client.",
+          "link": "googleClient"
+        }
       ],
       "facebook": [
-        "Create an app at Meta for Developers (type Business) and add Facebook Login for Business.",
-        "Add the redirect URL below under Valid OAuth Redirect URIs.",
-        "Request the permissions pages_show_list, pages_read_engagement, pages_manage_posts and publish_video (App Review for pages you do not own)."
+        {
+          "title": "Create the app",
+          "text": "Meta for Developers › Create app. Enter the name people will see in the pop-up, choose the use case “Authenticate and request data from users with Facebook Login”, and connect your business portfolio when asked (or skip that step).",
+          "link": "metaCreate"
+        },
+        {
+          "title": "Add the page permissions",
+          "text": "Use cases › Authenticate and request data… › Customize › Permissions. Add each of these permissions:",
+          "copy": [
+            "scopes"
+          ],
+          "link": "metaApps"
+        },
+        {
+          "title": "Allow the redirect",
+          "text": "Same use case › Settings: keep Client OAuth login and Web OAuth login on, and add this under Valid OAuth Redirect URIs. Save.",
+          "copy": [
+            "redirectUri"
+          ],
+          "link": "metaApps"
+        },
+        {
+          "title": "App domain and privacy policy",
+          "text": "App settings › Basic: add this domain under App domains, fill in a privacy policy URL and choose a category. Save.",
+          "copy": [
+            "domain"
+          ],
+          "link": "metaApps"
+        },
+        {
+          "title": "Who can connect",
+          "text": "In Development mode only people with a role on the app can connect. Add your technicians under App roles › Roles (Administrator, Developer or Tester); they accept the invitation on Facebook.",
+          "note": "To publish to everyone, switch the app to Live. Meta then asks for Business verification and App Review of these permissions. Test in Development mode first.",
+          "link": "metaApps"
+        },
+        {
+          "title": "Copy App ID and App secret",
+          "text": "App settings › Basic: copy the App ID, and click Show next to App secret.",
+          "link": "metaApps"
+        }
       ],
       "twitch": [
-        "Register an application in the Twitch developer console (category: Broadcaster Suite).",
-        "Use the redirect URL below as OAuth Redirect URL.",
-        "Choose client type Confidential and create a new secret."
+        {
+          "title": "Register the application",
+          "text": "Twitch developer console › Register your application. Twitch requires two-factor authentication on your account for this. Enter the name people will see in the pop-up.",
+          "link": "twitchCreate"
+        },
+        {
+          "title": "Redirect URL",
+          "text": "Add this under OAuth Redirect URLs:",
+          "copy": [
+            "redirectUri"
+          ]
+        },
+        {
+          "title": "Category and client type",
+          "text": "Category Broadcaster Suite, client type Confidential. Click Create."
+        },
+        {
+          "title": "Copy Client ID and secret",
+          "text": "Applications › Manage: copy the Client ID and click New Secret.",
+          "link": "twitchApps"
+        }
       ]
     },
-    "openConsole": "Open the developer console",
-    "redirectUri": "Redirect URL",
-    "clientId": "Client ID / App ID",
-    "clientSecret": "Client secret",
-    "secretKeep": "Leave empty to keep the stored secret.",
-    "reconnectForChat": "Connect again to show the comments of this page in the live chat."
+    "copyLabel": {
+      "redirectUri": "Redirect URL (Authorized redirect URI)",
+      "origin": "JavaScript origin",
+      "domain": "Domain",
+      "scopes": "Permissions"
+    },
+    "openStep": "Open this page",
+    "pasteTitle": "Paste the values in Restream",
+    "clientIdLabel": {
+      "youtube": "Client ID",
+      "facebook": "App ID",
+      "twitch": "Client ID"
+    },
+    "clientSecretLabel": {
+      "youtube": "Client secret",
+      "facebook": "App secret",
+      "twitch": "Client secret"
+    },
+    "tryTitle": "Try it: connect your first account",
+    "tryText": "Click the button. The platform's pop-up opens; sign in and allow access. Does that work? Then setup is done.",
+    "tryAfterSave": "Save the values first; then the connect button appears here."
   },
   "events": {
     "title": "Events",

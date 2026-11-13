@@ -19,7 +19,13 @@ function missingScopes(p: OAuthProvider, granted: string): string[] {
 const FLOW_COOKIE = 'restream_oauth';
 const providerParam = z.object({ provider: z.enum(oauthProviders) });
 
-interface Flow { p: OAuthProvider; state: string; verifier: string; user: string; session: string; t: number }
+/** popup: started from the console in a pop-up window, which reports back to the console and closes itself. */
+interface Flow { p: OAuthProvider; state: string; verifier: string; user: string; session: string; t: number; popup?: boolean }
+
+/** Where the platform's redirect ends: the small page that closes the pop-up, or the Accounts page. */
+function finish(popup: boolean | undefined, query: string) {
+  return popup ? `/oauth-done.html?${query}` : `/accounts?${query}`;
+}
 
 /**
  * Connected accounts: YouTube channels, Facebook pages and Twitch channels, linked with OAuth.
@@ -54,6 +60,8 @@ export async function accountRoutes(app: FastifyInstance, { sql }: { sql: Sql })
       clientId: s.platforms[p].clientId,
       clientSecretSet: !!s.platforms[p].clientSecretEnc,
       redirectUri: s.publicUrl ? redirectUri(s, p) : '',
+      // Shown in the setup guide, so the administrator adds exactly what Restream asks for.
+      scopes: scopes[p].split(/[\s,]+/),
     }]));
   });
 
@@ -77,13 +85,14 @@ export async function accountRoutes(app: FastifyInstance, { sql }: { sql: Sql })
   /** Starts the OAuth flow (a normal navigation from the console, so the session cookie is sent). */
   app.get('/api/accounts/oauth/:provider/start', operator, async (req, reply) => {
     const { provider } = providerParam.parse(req.params);
+    const popup = (req.query as Record<string, string>).popup === '1';
     const s = await getSettings(sql);
-    if (!s.publicUrl) return reply.redirect('/accounts?error=public_url_missing');
-    if (!appConfigured(s, provider)) return reply.redirect('/accounts?error=app_not_configured');
+    if (!s.publicUrl) return reply.redirect(finish(popup, 'error=public_url_missing'));
+    if (!appConfigured(s, provider)) return reply.redirect(finish(popup, 'error=app_not_configured'));
     const verifier = randomBytes(32).toString('base64url');
     const challenge = createHash('sha256').update(verifier).digest('base64url');
     const state = randomBytes(16).toString('base64url');
-    const flow: Flow = { p: provider, state, verifier, user: req.user!.id, session: req.session!.id, t: Date.now() };
+    const flow: Flow = { p: provider, state, verifier, user: req.user!.id, session: req.session!.id, t: Date.now(), ...(popup ? { popup } : {}) };
     // The session cookie is SameSite=Strict and is not sent when the platform redirects back, so the flow cookie
     // (Lax, encrypted, ten minutes) carries who started it; the callback checks that this session is still valid.
     reply.setCookie(FLOW_COOKIE, encrypt(JSON.stringify(flow)), {
@@ -97,10 +106,10 @@ export async function accountRoutes(app: FastifyInstance, { sql }: { sql: Sql })
     const q = z.object({ code: z.string().max(2000).optional(), state: z.string().max(200).optional(), error: z.string().max(200).optional() }).parse(req.query);
     const raw = req.cookies[FLOW_COOKIE];
     reply.clearCookie(FLOW_COOKIE, { path: '/api/accounts/oauth' });
-    const fail = (code: string) => reply.redirect(`/accounts?error=${encodeURIComponent(code)}`);
-    if (!raw) return fail('oauth_failed');
-    let flow: Flow;
-    try { flow = JSON.parse(decrypt(raw)) as Flow; } catch { return fail('oauth_failed'); }
+    let flow: Flow | null = null;
+    try { flow = raw ? JSON.parse(decrypt(raw)) as Flow : null; } catch { /* tampered or from an old key */ }
+    const fail = (code: string) => reply.redirect(finish(flow?.popup, `error=${encodeURIComponent(code)}`));
+    if (!flow) return fail('oauth_failed');
     if (flow.p !== provider || flow.state !== q.state || Date.now() - flow.t > 600_000) return fail('oauth_failed');
     if (q.error || !q.code) return fail(q.error === 'access_denied' ? 'oauth_denied' : 'oauth_failed');
 
@@ -123,7 +132,7 @@ export async function accountRoutes(app: FastifyInstance, { sql }: { sql: Sql })
             expires_at = EXCLUDED.expires_at, scopes = EXCLUDED.scopes, status = 'ok', last_error = NULL, updated_at = now()`;
       }
       await audit(sql, req, 'account.connected', { provider, accounts: ids.map((i) => i.name) }, flow.user);
-      return reply.redirect(`/accounts?connected=${ids.length}`);
+      return reply.redirect(finish(flow.popup, `connected=${ids.length}&provider=${provider}`));
     } catch (err) {
       req.log.warn({ err, provider }, 'connecting account failed');
       const msg = err instanceof PlatformError ? err.message : 'oauth_failed';
