@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.0 · Connect X as an account
+
+- **X on the Accounts page**: "Connect with X" opens X's own sign-in and permission screen in a pop-up (OAuth 2.0 with PKCE), like YouTube, Facebook and Twitch. A setup guide walks the administrator through the X Developer Console (Web App, callback URI, website URL, client ID and secret, API credit) with every value to copy.
+- **X destinations via account**: Restream creates a stream source on the X account once (X Livestream API, `/2/sources`) and reuses it. On Go live it sends the video and publishes the broadcast as soon as X receives it (`POST /2/broadcasts`, with the stream's title; X announces it in a post); Stop ends it. The dashboard shows "X publishes the broadcast in a few seconds" until then, and the watch link afterwards. Events are not announced on X.
+- **Paid X account required**: X only lets X Premium (or verified organisation) accounts that are not protected go live from streaming software. The Accounts page, the setup guide and the destination form say so, and when X refuses the account the dashboard shows "X refused to go live with this account" instead of a raw error.
+- The X preset no longer says the key changes per broadcast: a Media Studio Producer source keeps its URL and key. The stream-key route explains the Producer steps.
+- A destination on a connected account no longer needs a server URL when the platform hands it out.
+
 ## 1.3.3 · Clear "Connect with YouTube / Facebook / Twitch"
 
 - **Connect in a pop-up**: the Accounts page has a "Connect with YouTube", "Connect with Facebook" and "Connect with Twitch" button. It opens the platform's own sign-in and permission screen ("… wants access to your Google Account") in a pop-up; after Allow the pop-up closes and the channel or pages appear. A blocked pop-up falls back to the old full-page flow.

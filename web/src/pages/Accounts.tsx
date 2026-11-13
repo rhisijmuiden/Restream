@@ -8,9 +8,10 @@ import { api, type Account, type AccountsResponse, type OAuthApps, type OAuthPro
 import { useMe } from '../lib/auth';
 import { Badge, Button, Card, CopyButton, ErrorText, Field, Input, Modal, PageHeader } from '../components/ui';
 import { PlatformChip } from '../components/media';
+import { PaidNotice } from '../components/PaidNotice';
 import { platformMeta } from '../lib/streams';
 
-const providers: OAuthProvider[] = ['youtube', 'facebook', 'twitch'];
+const providers: OAuthProvider[] = ['youtube', 'facebook', 'twitch', 'x'];
 
 /** Deep links for the steps of the setup guides (the texts are in the translations). */
 const links: Record<string, string> = {
@@ -24,6 +25,8 @@ const links: Record<string, string> = {
   metaApps: 'https://developers.facebook.com/apps/',
   twitchCreate: 'https://dev.twitch.tv/console/apps/create',
   twitchApps: 'https://dev.twitch.tv/console/apps',
+  xConsole: 'https://console.x.com',
+  xProducer: 'https://studio.x.com/producer',
 };
 
 type CopyKind = 'redirectUri' | 'origin' | 'domain' | 'scopes';
@@ -147,7 +150,7 @@ export function Accounts() {
         </section>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2 2xl:grid-cols-4">
         {providers.map((p) => {
           const list = q.data?.accounts.filter((a) => a.provider === p) ?? [];
           const configured = !!q.data?.apps[p].configured;
@@ -159,6 +162,7 @@ export function Accounts() {
               title={t(`accounts.kind.${p}`)}
             >
               <p className="mb-4 text-xs leading-relaxed text-fg-3">{t(`accounts.what.${p}`)}</p>
+              {p === 'x' && <PaidNotice provider={p} />}
               {canOperate && (
                 <div className="mb-4 flex flex-col gap-2">
                   {ready ? (
@@ -220,7 +224,7 @@ export function Accounts() {
             <h2 className="font-display text-xl font-semibold">{t('accounts.appsTitle')}</h2>
             <p className="max-w-3xl text-sm leading-relaxed text-fg-2">{t('accounts.appsText')}</p>
           </div>
-          <div className="grid gap-4 xl:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
             {providers.map((p) => {
               const ok = !!(apps.data![p].clientId && apps.data![p].clientSecretSet);
               return (
@@ -301,6 +305,8 @@ function HowStep({ n, done, title, who, children }: { n: number; done: boolean; 
   );
 }
 
+const consentColor: Record<OAuthProvider, string> = { youtube: '#1A73E8', facebook: '#1877F2', twitch: '#9146FF', x: '#0F1419' };
+
 /** What the person sees in the pop-up, step by step, with an example of the permission screen. */
 function PopupExplainer({ provider }: { provider: OAuthProvider }) {
   const { t } = useTranslation();
@@ -330,7 +336,7 @@ function PopupExplainer({ provider }: { provider: OAuthProvider }) {
           </ul>
           <div className="flex justify-end gap-2 pt-1">
             <span className="rounded-md px-2.5 py-1 text-[11px] text-[#5B6275]">{t('common.cancel')}</span>
-            <span className="rounded-md px-2.5 py-1 text-[11px] font-semibold text-white" style={{ background: provider === 'youtube' ? '#1A73E8' : provider === 'facebook' ? '#1877F2' : '#9146FF' }}>
+            <span className="rounded-md px-2.5 py-1 text-[11px] font-semibold text-white" style={{ background: consentColor[provider] }}>
               {t(`accounts.popup.consent.${provider}.button`)}
             </span>
           </div>
@@ -370,6 +376,7 @@ function SetupGuide({ provider, app, canConnect, onClose, onConnect }: {
   return (
     <Modal open onClose={onClose} wide title={<span className="flex items-center gap-2.5"><PlatformChip platform={provider} size={24} /> {t('accounts.guideTitle', { platform: platformMeta[provider].label })}</span>}>
       <p className="-mt-2 text-sm leading-relaxed text-fg-2">{t(`accounts.guideIntro.${provider}`)}</p>
+      {provider === 'x' && <PaidNotice provider={provider} className="mb-0" />}
       {!app.redirectUri && <p className="rounded-xl border border-warn/40 bg-warn/[0.07] px-3 py-2.5 text-sm text-warn">{t('accounts.publicUrlMissing')}</p>}
       <ol className="flex flex-col gap-4">
         {steps.map((s, i) => (

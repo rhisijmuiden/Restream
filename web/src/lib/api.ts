@@ -48,6 +48,8 @@ export interface Destination {
   live: boolean; liveSince: string | null;
   auth: 'key' | 'account'; account: { id: string; name: string; imageUrl: string; status: string } | null;
   privacy: Privacy; watchUrl: string | null;
+  /** Why a destination on a connected account is not on the platform yet, e.g. x_not_eligible. */
+  prepareError: string | null;
   status: { state: OutputStateName; since: string | null; bitrateKbps: number | null; fps: number | null; speed: number | null; attempts: number; lastError: string | null };
 }
 export type Privacy = 'public' | 'unlisted' | 'private';
@@ -90,7 +92,7 @@ export interface WebhookDelivery {
   durationMs: number | null; createdAt: string; deliveredAt: string | null; nextAttemptAt: string | null; payload: unknown;
 }
 
-export type OAuthProvider = 'youtube' | 'facebook' | 'twitch';
+export type OAuthProvider = 'youtube' | 'facebook' | 'twitch' | 'x';
 export interface Account {
   id: string; provider: OAuthProvider; name: string; handle: string; imageUrl: string; status: 'ok' | 'error'; lastError: string | null;
   createdAt: string; destinations: number; missingScopes: string[];
