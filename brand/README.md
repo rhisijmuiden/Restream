@@ -24,6 +24,23 @@ A new house style made for Restream: dark, technical and calm, with one bright s
 | `--rs-live` | `#FF3B5C` | On air / recording only |
 | `--rs-ok` / `--rs-warn` / `--rs-danger` | `#3DDC97` / `#FFB547` / `#FF5C6C` | Status |
 
+### Light theme
+
+The same brand in light: `:root[data-theme="light"]` in `tokens.css`. The app switches with the user's choice (Light, Dark or System).
+
+| Token | Hex | Use |
+| --- | --- | --- |
+| `--rs-bg` | `#F3F5F9` | Page background, faint teal grid |
+| `--rs-surface` | `#FFFFFF` | Cards and sidebar |
+| `--rs-surface-2` | `#EBEFF6` | Hover, active menu item, inputs |
+| `--rs-border` | `#DDE2EC` | Hairlines |
+| `--rs-text` / `--rs-text-2` / `--rs-text-3` | `#0B1020` / `#3A4560` / `#5B6680` | Text |
+| `--rs-accent` | `#0B7D74` | Signal cyan, deepened to 4.5:1 on white; white text on accent fills |
+| `--rs-live` | `#D4113E` | On air / recording only |
+| `--rs-ok` / `--rs-warn` / `--rs-danger` | `#0B7F50` / `#A1520A` / `#C81E2E` | Status |
+
+Video stages (preview, recording thumbnails) stay dark in both themes: add the `.rs-dark` class to keep a region on the dark tokens.
+
 Platform colours (YouTube, Facebook, Twitch, Instagram, Kick) are only used as small markers next to a platform name, never as large fills.
 
 ## Type

@@ -81,7 +81,7 @@ export function Recordings() {
                 <button
                   onClick={() => r.status !== 'failed' && setPlaying(r)} disabled={r.status === 'failed'}
                   aria-label={t('recordings.play')}
-                  className={clsx('relative flex aspect-video w-28 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-[radial-gradient(ellipse_at_center,#101830_0%,#070A12_75%)]',
+                  className={clsx('rs-dark relative flex aspect-video w-28 shrink-0 items-center justify-center overflow-hidden rounded-lg border bg-[radial-gradient(ellipse_at_center,#101830_0%,#070A12_75%)]',
                     r.status === 'recording' ? 'border-live/50' : 'border-line hover:border-accent/50')}
                 >
                   {r.status === 'recording' ? <CircleDot size={20} className="pulse-dot text-live" /> : <Play size={18} className="text-fg-2" />}

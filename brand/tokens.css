@@ -1,8 +1,11 @@
 /*
- * Restream brand tokens: "Signal" dark theme.
+ * Restream brand tokens: "Signal" theme, dark (default) and light.
  * Single source of truth for colours, type and radii. The web app imports this file.
+ * The light theme applies when <html data-theme="light">; the app sets that attribute
+ * from the user's choice (light, dark or follow the system).
  */
-:root {
+:root,
+.rs-dark { /* .rs-dark keeps a region dark in the light theme, e.g. a video stage */
   /* Surfaces */
   --rs-bg: #070A12;          /* page background */
   --rs-surface: #0D1220;     /* cards, sidebar */
@@ -20,6 +23,9 @@
   --rs-accent-hover: #8AF5EC;
   --rs-accent-ink: #070A12;  /* text on accent */
   --rs-accent-glow: rgba(46, 230, 214, 0.35);
+  --rs-accent-soft: rgba(46, 230, 214, 0.3);   /* text selection */
+  --rs-grid-line: rgba(46, 230, 214, 0.045);   /* background grid */
+  --rs-shadow: 0 24px 64px -24px rgba(0, 0, 0, 0.5);
 
   /* Status */
   --rs-live: #FF3B5C;
@@ -46,4 +52,42 @@
   --rs-radius-sm: 8px;
   --rs-radius: 12px;
   --rs-radius-lg: 20px;
+}
+
+/*
+ * "Signal" light theme: the same cyan signal, deepened so text and icons in the accent
+ * colour stay readable (WCAG AA, 4.5:1) on white; status colours deepened likewise.
+ */
+:root[data-theme="light"] {
+  --rs-bg: #F3F5F9;
+  --rs-surface: #FFFFFF;
+  --rs-surface-2: #EBEFF6;
+  --rs-border: #DDE2EC;
+  --rs-border-strong: #C5CDDC;
+
+  --rs-text: #0B1020;
+  --rs-text-2: #3A4560;
+  --rs-text-3: #5B6680;
+
+  --rs-accent: #0B7D74;
+  --rs-accent-hover: #09665F;
+  --rs-accent-ink: #FFFFFF;
+  --rs-accent-glow: rgba(11, 125, 116, 0.22);
+  --rs-accent-soft: rgba(46, 230, 214, 0.35);
+  --rs-grid-line: rgba(11, 125, 116, 0.05);
+  --rs-shadow: 0 24px 64px -28px rgba(11, 16, 32, 0.22);
+
+  --rs-live: #D4113E;
+  --rs-ok: #0B7F50;
+  --rs-warn: #A1520A;
+  --rs-danger: #C81E2E;
+  --rs-info: #2058D8;
+
+  --rs-youtube: #E5281F;
+  --rs-facebook: #1F63E0;
+  --rs-twitch: #7C3AED;
+  --rs-instagram: #D6246E;
+  --rs-kick: #2B8A0A;
+  --rs-x: #0B1020;
+  --rs-linkedin: #0A66C2;
 }

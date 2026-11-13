@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.0 · Light theme
+
+- **Light theme** next to the dark one, in the same "Signal" brand: white surfaces, a deeper signal cyan and deeper status colours so text stays readable (WCAG AA) on white. Video previews stay dark.
+- **Theme switch** in the left menu (Light · Dark · System) and under My account. "System" follows the device's light or dark setting and changes along with it.
+- The choice is saved per user (new `theme` column, default dark, so nothing changes for existing users) and follows them to every browser; it is applied before the first paint, so there is no dark flash. The sign-in screen has a light/dark button too.
+- Brand tokens: `brand/tokens.css` has a `:root[data-theme="light"]` block; `.rs-dark` keeps a region dark inside the light theme.
+
 ## 1.3.3 · Clear "Connect with YouTube / Facebook / Twitch"
 
 - **Connect in a pop-up**: the Accounts page has a "Connect with YouTube", "Connect with Facebook" and "Connect with Twitch" button. It opens the platform's own sign-in and permission screen ("… wants access to your Google Account") in a pop-up; after Allow the pop-up closes and the channel or pages appear. A blocked pop-up falls back to the old full-page flow.
