@@ -1,11 +1,18 @@
 # Changelog
 
-## 1.3.4 · Clear live status per destination after Go live
+## 1.4.1 · Clear live status per destination after Go live
 
 - **Status per destination** on the dashboard: Connecting, Live, Reconnecting or **Error**, with a summary line above the tiles ("2 online · 1 error"). The console refreshes every second while a destination is starting.
 - **Why it fails, in plain words**: instead of FFmpeg's "Input/output error" the tile says what to check: the server address does not exist, the server refuses the connection, no answer (firewall), the secure connection failed, or the platform closed the connection (usually a wrong or expired stream key, or live streaming not enabled on the account). FFmpeg's own message stays under "Technical details", with a countdown to the next attempt.
 - A wrong address or key shows as an error at once; other failures after three attempts. Restream keeps retrying in the background, so a destination comes on air by itself once the problem is fixed.
 - The output status in the API has two new fields: `errorCode` and `nextRetryAt`.
+
+## 1.4.0 · Light theme
+
+- **Light theme** next to the dark one, in the same "Signal" brand: white surfaces, a deeper signal cyan and deeper status colours so text stays readable (WCAG AA) on white. Video previews stay dark.
+- **Theme switch** in the left menu (Light · Dark · System) and under My account. "System" follows the device's light or dark setting and changes along with it.
+- The choice is saved per user (new `theme` column, default dark, so nothing changes for existing users) and follows them to every browser; it is applied before the first paint, so there is no dark flash. The sign-in screen has a light/dark button too.
+- Brand tokens: `brand/tokens.css` has a `:root[data-theme="light"]` block; `.rs-dark` keeps a region dark inside the light theme.
 
 ## 1.3.3 · Clear "Connect with YouTube / Facebook / Twitch"
 

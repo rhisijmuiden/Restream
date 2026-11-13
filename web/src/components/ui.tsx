@@ -121,7 +121,7 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
       ref={ref}
       onClose={onClose}
       onClick={(e) => { if (e.target === ref.current) onClose(); }}
-      className={clsx('m-auto w-[calc(100%-32px)] rounded-2xl border border-line bg-surface p-0 text-fg backdrop:bg-black/70 backdrop:backdrop-blur-sm', wide ? 'max-w-2xl' : 'max-w-md')}
+      className={clsx('m-auto w-[calc(100%-32px)] rounded-2xl border border-line bg-surface p-0 text-fg backdrop:bg-black/70 [[data-theme=light]_&]:backdrop:bg-slate-900/40 backdrop:backdrop-blur-sm', wide ? 'max-w-2xl' : 'max-w-md')}
     >
       {open && (
         <div className="flex flex-col gap-5 p-6">
@@ -178,7 +178,7 @@ export function KeyValue({ items }: { items: [ReactNode, ReactNode][] }) {
 export function Logo({ size = 36 }: { size?: number }) {
   return (
     <div className="flex shrink-0 items-center justify-center rounded-[11px] bg-accent glow" style={{ width: size, height: size }}>
-      <svg width={size * 0.55} height={size * 0.55} viewBox="0 0 24 24" fill="none" stroke="#070A12" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <svg width={size * 0.55} height={size * 0.55} viewBox="0 0 24 24" fill="none" stroke="var(--rs-accent-ink)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
         <path d="M3 12h5M16 5h5M16 12h5M16 19h5M8 12l8-7M8 12h8M8 12l8 7" />
       </svg>
     </div>

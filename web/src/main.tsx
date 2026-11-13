@@ -6,6 +6,7 @@ import '@fontsource-variable/space-grotesk';
 import '@fontsource/jetbrains-mono/500.css';
 import './index.css';
 import './i18n';
+import './lib/theme';
 import { App } from './App';
 import { ApiError } from './lib/api';
 

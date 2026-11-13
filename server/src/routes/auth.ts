@@ -129,9 +129,14 @@ export async function authRoutes(app: FastifyInstance, { sql }: { sql: Sql }) {
   });
 
   app.patch('/api/auth/me', { preHandler: requireAuth('viewer', { allowPasswordChange: true }) }, async (req) => {
-    const body = z.object({ name: z.string().trim().max(100).optional(), language: z.enum(['en', 'nl']).optional() }).parse(req.body);
+    const body = z.object({
+      name: z.string().trim().max(100).optional(),
+      language: z.enum(['en', 'nl']).optional(),
+      theme: z.enum(['dark', 'light', 'system']).optional(),
+    }).parse(req.body);
     await sql`
-      UPDATE users SET name = COALESCE(${body.name ?? null}, name), language = COALESCE(${body.language ?? null}, language)
+      UPDATE users SET name = COALESCE(${body.name ?? null}, name), language = COALESCE(${body.language ?? null}, language),
+        theme = COALESCE(${body.theme ?? null}, theme)
       WHERE id = ${req.user!.id}`;
     return { ok: true };
   });

@@ -153,7 +153,7 @@ function StreamControl({ stream, canOperate, sys }: { stream: Stream; canOperate
       <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
         <div className="flex min-w-0 flex-col gap-6">
           <section aria-label={t('dashboard.preview')} className={clsx('overflow-hidden rounded-2xl border bg-surface', onAir ? 'border-live/50' : 'border-line')}>
-            <div className="relative flex aspect-video items-center justify-center bg-[radial-gradient(ellipse_at_center,#101830_0%,#070A12_70%)]">
+            <div className="rs-dark relative flex aspect-video items-center justify-center bg-[radial-gradient(ellipse_at_center,#101830_0%,#070A12_70%)]">
               {!st.online && (
                 <div className="flex flex-col items-center gap-3 px-6 text-center text-fg-3">
                   <MonitorPlay size={40} strokeWidth={1.4} />
