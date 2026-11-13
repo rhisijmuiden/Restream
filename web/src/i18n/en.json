@@ -26,7 +26,8 @@
     "close": "Close menu",
     "soon": "Soon",
     "accounts": "Accounts",
-    "integrations": "API & webhooks"
+    "integrations": "API & webhooks",
+    "health": "Health"
   },
   "channel": {
     "label": "Release channel",
@@ -249,7 +250,9 @@
     "autoProvision": "Create accounts automatically at first sign-in",
     "defaultRole": "Role for new accounts",
     "redirectUri": "Redirect URI for the app registration",
-    "ssoHelp": "In Entra ID: App registrations → New registration → Web → paste the redirect URI below. Create a client secret under Certificates & secrets."
+    "ssoHelp": "In Entra ID: App registrations → New registration → Web → paste the redirect URI below. Create a client secret under Certificates & secrets.",
+    "uploadMbps": "Upload capacity of the server (Mbit/s)",
+    "uploadMbpsHint": "What the server's line can send, e.g. 1000 for a 1 Gbit/s port. The health monitor warns above 85 % and the check before Go live adds up what all destinations need. Leave empty when unknown."
   },
   "updates": {
     "title": "Updates",
@@ -385,7 +388,8 @@
     "too_many_webhooks": "You can add up to 20 webhooks.",
     "invalid_api_key": "The API key is wrong, expired or revoked.",
     "not_allowed_with_api_key": "This action is not available with an API key.",
-    "x_not_eligible": "X refused to go live with this account. X only allows this for paid accounts (X Premium) that are not protected."
+    "x_not_eligible": "X refused to go live with this account. X only allows this for paid accounts (X Premium) that are not protected.",
+    "thumbnail_too_large": "The thumbnail is larger than 2 MB, the most YouTube accepts."
   },
   "time": {
     "seconds": "{{n}}s",
@@ -615,7 +619,9 @@
     "subject": "Subject",
     "to": "To",
     "status_sent": "Sent",
-    "status_failed": "Failed"
+    "status_failed": "Failed",
+    "event_healthWarning": "Broadcast health problem",
+    "event_healthWarning_hint": "The health monitor sees a problem while streaming: bitrate or frames dropping, key frames too far apart, a destination that cannot keep up, or a full CPU, upload or disk. At most one mail per problem every 15 minutes."
   },
   "backups": {
     "title": "Backups",
@@ -1353,6 +1359,294 @@
     "ev_recording_finished": "A recording finished or failed",
     "ev_event_started": "A scheduled event started",
     "ev_event_ended": "A scheduled event ended",
-    "ev_backup_finished": "A backup finished or failed"
+    "ev_backup_finished": "A backup finished or failed",
+    "group_health": "Health",
+    "ev_health_warning": "The health monitor found a problem (feed, destination or server)",
+    "ev_health_cleared": "A health problem is over",
+    "ev_broadcast_info_updated": "The title and description were pushed to the live broadcasts"
+  },
+  "health": {
+    "title": "Health",
+    "subtitle": "Is the incoming feed clean, can every destination keep up, and does the server have room? Measured every 2 seconds.",
+    "disabled": "The media server is switched off on this machine (development or test), so only the server figures are measured.",
+    "issuesTitle": "Problems",
+    "allGood": "No problems: feeds, destinations and server look healthy.",
+    "server": "Server",
+    "lastMinutes": "Last {{minutes}} minutes",
+    "cpu": "CPU",
+    "cores_one": "{{count}} core · load {{load}}",
+    "cores_other": "{{count}} cores · load {{load}}",
+    "memory": "Memory",
+    "upload": "Upload",
+    "download": "Download",
+    "network": "Network",
+    "ofCapacity": "{{percent}} % of {{capacity}}",
+    "capacityUnknown": "Capacity not set (Settings)",
+    "disk": "Disk",
+    "free": "{{size}} free",
+    "ofTotal": "of {{size}}",
+    "allStreams": "All streams",
+    "stream": "Stream",
+    "feedOffline": "No encoder is sending to this stream.",
+    "destinations": "Destinations",
+    "input_main": "main feed",
+    "input_backup": "backup feed",
+    "bitrate": "Bitrate",
+    "fps": "Frame rate",
+    "expected": "expected {{fps}}",
+    "keyframes": "Key frames",
+    "keyframesHint": "platforms ask for 2 s",
+    "errors": "Errors",
+    "lastMinute": "last minute",
+    "srtRtt": "SRT round trip",
+    "srtRetrans": "Resent",
+    "srtLink": "Line capacity",
+    "srtDrops": "Packets lost",
+    "feedChart": "Bitrate and frame rate of the feed over the last minutes",
+    "transcode": "Transcode",
+    "target": "target {{rate}}",
+    "speed": "Speed",
+    "processCpu": "CPU (1 core = 100 %)",
+    "stripTitle_one": "1 problem with this broadcast",
+    "stripTitle_other": "{{count}} problems with this broadcast",
+    "open": "Open Health",
+    "more_one": "and 1 more",
+    "more_other": "and {{count}} more",
+    "issue": {
+      "feed_bitrate_drop": {
+        "label": "Incoming bitrate dropped",
+        "text": "The encoder sends {{now}} kbit/s, against {{before}} kbit/s a minute ago. Check the network and the CPU of the encoder."
+      },
+      "feed_fps_low": {
+        "label": "Frames are missing",
+        "text": "The encoder delivers {{now}} fps instead of {{expected}}. The encoder or its computer cannot keep up: choose a lighter preset or a lower resolution."
+      },
+      "feed_keyframes": {
+        "label": "Key frames too far apart",
+        "text": "A key frame every {{seconds}} s. Platforms ask for 2 s and may refuse more than 4 s: set the key frame interval of the encoder to 2 s."
+      },
+      "feed_errors": {
+        "label": "Damaged frames or time stamps",
+        "text": "{{count}} errors in the last 30 seconds. Viewers may see blocks or stutter. Check the encoder and its connection."
+      },
+      "feed_srt_drops": {
+        "label": "SRT packets lost",
+        "text": "{{count}} packets arrived too late in the last 30 seconds. Raise the SRT latency in the encoder or improve its line."
+      },
+      "output_slow": {
+        "label": "Destination cannot keep up",
+        "text": "It delivers at {{speed}}x real time. The upload or the CPU of this server is too slow for this destination: lower its bitrate or use passthrough."
+      },
+      "server_cpu": {
+        "label": "Server CPU is full",
+        "text": "{{percent}} % of {{cores}} cores in use. Transcoded destinations may stutter: use passthrough where you can, or a larger server."
+      },
+      "server_memory": {
+        "label": "Server memory almost full",
+        "text": "{{percent}} % in use."
+      },
+      "server_disk": {
+        "label": "Disk almost full",
+        "text": "{{freeGb}} GB free. Recordings stop below 1 GB: download or remove recordings."
+      },
+      "server_upload": {
+        "label": "Upload almost full",
+        "text": "{{mbps}} of {{capacityMbps}} Mbit/s ({{percent}} %). Destinations may fall behind: lower bitrates or use fewer destinations."
+      }
+    }
+  },
+  "preflight": {
+    "check": "Check",
+    "checkHint": "Check feed, destinations and server before going live",
+    "title": "Check before going live",
+    "titleGoLive": "Not everything is ready",
+    "running": "Checking the feed, the platforms and the server…",
+    "general": "Feed and server",
+    "destinations": "Destinations",
+    "summaryOk": "Everything is ready",
+    "summaryOkText": "Go live sends the stream to all included destinations.",
+    "summaryWarn_one": "1 warning",
+    "summaryWarn_other": "{{count}} warnings",
+    "summaryWarnText": "You can go live, but look at the warnings: viewers may notice them.",
+    "summaryFail_one": "1 problem stops a destination",
+    "summaryFail_other": "{{count}} problems stop destinations",
+    "summaryFailText": "These destinations will not get on air until they are fixed. The others can go live.",
+    "goLiveAnyway": "Go live anyway",
+    "again": "Check again",
+    "footer": "The check changes nothing. Account checks cost one YouTube quota unit.",
+    "c_media_down": {
+      "label": "The media server is down",
+      "text": "No stream can come in or go out. An administrator can use Repair on the dashboard."
+    },
+    "c_stream_disabled": {
+      "label": "This stream is switched off",
+      "text": "Switch it on under Streams & keys first."
+    },
+    "c_ingest_ok": {
+      "label": "Feed is coming in",
+      "text": "{{protocol}} · {{codec}} {{resolution}} · {{kbpsText}}"
+    },
+    "c_ingest_offline": {
+      "label": "No encoder is sending yet",
+      "text": "Go live works anyway: the destinations wait and start as soon as the encoder connects."
+    },
+    "c_over_limit": {
+      "label": "Resolution above 1080p",
+      "text": "The feed is {{resolution}}; Restream supports up to 1080p. Set the encoder to 1080p."
+    },
+    "c_backup_ok": {
+      "label": "Backup feed is coming in",
+      "text": "If the main feed drops, the backup takes over."
+    },
+    "c_backup_offline": {
+      "label": "Backup feed is configured but not sending",
+      "text": "Start the backup encoder if you want automatic takeover."
+    },
+    "c_backup_none": {
+      "label": "No backup feed",
+      "text": "If the encoder drops, the destinations show the fallback image (when set) or wait."
+    },
+    "c_no_destinations": {
+      "label": "No destinations included",
+      "text": "Add a destination or include one under Destinations."
+    },
+    "c_dest_account_ok": {
+      "label": "Account {{account}} works",
+      "text": "The token is valid and the platform answers."
+    },
+    "c_dest_account_error": {
+      "label": "Account {{account}} does not work",
+      "text": "The platform says: {{error}}. Connect the account again under Accounts."
+    },
+    "c_dest_account_missing": {
+      "label": "No connected account",
+      "text": "Choose an account for this destination, or use a stream key."
+    },
+    "c_dest_app_missing": {
+      "label": "Platform app not set up",
+      "text": "An administrator registers the app under Accounts."
+    },
+    "c_dest_no_key": {
+      "label": "Stream key missing",
+      "text": "Fill in the stream key from the platform under Destinations."
+    },
+    "c_dest_no_server": {
+      "label": "Server address missing or invalid",
+      "text": "Fill in the server URL from the platform under Destinations."
+    },
+    "c_dest_reachable": {
+      "label": "Server answers",
+      "text": "{{host}} in {{ms}} ms"
+    },
+    "c_dest_dns": {
+      "label": "Server name not found",
+      "text": "{{host}} does not exist. Check the server URL."
+    },
+    "c_dest_unreachable": {
+      "label": "Server does not answer",
+      "text": "{{host}} ({{reason}}). Check the server URL, or a firewall on this server's outgoing traffic."
+    },
+    "c_dest_key_per_broadcast": {
+      "label": "New key per broadcast",
+      "text": "This platform hands out a new stream key for every broadcast: paste today's key under Destinations."
+    },
+    "c_dest_forced_transcode": {
+      "label": "Will be transcoded",
+      "text": "The platform does not accept {{codec}}, so Restream re-encodes to H.264. That costs CPU."
+    },
+    "c_dest_audio_transcode": {
+      "label": "Audio will be converted",
+      "text": "{{codec}} audio is converted to AAC; this costs little."
+    },
+    "c_dest_over_bitrate": {
+      "label": "Bitrate above the platform's maximum",
+      "text": "The feed is {{kbps}} kbit/s with passthrough; the platform accepts up to {{max}}. Lower the encoder's bitrate or let Restream transcode."
+    },
+    "c_dest_over_resolution": {
+      "label": "Resolution above the platform's maximum",
+      "text": "{{height}}p with passthrough; the platform accepts up to {{max}}p. Let Restream transcode this destination."
+    },
+    "c_dest_over_fps": {
+      "label": "Frame rate above the platform's maximum",
+      "text": "{{fps}} fps with passthrough; the platform accepts up to {{max}}. Let Restream transcode this destination."
+    },
+    "c_dest_keyframes": {
+      "label": "Key frames further apart than the platform wants",
+      "text": "The feed has a key frame every {{seconds}} s; the platform asks for {{wanted}} s. Set the encoder to {{wanted}} s or let Restream transcode."
+    },
+    "c_dest_portrait_copy": {
+      "label": "Landscape picture on a portrait platform",
+      "text": "With passthrough the picture stays landscape. Choose transcode with portrait 9:16."
+    },
+    "c_cpu_ok": {
+      "label": "Enough CPU for transcoding",
+      "text": "About {{needed}} of {{free}} free cores needed."
+    },
+    "c_cpu_tight": {
+      "label": "CPU may not be enough",
+      "text": "The transcoded destinations need about {{needed}} cores; {{free}} of {{cores}} are free. Use passthrough where you can, or lower resolution or frame rate."
+    },
+    "c_upload_ok": {
+      "label": "Enough upload",
+      "text": "{{mbps}} of {{capacity}} Mbit/s ({{percent}} %)."
+    },
+    "c_upload_tight": {
+      "label": "Upload almost full",
+      "text": "{{mbps}} of {{capacity}} Mbit/s ({{percent}} %). Little room left if the feed's bitrate rises."
+    },
+    "c_upload_over": {
+      "label": "Not enough upload",
+      "text": "{{mbps}} Mbit/s needed, {{capacity}} available. Lower bitrates or use fewer destinations."
+    },
+    "c_upload_total": {
+      "label": "About {{mbps}} Mbit/s upload needed",
+      "text": "Set the server's upload capacity under Settings to have this checked."
+    },
+    "c_upload_unknown": {
+      "label": "Upload needed is not known yet",
+      "text": "Passthrough sends what the encoder sends; that is known once the feed comes in."
+    },
+    "c_disk_ok": {
+      "label": "Enough disk for the recording",
+      "text": "{{gb}} GB free."
+    },
+    "c_disk_low": {
+      "label": "Little disk left for the recording",
+      "text": "{{gb}} GB free. Download or remove old recordings."
+    },
+    "c_disk_full": {
+      "label": "Disk full: the recording will not start",
+      "text": "{{gb}} GB free; recordings need at least 1 GB."
+    }
+  },
+  "broadcastInfo": {
+    "eyebrow": "Title and description",
+    "title": "Title, description and thumbnail",
+    "intro": "Viewers see this on the platforms. It is used for the next broadcast on every destination with a connected account.",
+    "introLive": "Saving updates the live broadcasts on YouTube, Facebook and Twitch right away. Destinations with a stream key keep the title you set on the platform.",
+    "noTitle": "No title yet: the platforms show \"{{name}}\"",
+    "fromEvent": "From the scheduled event that is live now",
+    "titleLabel": "Title",
+    "titleHint": "{{count}} / 100 characters. Twitch shows up to 140, YouTube up to 100.",
+    "description": "Description",
+    "thumbnail": "Thumbnail (YouTube)",
+    "thumbnailHint": "JPEG or PNG, 1280 × 720, at most 2 MB. YouTube only allows custom thumbnails on verified channels.",
+    "upload": "Upload",
+    "replace": "Replace",
+    "remove": "Remove",
+    "where": "Where it goes",
+    "reach_full": "title, description and thumbnail",
+    "reach_textOnly": "title and description",
+    "reach_titleOnly": "title",
+    "reach_atStart": "title when the broadcast starts",
+    "reach_manual": "stream key: change it on the platform",
+    "result_updated": "updated",
+    "result_pending": "applied when it starts",
+    "result_next": "next broadcast",
+    "result_manual": "change on the platform",
+    "result_unsupported": "next broadcast",
+    "result_failed": "failed",
+    "thumbnailFailed": "thumbnail failed",
+    "saveLive": "Save and update live"
   }
 }

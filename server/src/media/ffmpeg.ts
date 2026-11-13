@@ -210,3 +210,18 @@ export function classifyOutputError(lines: string[], wasFlowing: boolean): Outpu
   if (/Connection reset by peer|Broken pipe|Input\/output error|End of file|Server error|NetStream\.Publish|Unauthorized|Forbidden|403|401|rejected/i.test(text)) return 'rejected';
   return 'unknown';
 }
+
+/**
+ * FFmpeg arguments for the health probe of a feed: copies the video packets of the feed into FFmpeg's framecrc
+ * format on stdout (one line per frame with its time stamp, size and key-frame flag). No decoding or encoding,
+ * so it costs next to no CPU; the health monitor reads frame rate, key-frame interval and time stamp errors from it.
+ */
+export function probeArgs(input: string): string[] {
+  return [
+    '-hide_banner', '-nostdin', '-nostats', '-loglevel', 'warning',
+    '-rtsp_transport', 'tcp', '-timeout', '10000000',
+    '-i', input,
+    // Without flushing, a pipe buffers about 32 KB: ten seconds of lines before the monitor sees them.
+    '-map', '0:v:0', '-c', 'copy', '-flush_packets', '1', '-f', 'framecrc', '-',
+  ];
+}

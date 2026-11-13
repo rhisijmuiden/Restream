@@ -16,6 +16,8 @@ import type { MediaSupervisor } from '../media/supervisor.js';
 import type { PlaybackCache } from './media.js';
 import type { Provisioner } from '../platforms/provisioner.js';
 import { createPlaybackToken, normaliseDomain } from '../lib/playback.js';
+import { MAX_THUMBNAIL_BYTES, readThumbnail, thumbnailDir } from '../lib/thumbnail.js';
+import { bus } from '../lib/events.js';
 
 const base62 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 function randomString(len: number, alphabet = base62) {
@@ -37,6 +39,7 @@ interface StreamRow {
   id: string; name: string; ingest_key_enc: string; playback_id: string; playback_enabled: boolean; enabled: boolean; created_at: Date;
   allowed_domains: string[]; require_token: boolean; token_secret: string; record: boolean; auto_record: boolean; title: string; description: string;
   backup_key_enc: string | null; fallback_mode: 'off' | 'standard' | 'image'; fallback_image: string | null; fallback_minutes: number; switch_back_seconds: number;
+  thumbnail: string | null;
 }
 interface DestRow {
   id: string; stream_id: string; name: string; platform: Platform; server_url: string; stream_key_enc: string; passphrase_enc: string;
@@ -96,6 +99,9 @@ export async function streamRoutes(app: FastifyInstance, { sql, media, playback,
     const streams = await sql<StreamRow[]>`SELECT * FROM streams ORDER BY created_at`;
     const dests = await sql<DestRow[]>`SELECT * FROM destinations ORDER BY position, created_at`;
     const accounts = new Map((await sql<AccountRow[]>`SELECT id, provider, name, image_url, status FROM platform_accounts`).map((a) => [a.id, a]));
+    const liveEvents = new Map((await sql<{ id: string; stream_id: string; title: string; description: string }[]>`
+      SELECT DISTINCT ON (stream_id) id, stream_id, title, description FROM events WHERE status = 'live' ORDER BY stream_id, started_at DESC`)
+      .map((e) => [e.stream_id, { id: e.id, title: e.title, description: e.description }]));
     return {
       mediaEnabled: config.media.enabled,
       mediamtxOnline: media.mediamtxOnline,
@@ -116,6 +122,9 @@ export async function streamRoutes(app: FastifyInstance, { sql, media, playback,
           autoRecord: s.auto_record,
           title: s.title,
           description: s.description,
+          thumbnailSet: !!s.thumbnail,
+          // A live event's title is what the platforms show while it runs.
+          liveEvent: liveEvents.get(s.id) ?? null,
           recording: media.recordingState(s.id),
           ingest: {
             rtmpServer,
@@ -340,6 +349,70 @@ export async function streamRoutes(app: FastifyInstance, { sql, media, playback,
     await audit(sql, req, 'stream.fallback_image_uploaded', { id, bytes: buf.length });
     nudge();
     return { ok: true };
+  });
+
+  /**
+   * Title and description of the broadcast, pushed at once to every destination that is live on a connected account
+   * (YouTube, Facebook, Twitch). While a scheduled event is live, its title changes too, as that is what the platforms show.
+   */
+  app.put('/api/streams/:id/broadcast-info', operator, async (req) => {
+    const { id } = idParam.parse(req.params);
+    const body = z.object({
+      title: z.string().trim().max(100),
+      description: z.string().trim().max(5000).default(''),
+      /** False only saves; the next broadcast uses it. */
+      apply: z.boolean().default(true),
+    }).parse(req.body);
+    await getStream(id);
+    await sql`UPDATE streams SET title = ${body.title}, description = ${body.description}, updated_at = now() WHERE id = ${id}`;
+    if (body.title) {
+      await sql`UPDATE events SET title = ${body.title}, description = ${body.description}, updated_at = now() WHERE stream_id = ${id} AND status = 'live'`;
+    }
+    const results = body.apply ? await provisioner.pushInfo(id) : [];
+    await audit(sql, req, 'stream.broadcast_info', { id, title: body.title, updated: results.filter((r) => r.result === 'updated').length });
+    if (results.some((r) => r.result === 'updated')) {
+      bus.publish('broadcast.info.updated', { stream: { id, name: (await getStream(id)).name }, title: body.title, destinations: results.filter((r) => r.result === 'updated').map((r) => ({ id: r.destinationId, name: r.name, platform: r.platform })) });
+    }
+    return { ok: true, results };
+  });
+
+  /** Thumbnail for broadcasts on YouTube: PNG or JPEG of at most 2 MB, sent as the raw body. Set on the live broadcast right away. */
+  app.put('/api/streams/:id/thumbnail', operator, async (req) => {
+    const { id } = idParam.parse(req.params);
+    const s = await getStream(id);
+    const buf = Buffer.isBuffer(req.body) ? req.body : null;
+    const ext = buf ? imageType(buf) : null;
+    if (!buf || !ext) throw new HttpError(400, 'invalid_image');
+    if (buf.length > MAX_THUMBNAIL_BYTES) throw new HttpError(400, 'thumbnail_too_large');
+    const dir = thumbnailDir();
+    await mkdir(dir, { recursive: true });
+    const file = `${id}-${Date.now().toString(36)}.${ext}`;
+    await writeFile(path.join(dir, `${file}.tmp`), buf);
+    await rename(path.join(dir, `${file}.tmp`), path.join(dir, file));
+    await sql`UPDATE streams SET thumbnail = ${file}, updated_at = now() WHERE id = ${id}`;
+    if (s.thumbnail) await rm(path.join(dir, s.thumbnail), { force: true });
+    await audit(sql, req, 'stream.thumbnail_uploaded', { id, bytes: buf.length });
+    // Live YouTube broadcasts get it now; the others when they start.
+    const results = (await provisioner.pushInfo(id)).filter((r) => r.platform === 'youtube' && r.result !== 'next');
+    return { ok: true, results };
+  });
+
+  app.delete('/api/streams/:id/thumbnail', operator, async (req) => {
+    const { id } = idParam.parse(req.params);
+    const s = await getStream(id);
+    await sql`UPDATE streams SET thumbnail = NULL, updated_at = now() WHERE id = ${id}`;
+    if (s.thumbnail) await rm(path.join(thumbnailDir(), s.thumbnail), { force: true });
+    await audit(sql, req, 'stream.thumbnail_removed', { id });
+    return { ok: true };
+  });
+
+  app.get('/api/streams/:id/thumbnail', viewer, async (req, reply) => {
+    const { id } = idParam.parse(req.params);
+    const s = await getStream(id);
+    const img = await readThumbnail(s.thumbnail);
+    if (!img) return reply.status(404).send({ error: 'not_found' });
+    reply.header('cache-control', 'private, max-age=60');
+    return reply.type(img.type === 'png' ? 'image/png' : 'image/jpeg').send(img.data);
   });
 
   app.delete('/api/streams/:id/fallback-image', operator, async (req) => {

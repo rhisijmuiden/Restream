@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.6.0 · Health monitor, check before Go live, one title for every platform
+
+- **Health page** (Broadcast › Health) with 15 minutes of history, refreshed every 2 seconds:
+  - **Incoming feed** (main and backup): bitrate, measured frame rate against the expected one, key-frame interval, damaged frames and time stamp errors, and for SRT the round trip, resent data, line capacity and lost packets. A light FFmpeg probe per online feed copies the video packets without decoding (next to no CPU).
+  - **Every live destination**: bitrate against its target, speed (below 1.00x it falls behind real time) and the CPU of its FFmpeg process.
+  - **Server**: CPU, memory, upload and download, free disk.
+- **Warnings in plain words** on the health page and on the dashboard: incoming bitrate dropped, frames missing, key frames too far apart, damaged frames, SRT packets lost, a destination that cannot keep up, CPU, memory, upload or disk almost full. Each says what to check. A warning needs a few seconds to be raised and to clear, so a single bad sample causes nothing.
+- **Mail and webhooks**: new notification "Broadcast health problem" (on by default; at most one mail per problem every 15 minutes, several problems in one mail) and webhook events `health.warning` and `health.cleared`.
+- **Check before Go live**: Go live first checks the stream, and goes live at once when everything is fine. Otherwise it shows what is wrong, with "Go live anyway". The **Check** button runs the same check without going live. It checks the media server and the feed, the backup feed, every included destination (stream key and server, whether the server answers, whether a connected account still works), whether a passed-through feed fits the platform (bitrate, resolution, frame rate, key frames, portrait), whether the CPU can handle the transcoded destinations, the upload against the capacity in Settings, and the disk when recording.
+- **One title for every platform**: the dashboard card "Title and description" changes title, description and thumbnail at once. During a broadcast it updates YouTube (title, description, thumbnail), Facebook (title, description) and Twitch (title) right away, shows the result per destination and says which destinations (stream key, X) you change on the platform yourself. During a live event its title changes too. The thumbnail is also set on every new YouTube broadcast.
+- **Settings › Upload capacity** of the server (Mbit/s): used by the health monitor and the check.
+- API: `GET /api/monitor`, `POST /api/streams/:id/preflight`, `PUT /api/streams/:id/broadcast-info`, `PUT|GET|DELETE /api/streams/:id/thumbnail`, webhook event `broadcast.info.updated`.
+- Fix: kicking an encoder (key rotation, stream switched off) uses the MediaMTX v1.21 routes (`/v3/rtmp/conns/kick/…`, `/v3/srt/conns/kick/…`).
+
 ## 1.5.1 · Clear live status per destination after Go live
 
 - **Status per destination** on the dashboard: Connecting, Live, Reconnecting or **Error**, with a summary line above the tiles ("2 online · 1 error"). The console refreshes every second while a destination is starting.

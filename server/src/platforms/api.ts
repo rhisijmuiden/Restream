@@ -11,6 +11,7 @@ export const endpoints = {
   googleAuth: 'https://accounts.google.com/o/oauth2/v2/auth',
   googleToken: 'https://oauth2.googleapis.com/token',
   youtube: 'https://www.googleapis.com/youtube/v3',
+  youtubeUpload: 'https://www.googleapis.com/upload/youtube/v3',
   facebookDialog: 'https://www.facebook.com/v26.0/dialog/oauth',
   facebookGraph: 'https://graph.facebook.com/v26.0',
   twitchAuth: 'https://id.twitch.tv/oauth2',
@@ -225,6 +226,18 @@ export async function accessToken(sql: Sql, a: AccountRow, s?: Settings): Promis
   }
 }
 
+/**
+ * Checks that a connected account still works: refreshes the token when needed and makes one cheap call
+ * (YouTube 1 quota unit). Throws a PlatformError with the platform's reason when it does not.
+ */
+export async function verifyAccount(sql: Sql, a: AccountRow, s: Settings): Promise<void> {
+  const token = await accessToken(sql, a, s);
+  if (a.provider === 'youtube') await call('youtube', `${endpoints.youtube}/channels?part=id&mine=true`, { token });
+  else if (a.provider === 'facebook') await call('facebook', `${endpoints.facebookGraph}/${encodeURIComponent(a.external_id)}?fields=id`, { token });
+  else if (a.provider === 'x') await call('x', `${endpoints.xApi}/users/me`, { token });
+  else await call('twitch', `${endpoints.twitchApi}/users?id=${encodeURIComponent(a.external_id)}`, { token, headers: { 'client-id': s.platforms.twitch.clientId } });
+}
+
 // ---------------------------------------------------------------------------------------------
 // Broadcasts
 
@@ -286,6 +299,45 @@ export const youtube = {
     });
   },
 
+  /**
+   * Changes the title and description of a broadcast, also while it is live. The snippet is read first,
+   * because YouTube wants its planned start back and would otherwise reset other fields.
+   */
+  async setInfo(token: string, id: string, title: string, description: string) {
+    type Snippet = { title?: string; description?: string; scheduledStartTime?: string; scheduledEndTime?: string };
+    const r = await call<{ items?: { snippet?: Snippet }[] }>('youtube', `${endpoints.youtube}/liveBroadcasts?part=snippet&id=${encodeURIComponent(id)}`, { token });
+    const cur = r.items?.[0]?.snippet;
+    if (!cur) throw new PlatformError('youtube', 'broadcast not found', 404);
+    await call('youtube', `${endpoints.youtube}/liveBroadcasts?part=snippet`, {
+      method: 'PUT', token, json: {
+        id,
+        snippet: {
+          title: ytTitle(title), description: ytDescription(description),
+          ...(cur.scheduledStartTime ? { scheduledStartTime: cur.scheduledStartTime } : {}),
+          ...(cur.scheduledEndTime ? { scheduledEndTime: cur.scheduledEndTime } : {}),
+        },
+      },
+    });
+  },
+
+  /** Sets the thumbnail of a broadcast (JPEG or PNG, at most 2 MB; the channel must be verified for custom thumbnails). */
+  async setThumbnail(token: string, videoId: string, image: Buffer, type: 'png' | 'jpg') {
+    let res: Response;
+    try {
+      res = await fetch(`${endpoints.youtubeUpload}/thumbnails/set?videoId=${encodeURIComponent(videoId)}&uploadType=media`, {
+        method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': type === 'png' ? 'image/png' : 'image/jpeg' },
+        body: new Uint8Array(image), signal: AbortSignal.timeout(30_000),
+      });
+    } catch (err) {
+      throw new PlatformError('youtube', `cannot reach ${new URL(endpoints.youtubeUpload).host}: ${(err as Error).message}`);
+    }
+    if (!res.ok) {
+      let data: unknown = null;
+      try { data = await res.json(); } catch { /* not JSON */ }
+      throw new PlatformError('youtube', errorMessage(data) ?? `HTTP ${res.status}`, res.status);
+    }
+  },
+
   async bind(token: string, broadcastId: string, streamId: string) {
     await call('youtube', `${endpoints.youtube}/liveBroadcasts/bind?${new URLSearchParams({ id: broadcastId, streamId, part: 'id,contentDetails' })}`, { method: 'POST', token });
   },
@@ -334,6 +386,11 @@ export const facebook = {
     await call('facebook', `${endpoints.facebookGraph}/${encodeURIComponent(id)}`, {
       token, form: { ...fbForm(b), planned_start_time: String(Math.floor(b.start.getTime() / 1000)) },
     });
+  },
+
+  /** Changes only the title and description of a live video (also while it is live). */
+  async setInfo(token: string, id: string, title: string, description: string) {
+    await call('facebook', `${endpoints.facebookGraph}/${encodeURIComponent(id)}`, { token, form: fbForm({ title, description }) });
   },
 
   /** Publishes a scheduled live video when its event starts. */

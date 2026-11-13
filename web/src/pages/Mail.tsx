@@ -14,7 +14,7 @@ interface MailForm {
   username: string; passwordSet: boolean; fromName: string; fromAddress: string; replyTo: string;
   dkim: { enabled: boolean; domain: string; selector: string; keySet: boolean; dnsName: string; dnsValue: string };
 }
-type EventName = 'streamDown' | 'outputFailed' | 'mediaServerDown' | 'backupFailed' | 'backupSucceeded' | 'updateFinished' | 'updateAvailable';
+type EventName = 'streamDown' | 'outputFailed' | 'healthWarning' | 'mediaServerDown' | 'backupFailed' | 'backupSucceeded' | 'updateFinished' | 'updateAvailable';
 interface Notifications { recipients: string[]; includeAdmins: boolean; events: Record<EventName, boolean> }
 interface MailResponse { mail: MailForm; configured: boolean; notifications: Notifications; events: EventName[] }
 interface LogRow { id: number; kind: string; recipients: string[]; subject: string; status: 'sent' | 'failed'; error: string | null; created_at: string }

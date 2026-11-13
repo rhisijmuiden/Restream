@@ -41,6 +41,10 @@ All paths are relative to your Restream address, for example `https://restream.e
 | `GET /api/broadcasts` | viewer | Past broadcasts with duration, peak and average viewers |
 | `GET /api/recordings` | viewer | Recordings; `GET /api/recordings/:id/file` downloads one |
 | `GET /api/system/info` | viewer | Version, channel and component versions |
+| `GET /api/monitor` | viewer | Health: server (CPU, memory, upload, disk), every online feed (bitrate, frame rate, key-frame interval, errors, SRT link), every live destination (bitrate, speed, CPU) and the open `issues`, with 15 minutes of history (`?history=0` leaves it out) |
+| `POST /api/streams/:id/preflight` | operator | The check before Go live; changes nothing. Returns `ok`, `fails`, `warnings` and `checks` (`code`, `status` `ok`/`info`/`warn`/`fail`, `params`, optional `destinationId`) |
+| `PUT /api/streams/:id/broadcast-info` | operator | `{"title":"…","description":"…"}`: saves the title and pushes it to the live broadcasts on YouTube, Facebook and Twitch; `results` per destination (`updated`, `pending`, `next`, `manual`, `unsupported`, `failed`). `"apply":false` only saves |
+| `PUT /api/streams/:id/thumbnail` | operator | YouTube thumbnail as the raw body (`image/png` or `image/jpeg`, 2 MB max); set on live YouTube broadcasts right away. `GET` and `DELETE` too |
 
 Add a destination:
 
@@ -85,6 +89,8 @@ A webhook is a URL that Restream POSTs a JSON message to when something happens.
 | `recording.started` / `recording.finished` | A recording starts, or ends (`status` `finished` or `failed`, size, duration) |
 | `event.started` / `event.ended` | A scheduled event starts or ends |
 | `backup.finished` | A backup completes or fails |
+| `health.warning` / `health.cleared` | The health monitor raises or clears a problem: `data.code` (e.g. `feed_bitrate_drop`, `output_slow`, `server_cpu`), `severity`, `params`, and the stream, feed or destination it concerns |
+| `broadcast.info.updated` | A new title was pushed to the live broadcasts; `data.destinations` lists where it was updated |
 | `ping` | The test button in the console |
 
 The message:

@@ -123,6 +123,18 @@ interface Proc {
   flowed: boolean;
 }
 
+/** An online ingest feed, as the health monitor sees it. */
+export interface FeedInfo {
+  streamId: string;
+  input: 'main' | 'backup';
+  path: string;
+  state: IngestState;
+  /** The publisher's connection in MediaMTX (SRT connections have link statistics). */
+  source: { type: string; id: string } | null;
+  /** Frames MediaMTX could not process since the feed came online (null on older MediaMTX). */
+  framesInError: number | null;
+}
+
 export const offline: IngestState = { online: false, since: null, protocol: null, video: null, audio: null, bitrateKbps: null, readers: 0, overLimit: false };
 const idle = (): OutputState => ({ state: 'off', since: null, bitrateKbps: null, fps: null, speed: null, attempts: 0, lastError: null, errorCode: null, nextRetryAt: null });
 
@@ -181,6 +193,10 @@ export class MediaSupervisor {
   private emitted = new Map<string, string>();
   /** Light console previews by feed key: run while someone watches (see previewArgs). */
   private previews = new Map<string, { child: ChildProcess; lastWanted: number; stopping: boolean }>();
+  /** Online feeds seen in the last pass, for the health monitor. */
+  private onlineFeeds: FeedInfo[] = [];
+  /** MediaMTX paths that have a health probe reading them; not counted as local readers. */
+  private probed = new Set<string>();
 
   constructor(private sql: Sql, private log: FastifyBaseLogger) {}
 
@@ -201,6 +217,16 @@ export class MediaSupervisor {
   }
 
   ingestState(streamId: string): IngestState { return this.ingest.get(streamId) ?? offline; }
+  /** The feeds (main and backup) that are online now, with their MediaMTX path; used by the health monitor. */
+  feeds(): FeedInfo[] { return this.onlineFeeds; }
+  /** Tells which paths the health monitor reads, so they are not shown as local readers. */
+  setProbed(paths: Set<string>) { this.probed = paths; }
+  /** Process ids of the running outputs by destination, for the CPU figures of the health page. */
+  outputPids(): Map<string, number> {
+    const out = new Map<string, number>();
+    for (const [id, p] of this.procs) if (p.child.pid && !p.stopping) out.set(id, p.child.pid);
+    return out;
+  }
   sourceState(streamId: string): SourceState {
     const t = this.sources.get(streamId);
     const ends = t?.active === 'fallback' && t.fallbackStarted !== null ? this.fallbackLimit.get(streamId) : undefined;
@@ -256,28 +282,32 @@ export class MediaSupervisor {
     const keys = new Map<string, string>();
     const backupKeys = new Map<string, string>();
     const seenPaths = new Set<string>();
-    const observe = (name: string, enabled: boolean) => {
+    const feeds: FeedInfo[] = [];
+    const observe = (name: string, enabled: boolean, streamId: string, input: 'main' | 'backup') => {
       seenPaths.add(name);
       const p = byName.get(name);
-      const state = enabled ? ingestFromPath(p, this.bytes.get(name), now) : offline;
+      let state = enabled ? ingestFromPath(p, this.bytes.get(name), now) : offline;
+      if (state.online && this.probed.has(name)) state = { ...state, readers: Math.max(0, state.readers - 1) };
       if (p) this.bytes.set(name, { bytes: p.inboundBytes ?? p.bytesReceived ?? 0, at: now });
       else this.bytes.delete(name);
+      if (state.online && p) feeds.push({ streamId, input, path: name, state, source: p.source, framesInError: p.inboundFramesInError ?? null });
       return state;
     };
     for (const s of streams) {
       const key = decrypt(s.ingest_key_enc);
       keys.set(s.id, key);
-      this.ingest.set(s.id, observe(ingestPath(key), s.enabled));
+      this.ingest.set(s.id, observe(ingestPath(key), s.enabled, s.id, 'main'));
       if (s.backup_key_enc) {
         const bkey = decrypt(s.backup_key_enc);
         backupKeys.set(s.id, bkey);
         this.backupConfigured.add(s.id);
-        this.backupIngest.set(s.id, observe(ingestPath(bkey), s.enabled));
+        this.backupIngest.set(s.id, observe(ingestPath(bkey), s.enabled, s.id, 'backup'));
       } else {
         this.backupConfigured.delete(s.id);
         this.backupIngest.delete(s.id);
       }
     }
+    this.onlineFeeds = feeds;
     for (const id of [...this.ingest.keys()]) if (!keys.has(id)) this.ingest.delete(id);
     for (const id of [...this.backupIngest.keys()]) if (!keys.has(id)) this.backupIngest.delete(id);
     for (const id of [...this.backupConfigured]) if (!keys.has(id)) this.backupConfigured.delete(id);

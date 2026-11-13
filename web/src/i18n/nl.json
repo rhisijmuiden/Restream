@@ -26,7 +26,8 @@
     "close": "Menu sluiten",
     "soon": "Binnenkort",
     "accounts": "Accounts",
-    "integrations": "API en webhooks"
+    "integrations": "API en webhooks",
+    "health": "Gezondheid"
   },
   "channel": {
     "label": "Releasekanaal",
@@ -249,7 +250,9 @@
     "autoProvision": "Accounts automatisch aanmaken bij eerste keer inloggen",
     "defaultRole": "Rol voor nieuwe accounts",
     "redirectUri": "Omleidings-URI voor de app-registratie",
-    "ssoHelp": "In Entra ID: App-registraties → Nieuwe registratie → Web → plak de omleidings-URI hieronder. Maak een clientgeheim aan onder Certificaten en geheimen."
+    "ssoHelp": "In Entra ID: App-registraties → Nieuwe registratie → Web → plak de omleidings-URI hieronder. Maak een clientgeheim aan onder Certificaten en geheimen.",
+    "uploadMbps": "Uploadcapaciteit van de server (Mbit/s)",
+    "uploadMbpsHint": "Wat de lijn van de server kan versturen, bijvoorbeeld 1000 bij een poort van 1 Gbit/s. De gezondheidsmonitor waarschuwt boven 85 % en de controle vóór Go Live telt op wat alle bestemmingen nodig hebben. Laat leeg als je het niet weet."
   },
   "updates": {
     "title": "Updates",
@@ -385,7 +388,8 @@
     "too_many_webhooks": "Je kunt maximaal 20 webhooks toevoegen.",
     "invalid_api_key": "De API-sleutel klopt niet, is verlopen of ingetrokken.",
     "not_allowed_with_api_key": "Deze actie kan niet met een API-sleutel.",
-    "x_not_eligible": "X weigert live te gaan met dit account. X staat dat alleen toe voor betaalde accounts (X Premium) die niet beschermd zijn."
+    "x_not_eligible": "X weigert live te gaan met dit account. X staat dat alleen toe voor betaalde accounts (X Premium) die niet beschermd zijn.",
+    "thumbnail_too_large": "De thumbnail is groter dan 2 MB, het maximum dat YouTube accepteert."
   },
   "time": {
     "seconds": "{{n}}s",
@@ -615,7 +619,9 @@
     "subject": "Onderwerp",
     "to": "Aan",
     "status_sent": "Verstuurd",
-    "status_failed": "Mislukt"
+    "status_failed": "Mislukt",
+    "event_healthWarning": "Probleem met de uitzending",
+    "event_healthWarning_hint": "De gezondheidsmonitor ziet een probleem tijdens het streamen: bitrate of beelden die wegvallen, keyframes te ver uit elkaar, een bestemming die het niet bijhoudt, of een volle CPU, upload of schijf. Hooguit één mail per probleem per 15 minuten."
   },
   "backups": {
     "title": "Back-ups",
@@ -1353,6 +1359,294 @@
     "ev_recording_finished": "Een opname is klaar of mislukt",
     "ev_event_started": "Een gepland event is gestart",
     "ev_event_ended": "Een gepland event is afgelopen",
-    "ev_backup_finished": "Een back-up is klaar of mislukt"
+    "ev_backup_finished": "Een back-up is klaar of mislukt",
+    "group_health": "Gezondheid",
+    "ev_health_warning": "De gezondheidsmonitor vond een probleem (feed, bestemming of server)",
+    "ev_health_cleared": "Een gezondheidsprobleem is voorbij",
+    "ev_broadcast_info_updated": "Titel en beschrijving zijn naar de live uitzendingen gestuurd"
+  },
+  "health": {
+    "title": "Gezondheid",
+    "subtitle": "Komt de feed schoon binnen, houdt elke bestemming het bij en heeft de server genoeg ruimte? Elke 2 seconden gemeten.",
+    "disabled": "De mediaserver staat op deze machine uit (ontwikkeling of test), dus alleen de servercijfers worden gemeten.",
+    "issuesTitle": "Problemen",
+    "allGood": "Geen problemen: feeds, bestemmingen en server zien er gezond uit.",
+    "server": "Server",
+    "lastMinutes": "Laatste {{minutes}} minuten",
+    "cpu": "CPU",
+    "cores_one": "{{count}} kern · belasting {{load}}",
+    "cores_other": "{{count}} kernen · belasting {{load}}",
+    "memory": "Geheugen",
+    "upload": "Upload",
+    "download": "Download",
+    "network": "Netwerk",
+    "ofCapacity": "{{percent}} % van {{capacity}}",
+    "capacityUnknown": "Capaciteit niet ingesteld (Instellingen)",
+    "disk": "Schijf",
+    "free": "{{size}} vrij",
+    "ofTotal": "van {{size}}",
+    "allStreams": "Alle streams",
+    "stream": "Stream",
+    "feedOffline": "Er stuurt geen encoder naar deze stream.",
+    "destinations": "Bestemmingen",
+    "input_main": "hoofdfeed",
+    "input_backup": "reservefeed",
+    "bitrate": "Bitrate",
+    "fps": "Beeldsnelheid",
+    "expected": "verwacht {{fps}}",
+    "keyframes": "Keyframes",
+    "keyframesHint": "platforms vragen 2 s",
+    "errors": "Fouten",
+    "lastMinute": "laatste minuut",
+    "srtRtt": "SRT-rondreistijd",
+    "srtRetrans": "Opnieuw verstuurd",
+    "srtLink": "Lijncapaciteit",
+    "srtDrops": "Pakketten verloren",
+    "feedChart": "Bitrate en beeldsnelheid van de feed over de laatste minuten",
+    "transcode": "Transcoderen",
+    "target": "doel {{rate}}",
+    "speed": "Snelheid",
+    "processCpu": "CPU (1 kern = 100 %)",
+    "stripTitle_one": "1 probleem met deze uitzending",
+    "stripTitle_other": "{{count}} problemen met deze uitzending",
+    "open": "Gezondheid openen",
+    "more_one": "en nog 1",
+    "more_other": "en nog {{count}}",
+    "issue": {
+      "feed_bitrate_drop": {
+        "label": "Inkomende bitrate gezakt",
+        "text": "De encoder stuurt {{now}} kbit/s, tegen {{before}} kbit/s een minuut geleden. Controleer het netwerk en de CPU van de encoder."
+      },
+      "feed_fps_low": {
+        "label": "Er vallen beelden weg",
+        "text": "De encoder levert {{now}} fps in plaats van {{expected}}. De encoder of zijn computer houdt het niet bij: kies een lichtere preset of een lagere resolutie."
+      },
+      "feed_keyframes": {
+        "label": "Keyframes te ver uit elkaar",
+        "text": "Elke {{seconds}} s een keyframe. Platforms vragen 2 s en weigeren soms meer dan 4 s: zet het keyframe-interval van de encoder op 2 s."
+      },
+      "feed_errors": {
+        "label": "Beschadigde beelden of tijdstempels",
+        "text": "{{count}} fouten in de laatste 30 seconden. Kijkers kunnen blokken of haperingen zien. Controleer de encoder en zijn verbinding."
+      },
+      "feed_srt_drops": {
+        "label": "SRT-pakketten verloren",
+        "text": "{{count}} pakketten kwamen de laatste 30 seconden te laat binnen. Verhoog de SRT-latency in de encoder of verbeter de verbinding."
+      },
+      "output_slow": {
+        "label": "Bestemming houdt het niet bij",
+        "text": "Hij levert op {{speed}}x realtime. De upload of de CPU van deze server is te traag voor deze bestemming: verlaag de bitrate of gebruik passthrough."
+      },
+      "server_cpu": {
+        "label": "Server-CPU zit vol",
+        "text": "{{percent}} % van {{cores}} kernen in gebruik. Getranscodeerde bestemmingen kunnen haperen: gebruik waar het kan passthrough, of een grotere server."
+      },
+      "server_memory": {
+        "label": "Servergeheugen bijna vol",
+        "text": "{{percent}} % in gebruik."
+      },
+      "server_disk": {
+        "label": "Schijf bijna vol",
+        "text": "{{freeGb}} GB vrij. Opnames stoppen onder 1 GB: download of verwijder opnames."
+      },
+      "server_upload": {
+        "label": "Upload bijna vol",
+        "text": "{{mbps}} van {{capacityMbps}} Mbit/s ({{percent}} %). Bestemmingen kunnen achterraken: verlaag bitrates of gebruik minder bestemmingen."
+      }
+    }
+  },
+  "preflight": {
+    "check": "Controleren",
+    "checkHint": "Controleer feed, bestemmingen en server voordat je live gaat",
+    "title": "Controle vóór Go Live",
+    "titleGoLive": "Nog niet alles is klaar",
+    "running": "Feed, platforms en server worden gecontroleerd…",
+    "general": "Feed en server",
+    "destinations": "Bestemmingen",
+    "summaryOk": "Alles is klaar",
+    "summaryOkText": "Go Live stuurt de stream naar alle meegenomen bestemmingen.",
+    "summaryWarn_one": "1 waarschuwing",
+    "summaryWarn_other": "{{count}} waarschuwingen",
+    "summaryWarnText": "Je kunt live gaan, maar kijk naar de waarschuwingen: kijkers kunnen er iets van merken.",
+    "summaryFail_one": "1 probleem houdt een bestemming tegen",
+    "summaryFail_other": "{{count}} problemen houden bestemmingen tegen",
+    "summaryFailText": "Deze bestemmingen komen niet in de lucht tot het is opgelost. De andere kunnen wel live.",
+    "goLiveAnyway": "Toch live gaan",
+    "again": "Opnieuw controleren",
+    "footer": "De controle verandert niets. Een accountcontrole kost één YouTube-quota-eenheid.",
+    "c_media_down": {
+      "label": "De mediaserver ligt eruit",
+      "text": "Er kan geen stream binnenkomen of uitgaan. Een beheerder kan Repareren gebruiken op het dashboard."
+    },
+    "c_stream_disabled": {
+      "label": "Deze stream staat uit",
+      "text": "Zet hem eerst aan onder Streams & keys."
+    },
+    "c_ingest_ok": {
+      "label": "Feed komt binnen",
+      "text": "{{protocol}} · {{codec}} {{resolution}} · {{kbpsText}}"
+    },
+    "c_ingest_offline": {
+      "label": "Er stuurt nog geen encoder",
+      "text": "Go Live werkt toch: de bestemmingen wachten en starten zodra de encoder verbindt."
+    },
+    "c_over_limit": {
+      "label": "Resolutie boven 1080p",
+      "text": "De feed is {{resolution}}; Restream ondersteunt tot 1080p. Zet de encoder op 1080p."
+    },
+    "c_backup_ok": {
+      "label": "Reservefeed komt binnen",
+      "text": "Valt de hoofdfeed weg, dan neemt de reserve het over."
+    },
+    "c_backup_offline": {
+      "label": "Reservefeed ingesteld maar stuurt niet",
+      "text": "Start de reserve-encoder als je automatische overname wilt."
+    },
+    "c_backup_none": {
+      "label": "Geen reservefeed",
+      "text": "Valt de encoder weg, dan tonen de bestemmingen het fallback-beeld (als dat aanstaat) of wachten ze."
+    },
+    "c_no_destinations": {
+      "label": "Geen bestemmingen meegenomen",
+      "text": "Voeg een bestemming toe of neem er een mee onder Bestemmingen."
+    },
+    "c_dest_account_ok": {
+      "label": "Account {{account}} werkt",
+      "text": "De token is geldig en het platform antwoordt."
+    },
+    "c_dest_account_error": {
+      "label": "Account {{account}} werkt niet",
+      "text": "Het platform zegt: {{error}}. Koppel het account opnieuw onder Accounts."
+    },
+    "c_dest_account_missing": {
+      "label": "Geen gekoppeld account",
+      "text": "Kies een account voor deze bestemming, of gebruik een streamkey."
+    },
+    "c_dest_app_missing": {
+      "label": "Platform-app niet ingesteld",
+      "text": "Een beheerder registreert de app onder Accounts."
+    },
+    "c_dest_no_key": {
+      "label": "Streamkey ontbreekt",
+      "text": "Vul de streamkey van het platform in onder Bestemmingen."
+    },
+    "c_dest_no_server": {
+      "label": "Serveradres ontbreekt of klopt niet",
+      "text": "Vul de server-URL van het platform in onder Bestemmingen."
+    },
+    "c_dest_reachable": {
+      "label": "Server antwoordt",
+      "text": "{{host}} in {{ms}} ms"
+    },
+    "c_dest_dns": {
+      "label": "Servernaam niet gevonden",
+      "text": "{{host}} bestaat niet. Controleer de server-URL."
+    },
+    "c_dest_unreachable": {
+      "label": "Server antwoordt niet",
+      "text": "{{host}} ({{reason}}). Controleer de server-URL, of een firewall op het uitgaande verkeer van deze server."
+    },
+    "c_dest_key_per_broadcast": {
+      "label": "Nieuwe key per uitzending",
+      "text": "Dit platform geeft voor elke uitzending een nieuwe streamkey: plak de key van vandaag onder Bestemmingen."
+    },
+    "c_dest_forced_transcode": {
+      "label": "Wordt getranscodeerd",
+      "text": "Het platform accepteert geen {{codec}}, dus Restream codeert opnieuw naar H.264. Dat kost CPU."
+    },
+    "c_dest_audio_transcode": {
+      "label": "Audio wordt omgezet",
+      "text": "{{codec}}-audio wordt omgezet naar AAC; dat kost weinig."
+    },
+    "c_dest_over_bitrate": {
+      "label": "Bitrate boven het maximum van het platform",
+      "text": "De feed is {{kbps}} kbit/s met passthrough; het platform accepteert tot {{max}}. Verlaag de bitrate van de encoder of laat Restream transcoderen."
+    },
+    "c_dest_over_resolution": {
+      "label": "Resolutie boven het maximum van het platform",
+      "text": "{{height}}p met passthrough; het platform accepteert tot {{max}}p. Laat Restream deze bestemming transcoderen."
+    },
+    "c_dest_over_fps": {
+      "label": "Beeldsnelheid boven het maximum van het platform",
+      "text": "{{fps}} fps met passthrough; het platform accepteert tot {{max}}. Laat Restream deze bestemming transcoderen."
+    },
+    "c_dest_keyframes": {
+      "label": "Keyframes verder uit elkaar dan het platform wil",
+      "text": "De feed heeft elke {{seconds}} s een keyframe; het platform vraagt {{wanted}} s. Zet de encoder op {{wanted}} s of laat Restream transcoderen."
+    },
+    "c_dest_portrait_copy": {
+      "label": "Liggend beeld op een staand platform",
+      "text": "Met passthrough blijft het beeld liggend. Kies transcoderen met staand 9:16."
+    },
+    "c_cpu_ok": {
+      "label": "Genoeg CPU om te transcoderen",
+      "text": "Ongeveer {{needed}} van {{free}} vrije kernen nodig."
+    },
+    "c_cpu_tight": {
+      "label": "CPU is mogelijk niet genoeg",
+      "text": "De getranscodeerde bestemmingen hebben ongeveer {{needed}} kernen nodig; {{free}} van {{cores}} zijn vrij. Gebruik waar het kan passthrough, of een lagere resolutie of beeldsnelheid."
+    },
+    "c_upload_ok": {
+      "label": "Genoeg upload",
+      "text": "{{mbps}} van {{capacity}} Mbit/s ({{percent}} %)."
+    },
+    "c_upload_tight": {
+      "label": "Upload bijna vol",
+      "text": "{{mbps}} van {{capacity}} Mbit/s ({{percent}} %). Weinig ruimte als de bitrate van de feed stijgt."
+    },
+    "c_upload_over": {
+      "label": "Niet genoeg upload",
+      "text": "{{mbps}} Mbit/s nodig, {{capacity}} beschikbaar. Verlaag bitrates of gebruik minder bestemmingen."
+    },
+    "c_upload_total": {
+      "label": "Ongeveer {{mbps}} Mbit/s upload nodig",
+      "text": "Stel de uploadcapaciteit van de server in onder Instellingen om dit te laten controleren."
+    },
+    "c_upload_unknown": {
+      "label": "Benodigde upload nog niet bekend",
+      "text": "Passthrough stuurt wat de encoder stuurt; dat is bekend zodra de feed binnenkomt."
+    },
+    "c_disk_ok": {
+      "label": "Genoeg schijfruimte voor de opname",
+      "text": "{{gb}} GB vrij."
+    },
+    "c_disk_low": {
+      "label": "Weinig schijfruimte voor de opname",
+      "text": "{{gb}} GB vrij. Download of verwijder oude opnames."
+    },
+    "c_disk_full": {
+      "label": "Schijf vol: de opname start niet",
+      "text": "{{gb}} GB vrij; opnames hebben minstens 1 GB nodig."
+    }
+  },
+  "broadcastInfo": {
+    "eyebrow": "Titel en beschrijving",
+    "title": "Titel, beschrijving en thumbnail",
+    "intro": "Dit zien kijkers op de platforms. Het wordt gebruikt voor de volgende uitzending op elke bestemming met een gekoppeld account.",
+    "introLive": "Opslaan werkt de live uitzendingen op YouTube, Facebook en Twitch meteen bij. Bestemmingen met een streamkey houden de titel die je op het platform instelt.",
+    "noTitle": "Nog geen titel: de platforms tonen \"{{name}}\"",
+    "fromEvent": "Van het geplande event dat nu live is",
+    "titleLabel": "Titel",
+    "titleHint": "{{count}} / 100 tekens. Twitch toont er tot 140, YouTube tot 100.",
+    "description": "Beschrijving",
+    "thumbnail": "Thumbnail (YouTube)",
+    "thumbnailHint": "JPEG of PNG, 1280 × 720, hooguit 2 MB. YouTube staat eigen thumbnails alleen toe op geverifieerde kanalen.",
+    "upload": "Uploaden",
+    "replace": "Vervangen",
+    "remove": "Verwijderen",
+    "where": "Waar het naartoe gaat",
+    "reach_full": "titel, beschrijving en thumbnail",
+    "reach_textOnly": "titel en beschrijving",
+    "reach_titleOnly": "titel",
+    "reach_atStart": "titel bij de start van de uitzending",
+    "reach_manual": "streamkey: pas het aan op het platform",
+    "result_updated": "bijgewerkt",
+    "result_pending": "bij de start",
+    "result_next": "volgende uitzending",
+    "result_manual": "aanpassen op het platform",
+    "result_unsupported": "volgende uitzending",
+    "result_failed": "mislukt",
+    "thumbnailFailed": "thumbnail mislukt",
+    "saveLive": "Opslaan en live bijwerken"
   }
 }

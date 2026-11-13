@@ -12,6 +12,7 @@ import { Streams } from './pages/Streams';
 import { Destinations } from './pages/Destinations';
 import { Analytics } from './pages/Analytics';
 import { Chat } from './pages/Chat';
+import { Health } from './pages/Health';
 import { Accounts } from './pages/Accounts';
 import { Events } from './pages/Events';
 import { Recordings } from './pages/Recordings';
@@ -82,6 +83,7 @@ export function App() {
         <Route path="recordings" element={<Recordings />} />
         <Route path="analytics" element={<Analytics />} />
         <Route path="chat" element={<Chat />} />
+        <Route path="health" element={<Health />} />
         <Route path="account" element={<Account />} />
         <Route path="admin/users" element={admin(<Users />)} />
         <Route path="admin/mail" element={admin(<Mail />)} />

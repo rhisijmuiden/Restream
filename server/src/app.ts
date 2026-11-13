@@ -32,6 +32,8 @@ import { mailRoutes } from './routes/mail.js';
 import { backupRoutes } from './routes/backups.js';
 import { Notifier } from './lib/notify.js';
 import { BackupService } from './backup/service.js';
+import { HealthMonitor } from './health/monitor.js';
+import { healthRoutes } from './routes/health.js';
 
 export async function buildApp(sql: Sql, opts: { logger?: boolean; background?: boolean } = {}): Promise<FastifyInstance> {
   const app = Fastify({
@@ -123,10 +125,14 @@ export async function buildApp(sql: Sql, opts: { logger?: boolean; background?: 
   await app.register(accountRoutes, { sql });
   await app.register(eventRoutes, { sql, scheduler, provisioner });
   await app.register(liveRoutes, { sql, live });
-  if (config.media.enabled) app.addHook('onReady', async () => media.start());
+  const health = new HealthMonitor(sql, media, app.log);
+  app.decorate('health', health);
+  await app.register(healthRoutes, { sql, media, health });
+  if (config.media.enabled) app.addHook('onReady', async () => { media.start(); health.start(); });
 
   // Mail notifications and scheduled backups run in the server process (not in tests unless asked).
   const notifier = new Notifier(sql, media, app.log);
+  notifier.health = health;
   const backups = new BackupService(sql, app.log, notifier, () => media.nudge());
   app.decorate('backups', backups);
   app.decorate('notifier', notifier);
@@ -138,7 +144,7 @@ export async function buildApp(sql: Sql, opts: { logger?: boolean; background?: 
   if (opts.background ?? process.env.NODE_ENV === 'production') {
     app.addHook('onReady', async () => { notifier.start(); await backups.start(); provisioner.start(); scheduler.start(); live.start(); webhooks.start(); });
   }
-  app.addHook('onClose', async () => { await webhooks.stop(); notifier.stop(); backups.stop(); scheduler.stop(); provisioner.stop(); await live.stop(); await media.close(); });
+  app.addHook('onClose', async () => { await webhooks.stop(); notifier.stop(); backups.stop(); scheduler.stop(); provisioner.stop(); await live.stop(); await health.stop(); await media.close(); });
 
   if (existsSync(config.webDist)) {
     await app.register(fastifyStatic, { root: config.webDist, wildcard: false, index: ['index.html'] });
@@ -158,6 +164,7 @@ declare module 'fastify' {
     scheduler: EventScheduler;
     media: MediaSupervisor;
     live: LiveMonitor;
+    health: HealthMonitor;
     webhooks: WebhookDispatcher;
   }
 }

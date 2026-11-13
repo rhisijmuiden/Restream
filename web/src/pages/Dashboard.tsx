@@ -15,6 +15,9 @@ import { WhepPlayer } from '../components/WhepPlayer';
 import { Audience, ChatList } from '../components/live';
 import { formatCount, useLive } from '../lib/live';
 import type { LiveDestination } from '../lib/api';
+import { GoLiveControls } from '../components/preflight';
+import { HealthStrip } from '../components/health';
+import { BroadcastInfoCard } from '../components/BroadcastInfo';
 
 function useNow(ms = 1000) {
   const [now, setNow] = useState(Date.now());
@@ -139,16 +142,14 @@ function StreamControl({ stream, canOperate, sys }: { stream: Stream; canOperate
         {canOperate && (anyLive ? (
           <Button variant="danger" onClick={stopAll} loading={live.isPending}><Square size={14} /> {t('dashboard.stopAll')}</Button>
         ) : (
-          <Button
-            variant="primary" onClick={() => live.mutate(true)} loading={live.isPending}
-            disabled={included.length === 0}
+          <GoLiveControls
+            stream={stream} disabled={included.length === 0}
             title={included.length === 0 ? t('dashboard.noIncluded') : !st.online ? t('dashboard.goLiveWaiting') : undefined}
-          >
-            <Radio size={16} /> {t('dashboard.goLive')}
-          </Button>
+          />
         ))}
       </header>
       <ErrorText error={live.error} />
+      <HealthStrip streamId={stream.id} />
 
       <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
         <div className="flex min-w-0 flex-col gap-6">
@@ -205,6 +206,7 @@ function StreamControl({ stream, canOperate, sys }: { stream: Stream; canOperate
         </div>
 
         <aside className="flex flex-col gap-6">
+          <BroadcastInfoCard stream={stream} canOperate={canOperate} />
           <Audience data={liveData.data} compact />
           <Card
             eyebrow={t('live.chat')}

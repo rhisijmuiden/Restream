@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { clsx } from 'clsx';
 import {
-  LayoutGrid, KeyRound, Share2, CalendarClock, CircleDot, BarChart3, MessageSquare, Link2,
+  LayoutGrid, Activity, KeyRound, Share2, CalendarClock, CircleDot, BarChart3, MessageSquare, Link2,
   Users, Mail, DatabaseBackup, RefreshCw, Settings, ScrollText, Info, LogOut, Menu, X, Webhook, Sun, Moon, Monitor,
 } from 'lucide-react';
 import { api, type SystemInfo } from '../lib/api';
@@ -36,6 +36,7 @@ export function Layout() {
     { to: '/recordings', label: t('nav.recordings'), icon: <CircleDot size={18} /> },
     { to: '/analytics', label: t('nav.analytics'), icon: <BarChart3 size={18} /> },
     { to: '/chat', label: t('nav.chat'), icon: <MessageSquare size={18} /> },
+    { to: '/health', label: t('nav.health'), icon: <Activity size={18} /> },
   ];
   const admin: Item[] = [
     { to: '/admin/users', label: t('nav.users'), icon: <Users size={18} />, admin: true },

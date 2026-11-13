@@ -7,6 +7,7 @@ import { Button, Card, CopyButton, ErrorText, Field, Input, PageHeader, Select, 
 interface S {
   instanceName: string; defaultLanguage: 'en' | 'nl'; publicUrl: string; githubTokenSet: boolean;
   sso: { enabled: boolean; tenantId: string; clientId: string; allowedGroupId: string; autoProvision: boolean; defaultRole: Role; clientSecretSet: boolean; redirectUri: string };
+  health: { uploadMbps: number };
 }
 
 export function Settings() {
@@ -26,7 +27,7 @@ export function Settings() {
     setState({ busy: true });
     try {
       const body = section === 'general'
-        ? { instanceName: form!.instanceName, defaultLanguage: form!.defaultLanguage, publicUrl: form!.publicUrl, ...(token ? { githubToken: token } : {}), ...extra }
+        ? { instanceName: form!.instanceName, defaultLanguage: form!.defaultLanguage, publicUrl: form!.publicUrl, health: { uploadMbps: Number(form!.health.uploadMbps) || 0 }, ...(token ? { githubToken: token } : {}), ...extra }
         : { sso: { enabled: form!.sso.enabled, tenantId: form!.sso.tenantId, clientId: form!.sso.clientId, allowedGroupId: form!.sso.allowedGroupId, autoProvision: form!.sso.autoProvision, defaultRole: form!.sso.defaultRole, ...(secret ? { clientSecret: secret } : {}) } };
       await api('/api/settings', { method: 'PUT', body });
       setSecret(''); setToken('');
@@ -52,6 +53,9 @@ export function Settings() {
               {(id) => <Select id={id} value={form.defaultLanguage} onChange={(e) => setForm({ ...form, defaultLanguage: e.target.value as 'en' | 'nl' })}><option value="en">English</option><option value="nl">Nederlands</option></Select>}
             </Field>
             <Field label={t('settings.publicUrl')} hint={t('settings.publicUrlHint')}>{(id) => <Input id={id} type="url" placeholder="https://restream.example.com" value={form.publicUrl} onChange={(e) => setForm({ ...form, publicUrl: e.target.value })} />}</Field>
+            <Field label={t('settings.uploadMbps')} hint={t('settings.uploadMbpsHint')}>
+              {(id) => <Input id={id} type="number" min={0} max={100000} step={1} inputMode="numeric" value={form.health.uploadMbps || ''} placeholder="0" onChange={(e) => setForm({ ...form, health: { uploadMbps: Number(e.target.value) || 0 } })} className="max-w-48 font-mono" />}
+            </Field>
             <Field label={t('settings.githubToken')} hint={form.githubTokenSet ? `${t('settings.tokenSet')} ${t('settings.githubTokenHint')}` : t('settings.githubTokenHint')}>
               {(id) => <Input id={id} type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} placeholder={form.githubTokenSet ? '••••••••' : 'github_pat_…'} />}
             </Field>

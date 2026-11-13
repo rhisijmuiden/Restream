@@ -2,6 +2,7 @@ import type { FastifyBaseLogger } from 'fastify';
 import type { Sql } from '../db.js';
 import { branchToChannel, config, readBuildInfo } from '../config.js';
 import type { MediaSupervisor } from '../media/supervisor.js';
+import type { HealthMonitor, Issue, IssueCode } from '../health/monitor.js';
 import { getSettings, type NotifyEvent, type Settings } from './settings.js';
 import { mailConfigured, notificationRecipients, render, sendMail } from './mail.js';
 import { readUpdateStatus, fetchRemote } from './updates.js';
@@ -32,6 +33,9 @@ const T = {
     updateRolledBack: ['Update failed and was rolled back', 'The update did not complete. Restream restored the previous version, which is running normally.'],
     updateFail: ['Update failed', 'The update and the automatic rollback both failed. Check the server: journalctl -u restream'],
     updateAvailable: (v: string) => [`Update available: ${v}`, 'A new version is available on your channel. You can install it from Administration › Updates.'],
+    healthTitle: (n: number) => (n === 1 ? 'A broadcast problem needs attention' : `${n} broadcast problems need attention`),
+    healthIntro: 'The health monitor found the following while streams are running. The console shows live figures under Health. You get at most one mail per problem every 15 minutes.',
+    feed: { main: 'main feed', backup: 'backup feed' },
     testSubject: (n: string) => `Test message from ${n}`,
     testIntro: 'Your mail server settings work. Restream can send notifications.',
     server: 'Server', security: 'Security', dkim: 'DKIM',
@@ -56,6 +60,9 @@ const T = {
     updateRolledBack: ['Update mislukt en teruggedraaid', 'De update is niet gelukt. Restream heeft de vorige versie teruggezet; die draait normaal.'],
     updateFail: ['Update mislukt', 'De update en het automatisch terugdraaien zijn allebei mislukt. Controleer de server: journalctl -u restream'],
     updateAvailable: (v: string) => [`Update beschikbaar: ${v}`, 'Er staat een nieuwe versie klaar op jouw kanaal. Je installeert hem via Beheer › Updates.'],
+    healthTitle: (n: number) => (n === 1 ? 'Een probleem met de uitzending vraagt aandacht' : `${n} problemen met de uitzending vragen aandacht`),
+    healthIntro: 'De gezondheidsmonitor zag het volgende terwijl er streams lopen. De console toont de actuele cijfers onder Gezondheid. Je krijgt per probleem hooguit één mail per 15 minuten.',
+    feed: { main: 'hoofdfeed', backup: 'reservefeed' },
     testSubject: (n: string) => `Testbericht van ${n}`,
     testIntro: 'Je mailserverinstellingen werken. Restream kan meldingen versturen.',
     server: 'Server', security: 'Beveiliging', dkim: 'DKIM',
@@ -63,6 +70,43 @@ const T = {
 } as const;
 
 export const texts = (lang: Lang) => T[lang] ?? T.en;
+
+type P = Record<string, number>;
+/** What a health issue means, in a mail: a short label and what to do. */
+const ISSUES: Record<Lang, Record<IssueCode, (p: P) => [string, string]>> = {
+  en: {
+    feed_bitrate_drop: (p) => ['Incoming bitrate dropped', `The encoder sends ${p.now} kbit/s, against ${p.before} kbit/s a minute ago. Check the encoder's network and its CPU.`],
+    feed_fps_low: (p) => ['Frames are missing', `The encoder delivers ${p.now} fps instead of ${p.expected}. The encoder or its computer cannot keep up: lower its preset or resolution.`],
+    feed_keyframes: (p) => ['Key frames too far apart', `A key frame every ${p.seconds} s. Platforms ask for 2 s and may refuse more than 4 s: set the key frame interval of the encoder to 2 s.`],
+    feed_errors: (p) => ['Damaged frames or time stamps', `${p.count} errors in the last 30 seconds. Viewers may see artefacts or stutter. Check the encoder and its connection.`],
+    feed_srt_drops: (p) => ['SRT packets lost', `${p.count} packets arrived too late in the last 30 seconds. Raise the SRT latency in the encoder or improve its line.`],
+    output_slow: (p) => ['Destination cannot keep up', `It delivers at ${p.speed}x real time. The upload of this server or its CPU is too slow for this destination.`],
+    server_cpu: (p) => ['Server CPU is full', `${p.percent} % of ${p.cores} cores in use. Transcoded destinations may stutter: use passthrough where you can, or a larger server.`],
+    server_memory: (p) => ['Server memory almost full', `${p.percent} % in use.`],
+    server_disk: (p) => ['Disk almost full', `${p.freeGb} GB free. Recordings stop below 1 GB: download or remove recordings.`],
+    server_upload: (p) => ['Upload almost full', `${p.mbps} of ${p.capacityMbps} Mbit/s (${p.percent} %). Destinations may fall behind: lower bitrates or use fewer destinations.`],
+  },
+  nl: {
+    feed_bitrate_drop: (p) => ['Inkomende bitrate gezakt', `De encoder stuurt ${p.now} kbit/s, tegen ${p.before} kbit/s een minuut geleden. Controleer het netwerk en de CPU van de encoder.`],
+    feed_fps_low: (p) => ['Er vallen beelden weg', `De encoder levert ${p.now} fps in plaats van ${p.expected}. De encoder of zijn computer houdt het niet bij: kies een lichtere preset of resolutie.`],
+    feed_keyframes: (p) => ['Keyframes te ver uit elkaar', `Elke ${p.seconds} s een keyframe. Platforms vragen 2 s en weigeren soms meer dan 4 s: zet het keyframe-interval van de encoder op 2 s.`],
+    feed_errors: (p) => ['Beschadigde beelden of tijdstempels', `${p.count} fouten in de laatste 30 seconden. Kijkers kunnen haperingen of blokken zien. Controleer de encoder en zijn verbinding.`],
+    feed_srt_drops: (p) => ['SRT-pakketten verloren', `${p.count} pakketten kwamen de laatste 30 seconden te laat binnen. Verhoog de SRT-latency in de encoder of verbeter de verbinding.`],
+    output_slow: (p) => ['Bestemming houdt het niet bij', `Hij levert op ${p.speed}x realtime. De upload of de CPU van deze server is te traag voor deze bestemming.`],
+    server_cpu: (p) => ['Server-CPU zit vol', `${p.percent} % van ${p.cores} kernen in gebruik. Getranscodeerde bestemmingen kunnen haperen: gebruik waar het kan passthrough, of een grotere server.`],
+    server_memory: (p) => ['Servergeheugen bijna vol', `${p.percent} % in gebruik.`],
+    server_disk: (p) => ['Schijf bijna vol', `${p.freeGb} GB vrij. Opnames stoppen onder 1 GB: download of verwijder opnames.`],
+    server_upload: (p) => ['Upload bijna vol', `${p.mbps} van ${p.capacityMbps} Mbit/s (${p.percent} %). Bestemmingen kunnen achterraken: verlaag bitrates of gebruik minder bestemmingen.`],
+  },
+};
+
+/** One mail row for a health issue: where it is, and what it means. */
+export function issueRow(lang: Lang, i: Issue): [string, string] {
+  const t = texts(lang);
+  const [label, text] = (ISSUES[lang] ?? ISSUES.en)[i.code](i.params);
+  const where = i.destinationName ? `${i.streamName} › ${i.destinationName}` : i.streamName ? `${i.streamName} (${t.feed[i.input ?? 'main']})` : 'Server';
+  return [`${label} · ${where}`, text];
+}
 
 export function formatBytes(n: number) {
   const u = ['B', 'KB', 'MB', 'GB', 'TB'];
@@ -83,6 +127,10 @@ export class Notifier {
   private alerted = new Set<string>();
   private lastUpdateCheck = 0;
   private busy = false;
+  /** When each health issue was last mailed (rate limit per problem). */
+  private healthMailed = new Map<string, number>();
+  /** Set after construction; the health monitor needs the media supervisor. */
+  health: HealthMonitor | null = null;
 
   constructor(private sql: Sql, private media: MediaSupervisor | null, private log: FastifyBaseLogger) {}
 
@@ -122,6 +170,7 @@ export class Notifier {
     try {
       const s = await getSettings(this.sql);
       if (this.media && config.media.enabled) await this.checkMedia(s);
+      if (this.health) await this.checkHealth(s);
       await this.checkUpdates(s);
     } catch (err) {
       this.log.warn({ err }, 'notifier check failed');
@@ -190,6 +239,19 @@ export class Notifier {
     for (const key of [...this.downSince.keys(), ...this.alerted]) {
       if ((key.startsWith('stream:') || key.startsWith('output:')) && !seen.has(key)) { this.downSince.delete(key); this.alerted.delete(key); }
     }
+  }
+
+  /** Mails new health issues, several in one message, at most once per problem every 15 minutes. */
+  async checkHealth(s: Settings, now = Date.now()) {
+    const fresh = this.health!.issues().filter((i) => now - (this.healthMailed.get(i.key) ?? 0) >= 15 * 60_000);
+    for (const [k, at] of this.healthMailed) if (now - at > 3600_000) this.healthMailed.delete(k);
+    if (!fresh.length) return false;
+    for (const i of fresh) this.healthMailed.set(i.key, now);
+    return this.send('healthWarning', (t) => ({
+      title: t.healthTitle(fresh.length), intro: t.healthIntro,
+      tone: fresh.some((i) => i.severity === 'danger') ? 'danger' : 'warn',
+      rows: fresh.map((i) => issueRow(s.defaultLanguage, i)),
+    }), s);
   }
 
   private async state(): Promise<NotifyState> {

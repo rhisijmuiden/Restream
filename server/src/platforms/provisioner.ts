@@ -4,6 +4,24 @@ import { decrypt, encrypt } from '../lib/crypto.js';
 import { getSettings, type OAuthProvider, type Settings } from '../lib/settings.js';
 import { publishUrl } from '../media/platforms.js';
 import { accessToken, facebook, PlatformError, twitch, x, xNotReady, youtube, type AccountRow, type BroadcastInfo } from './api.js';
+import { readThumbnail } from '../lib/thumbnail.js';
+import type { Platform } from '../media/platforms.js';
+
+/**
+ * What happened to one destination when the title and description were pushed:
+ * - updated: the platform has the new title (and description where it has one);
+ * - pending: the broadcast is still being created; it gets the new title then;
+ * - next: the destination is not live; its next broadcast uses the new title;
+ * - manual: a destination with a stream key; Restream cannot reach its title, change it on the platform;
+ * - unsupported: the platform has no way to change the title of a running broadcast (X);
+ * - failed: the platform refused; error says why.
+ */
+export type InfoResult = 'updated' | 'pending' | 'next' | 'manual' | 'unsupported' | 'failed';
+export interface InfoOutcome {
+  destinationId: string; name: string; platform: Platform; result: InfoResult; error: string | null;
+  /** YouTube only: the thumbnail was set, failed, or there is none. */
+  thumbnail: 'updated' | 'failed' | null;
+}
 
 interface DestRow {
   id: string; stream_id: string; name: string; platform: OAuthProvider; server_url: string; live: boolean; privacy: BroadcastInfo['privacy'];
@@ -109,6 +127,7 @@ export class Provisioner {
         if (useEvent) { remoteId = useEvent.remote_id!; watch = `https://www.youtube.com/watch?v=${remoteId}`; }
         else { const bc = await youtube.createBroadcast(token, b); remoteId = bc.id; watch = bc.watchUrl; }
         await youtube.bind(token, remoteId, stream.id);
+        await this.youtubeThumbnail(token, d.stream_id, remoteId).catch((err) => this.log.warn({ err: message(err), destination: d.id }, 'youtube: setting the thumbnail failed'));
         url = stream.url;
       } else if (a.provider === 'facebook') {
         if (useEvent) {
@@ -279,6 +298,53 @@ export class Provisioner {
       if ((err as { status?: number }).status === 404) return;
       throw err;
     }
+  }
+
+  private async youtubeThumbnail(token: string, streamId: string, videoId: string): Promise<boolean> {
+    const [st] = await this.sql<{ thumbnail: string | null }[]>`SELECT thumbnail FROM streams WHERE id = ${streamId}`;
+    const img = await readThumbnail(st?.thumbnail ?? null);
+    if (!img) return false;
+    await youtube.setThumbnail(token, videoId, img.data, img.type);
+    return true;
+  }
+
+  /**
+   * Pushes the stream's title, description and thumbnail to every destination that is live on a connected account,
+   * so a title change reaches YouTube, Facebook and Twitch at once, also during the broadcast.
+   */
+  async pushInfo(streamId: string, opts: { thumbnail?: boolean } = {}): Promise<InfoOutcome[]> {
+    const s = await getSettings(this.sql);
+    const dests = await this.sql<(DestRow & { auth: 'key' | 'account' })[]>`
+      SELECT id, stream_id, name, platform, server_url, live, privacy, account_id, remote_url_enc, remote_id, remote_stream_id, prepared_event, auth
+      FROM destinations WHERE stream_id = ${streamId} ORDER BY position, created_at`;
+    return Promise.all(dests.map(async (d): Promise<InfoOutcome> => {
+      const out: InfoOutcome = { destinationId: d.id, name: d.name, platform: d.platform as Platform, result: 'next', error: null, thumbnail: null };
+      if (!d.live) return out;
+      if (d.auth !== 'account') return { ...out, result: 'manual' };
+      if (d.platform === 'x') return { ...out, result: 'unsupported' };
+      if (d.platform !== 'twitch' && !d.remote_id) return { ...out, result: 'pending' };
+      try {
+        const a = await this.account(d.account_id);
+        if (!a) throw new Error('account_missing');
+        const token = await accessToken(this.sql, a, s);
+        const b = await this.info(d, await this.liveEvent(d.id));
+        if (d.platform === 'youtube') {
+          await youtube.setInfo(token, d.remote_id!, b.title, b.description);
+          if (opts.thumbnail !== false) {
+            try { if (await this.youtubeThumbnail(token, streamId, d.remote_id!)) out.thumbnail = 'updated'; }
+            catch (err) { out.thumbnail = 'failed'; out.error = message(err); }
+          }
+        } else if (d.platform === 'facebook') {
+          await facebook.setInfo(token, d.remote_id!, b.title, b.description);
+        } else {
+          await twitch.setTitle(s, token, a.external_id, b.title);
+        }
+        return { ...out, result: 'updated' };
+      } catch (err) {
+        this.log.warn({ err, destination: d.id }, 'updating the broadcast title failed');
+        return { ...out, result: 'failed', error: message(err) };
+      }
+    }));
   }
 
   /** Publish URL for the media supervisor (decrypted), or null while preparing. */

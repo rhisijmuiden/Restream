@@ -19,6 +19,7 @@ export async function settingsRoutes(app: FastifyInstance, { sql }: { sql: Sql }
       publicUrl: s.publicUrl,
       githubTokenSet: !!s.githubTokenEnc,
       sso: { ...sso, clientSecretSet: !!clientSecretEnc, redirectUri: s.publicUrl ? redirectUri(s) : '' },
+      health: s.health,
     };
   });
 
@@ -38,6 +39,7 @@ export async function settingsRoutes(app: FastifyInstance, { sql }: { sql: Sql }
         autoProvision: z.boolean(),
         defaultRole: z.enum(['admin', 'operator', 'viewer']),
       }).optional(),
+      health: z.object({ uploadMbps: z.number().min(0).max(100_000) }).optional(),
     }).parse(req.body);
 
     const cur = await getSettings(sql);
@@ -45,6 +47,7 @@ export async function settingsRoutes(app: FastifyInstance, { sql }: { sql: Sql }
       instanceName: body.instanceName,
       defaultLanguage: body.defaultLanguage,
       publicUrl: body.publicUrl?.replace(/\/+$/, ''),
+      health: body.health,
     };
     if (body.githubToken !== undefined) patch.githubTokenEnc = body.githubToken ? encrypt(body.githubToken) : '';
     if (body.sso) {
