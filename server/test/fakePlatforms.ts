@@ -1,4 +1,4 @@
-/** A local stand-in for the Google/YouTube, Facebook Graph and Twitch APIs, recording every call. */
+/** A local stand-in for the Google/YouTube, Facebook Graph, Twitch and X APIs, recording every call. */
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { endpoints } from '../src/platforms/api.js';
@@ -14,6 +14,9 @@ export async function startFakePlatforms() {
     viewers: new Map<string, number>(),
     ytChat: [] as { id: string; snippet: Record<string, unknown>; authorDetails: Record<string, unknown> }[],
     fbComments: new Map<string, { id: string; message: string; created_time: string; from: { name: string } }[]>(),
+    /** X: whether the source receives video, and whether the account may go live (X asks for Premium). */
+    xActive: false,
+    xEligible: true,
   };
 
   const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
@@ -79,6 +82,30 @@ export async function startFakePlatforms() {
     if (key === 'PATCH /helix/schedule/segment') return send(200, { data: {} });
     if (key === 'DELETE /helix/schedule/segment') { res.writeHead(204); return res.end(); }
 
+    // --- X
+    if (key === 'POST /x/oauth2/token') {
+      if (body.grant_type === 'refresh_token') return send(200, { access_token: `x-access-${++n}`, refresh_token: `x-refresh-${n}`, expires_in: 7200, scope: 'broadcast.write' });
+      return send(200, { access_token: 'x-access-0', refresh_token: 'x-refresh-0', expires_in: 7200, scope: 'tweet.read users.read broadcast.read broadcast.write offline.access' });
+    }
+    if (key === 'GET /x/users/me') return send(200, { data: { id: 'x-42', name: 'Kerk op X', username: 'kerkx', profile_image_url: 'https://img/x.png' } });
+    if (key === 'GET /x/region') return send(200, { region: 'us-east-1' });
+    if (key === 'POST /x/sources') {
+      if (!live.xEligible) return send(403, { title: 'Forbidden', detail: 'Account is not allowed to go live', type: 'about:blank', status: 403 });
+      return send(201, { data: { id: '9100000000000000001', name: body.name, region: 'us-east-1', rtmps_url: 'rtmps://va.pscp.tv:443/x', stream_key: 'x-key-1', is_stream_active: false } });
+    }
+    m = /^\/x\/sources\/(\d+)(\/stream_key)?$/.exec(url.pathname);
+    if (m && req.method === 'GET') {
+      if (m[1] !== '9100000000000000001') return send(404, { title: 'Not Found Error', detail: 'source not found', status: 404 });
+      return send(200, { data: m[2] ? { stream_key: 'x-key-1' } : { id: m[1], rtmps_url: 'rtmps://va.pscp.tv:443/x', is_stream_active: live.xActive } });
+    }
+    if (key === 'POST /x/broadcasts') {
+      if (!live.xEligible) return send(403, { title: 'Forbidden', detail: 'User is not eligible to broadcast', type: 'about:blank', status: 403 });
+      if (!live.xActive) return send(409, { title: 'Conflict', detail: 'encoder not connected', status: 409 });
+      return send(201, { data: { id: `1Xb${++n}`, broadcast_id: `1Xb${n}`, state: 'RUNNING', share_url: `https://x.com/i/broadcasts/1Xb${n}` } });
+    }
+    m = /^\/x\/broadcasts\/(\w+)\/state$/.exec(url.pathname);
+    if (m && req.method === 'PUT') return send(200, { data: { id: m[1], state: 'ENDED' } });
+
     send(404, { error: { message: `fake: no route ${key}` } });
   });
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
@@ -87,6 +114,7 @@ export async function startFakePlatforms() {
   Object.assign(endpoints, {
     googleAuth: `${base}/google/auth`, googleToken: `${base}/google/token`, youtube: `${base}/youtube`,
     facebookDialog: `${base}/fb/dialog`, facebookGraph: `${base}/graph`, twitchAuth: `${base}/twitch-auth`, twitchApi: `${base}/helix`,
+    xAuth: `${base}/x-auth`, xApi: `${base}/x`,
   });
   return {
     calls, fail, live,

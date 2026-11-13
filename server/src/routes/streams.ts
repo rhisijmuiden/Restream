@@ -166,6 +166,8 @@ export async function streamRoutes(app: FastifyInstance, { sql, media, playback,
               : null,
             privacy: d.privacy,
             watchUrl: d.live ? d.watch_url : null,
+            // Why a destination on a connected account is not on the platform yet (e.g. X refused to go live).
+            prepareError: d.live ? d.prepare_error : null,
             status: d.live ? media.outputState(d.id) : { ...media.outputState(d.id), state: 'off' as const },
           })),
         };
@@ -391,7 +393,8 @@ export async function streamRoutes(app: FastifyInstance, { sql, media, playback,
   });
 
   async function checkDestination(platform: Platform, serverUrl: string, body: z.infer<typeof destinationBody>) {
-    const problem = serverUrlProblem(platform, serverUrl);
+    // Via a connected account the platform hands out the publish URL (X: per source), so no server is needed.
+    const problem = body.auth === 'account' && !serverUrl ? null : serverUrlProblem(platform, serverUrl);
     if (problem) throw new HttpError(400, problem);
     if (platform === 'srt' && [body.streamKey, body.passphrase].some((v) => v && unsafeSrtValue.test(v))) throw new HttpError(400, 'invalid_srt_value');
     if (body.auth === 'account') {

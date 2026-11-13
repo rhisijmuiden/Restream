@@ -3,7 +3,7 @@ import type { Sql } from '../db.js';
 import { decrypt, encrypt } from '../lib/crypto.js';
 import { getSettings, type OAuthProvider, type Settings } from '../lib/settings.js';
 import { publishUrl } from '../media/platforms.js';
-import { accessToken, facebook, twitch, youtube, type AccountRow, type BroadcastInfo } from './api.js';
+import { accessToken, facebook, PlatformError, twitch, x, xNotReady, youtube, type AccountRow, type BroadcastInfo } from './api.js';
 
 interface DestRow {
   id: string; stream_id: string; name: string; platform: OAuthProvider; server_url: string; live: boolean; privacy: BroadcastInfo['privacy'];
@@ -23,6 +23,7 @@ const message = (err: unknown) => (err instanceof Error ? err.message : String(e
 /**
  * Talks to the platforms for destinations that use a connected account:
  * - Go live: creates (or takes the event's) broadcast and gets the publish URL, before FFmpeg starts;
+ * - X: publishes the broadcast once X receives the video (X refuses to go live on a source without video);
  * - Stop: ends the broadcast on the platform;
  * - Events: announces scheduled events on the platforms, updates and removes them.
  * Runs in the background next to the media supervisor, which waits for the publish URL ("preparing").
@@ -66,6 +67,7 @@ export class Provisioner {
       if (!d.live) this.retryAt.delete(d.id);
       if (!d.live && (d.remote_url_enc || d.remote_id)) await this.finish(s, d);
       else if (d.live && !d.remote_url_enc && now >= (this.retryAt.get(d.id) ?? 0)) await this.prepare(s, d);
+      else if (d.live && d.platform === 'x' && d.remote_url_enc && !d.remote_id && now >= (this.retryAt.get(d.id) ?? 0)) await this.publishX(s, d);
     }
     await this.syncEventTargets(s);
   }
@@ -121,6 +123,10 @@ export class Provisioner {
           remoteId = v.id; url = v.url ?? ''; watch = v.watchUrl;
         }
         if (!url) throw new Error('facebook returned no stream URL');
+      } else if (a.provider === 'x') {
+        // The source is reused for every broadcast; the broadcast itself is published once the video arrives (publishX).
+        const src = await x.ensureSource(token, d.remote_stream_id, `Restream · ${d.name}`);
+        streamId = src.id; url = src.url;
       } else {
         const key = await twitch.streamKey(s, token, a.external_id);
         url = publishUrl('twitch', d.server_url, key);
@@ -138,19 +144,53 @@ export class Provisioner {
       this.onReady();
     } catch (err) {
       this.retryAt.set(d.id, Date.now() + 30_000);
-      await this.sql`UPDATE destinations SET prepare_error = ${message(err)} WHERE id = ${d.id}`;
+      const xRefused = d.platform === 'x' && err instanceof PlatformError && err.status === 403 && !/scope/i.test(err.message);
+      await this.sql`UPDATE destinations SET prepare_error = ${xRefused ? 'x_not_eligible' : message(err)} WHERE id = ${d.id}`;
       this.log.warn({ err, destination: d.id }, 'preparing broadcast failed');
+    }
+  }
+
+  /**
+   * X: publishes the broadcast as soon as X receives the video on the source. Until then FFmpeg is already sending;
+   * the dashboard shows "waiting for X" and the reason when X refuses (for example an account without Premium).
+   */
+  private async publishX(s: Settings, d: DestRow) {
+    const wait = (ms: number) => this.retryAt.set(d.id, Date.now() + ms);
+    try {
+      const a = await this.account(d.account_id);
+      if (!a || a.provider !== 'x' || !d.remote_stream_id) throw new Error('account_missing');
+      const token = await accessToken(this.sql, a, s);
+      if (!await x.sourceActive(token, d.remote_stream_id)) {
+        wait(3000);
+        await this.sql`UPDATE destinations SET prepare_error = NULL WHERE id = ${d.id} AND prepare_error IS NOT NULL`;
+        return;
+      }
+      const b = await this.info(d, await this.liveEvent(d.id));
+      const bc = await x.goLive(token, d.remote_stream_id, b.title);
+      await this.sql`
+        UPDATE destinations SET remote_id = ${bc.id}, watch_url = ${bc.watchUrl}, prepare_error = NULL
+        WHERE id = ${d.id} AND live`;
+      this.retryAt.delete(d.id);
+      this.log.info({ destination: d.id, broadcast: bc.id }, 'x: broadcast is live');
+    } catch (err) {
+      if (xNotReady(err)) { wait(5000); return; }
+      // 403: the account may not go live (X asks for a paid subscription) or the broadcast was moderated.
+      const code = err instanceof PlatformError && err.status === 403 && !/scope/i.test(err.message) ? 'x_not_eligible' : message(err);
+      wait(code === 'x_not_eligible' ? 60_000 : 15_000);
+      await this.sql`UPDATE destinations SET prepare_error = ${code} WHERE id = ${d.id}`;
+      this.log.warn({ err, destination: d.id }, 'x: going live failed');
     }
   }
 
   /** Ends the broadcast of a destination that stopped and forgets its publish URL. */
   private async finish(s: Settings, d: DestRow) {
-    if (d.remote_id && (d.platform === 'youtube' || d.platform === 'facebook')) {
+    if (d.remote_id && (d.platform === 'youtube' || d.platform === 'facebook' || d.platform === 'x')) {
       try {
         const a = await this.account(d.account_id);
         if (a) {
           const token = await accessToken(this.sql, a, s);
           if (d.platform === 'youtube') await youtube.end(token, d.remote_id);
+          else if (d.platform === 'x') await x.end(token, d.remote_id);
           else await facebook.end(token, d.remote_id);
         }
       } catch (err) {

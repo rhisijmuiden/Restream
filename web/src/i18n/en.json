@@ -177,7 +177,9 @@
     "eventAuto": "Goes live automatically at the start time",
     "watch": "Watch on the platform",
     "previewHls": "HLS preview · a few seconds delay",
-    "previewHlsHint": "Low-latency WebRTC preview is not possible for this feed, usually because the encoder sends B-frames. Set B-frames to 0 in OBS for a near real-time preview."
+    "previewHlsHint": "Low-latency WebRTC preview is not possible for this feed, usually because the encoder sends B-frames. Set B-frames to 0 in OBS for a near real-time preview.",
+    "xPublishing": "Sending video; X publishes the broadcast in a few seconds…",
+    "xRefused": "X has not published the broadcast yet: {{error}}"
   },
   "soon": {
     "title": "Coming in phase {{phase}}",
@@ -382,7 +384,8 @@
     "url_not_allowed": "Restream does not call this address (this server itself or a link-local address).",
     "too_many_webhooks": "You can add up to 20 webhooks.",
     "invalid_api_key": "The API key is wrong, expired or revoked.",
-    "not_allowed_with_api_key": "This action is not available with an API key."
+    "not_allowed_with_api_key": "This action is not available with an API key.",
+    "x_not_eligible": "X refused to go live with this account. X only allows this for paid accounts (X Premium) that are not protected."
   },
   "time": {
     "seconds": "{{n}}s",
@@ -499,12 +502,12 @@
     "portraitShort": "portrait 9:16",
     "about_instagram": "Instagram: needs a professional (Business or Creator) account. In Instagram Live Producer you get a new server URL and stream key for every broadcast, so paste both here before you go live. Instagram shows portrait video (9:16, 720p, 30 fps), which is what this preset sends.",
     "about_kick": "Kick: copy the stream URL and stream key from Kick › Settings › Stream. Kick takes H.264 up to 1080p60 and 8 Mbps.",
-    "about_x": "X: create a broadcast in Media Studio › Producer and copy its RTMP URL and stream key. X takes 720p30 up to 4 Mbps; keyframes every 3 seconds are set for you.",
+    "about_x": "X: in Media Studio › Producer, create a source and copy its RTMPS URL and stream key; the source keeps them, so you do this once. Start the broadcast in Producer once Restream sends video. X takes 720p30 up to 4 Mbps; keyframes every 3 seconds are set for you. Easier: connect the X account under Accounts and Restream does all of this.",
     "about_linkedin": "LinkedIn: live streaming needs approval by LinkedIn. Create a live event with \"Custom stream (RTMP)\", then copy the stream URL and key (available about an hour before the start). LinkedIn takes up to 1080p30 and 6 Mbps.",
     "serverFromPlatform": "Copy the server or stream URL from {{platform}}.",
     "igKeyHint": "Instagram Live Producer → Stream key. It changes for every broadcast.",
     "kickKeyHint": "Kick → Settings → Stream → Stream key.",
-    "xKeyHint": "Media Studio → Producer → your broadcast → Stream key.",
+    "xKeyHint": "Media Studio → Producer → Sources → your source → Stream key.",
     "liKeyHint": "LinkedIn live event → Stream setup → Stream key.",
     "recommendedMax": "Recommended {{rate}}, maximum {{max}} for this platform.",
     "orientation": "Picture",
@@ -512,7 +515,8 @@
     "portrait": "Portrait 9:16",
     "landscapeHint": "The picture keeps the shape of your ingest.",
     "portraitHint": "Restream cuts the middle 9:16 out of the picture, for platforms that show portrait video such as Instagram. Keep the important part in the centre of the shot.",
-    "transcodeAdvised": "{{platform}} takes at most {{height}}p at {{fps}} fps. Passthrough only works when your encoder already sends that; otherwise choose Transcode."
+    "transcodeAdvised": "{{platform}} takes at most {{height}}p at {{fps}} fps. Passthrough only works when your encoder already sends that; otherwise choose Transcode.",
+    "withAccountHintX": "Restream creates a source on the X account once. On Go live it publishes the broadcast with the stream's title as soon as X receives the video (X announces it in a post) and ends it on Stop. Events are not announced on X."
   },
   "mail": {
     "title": "Mail server",
@@ -755,7 +759,7 @@
   },
   "accounts": {
     "title": "Connected accounts",
-    "subtitle": "Connect YouTube channels, Facebook pages and Twitch channels once. Destinations can then go live without copying stream keys, and events are announced on the platforms.",
+    "subtitle": "Connect YouTube channels, Facebook pages, Twitch channels and X accounts once. Destinations can then go live without copying stream keys, and events are announced on the platforms.",
     "connected_one": "Account connected.",
     "connected_other": "{{count}} accounts connected.",
     "publicUrlMissing": "Set the public URL of this server first; the platforms send you back to it after signing in.",
@@ -772,19 +776,22 @@
     "kind": {
       "youtube": "YouTube channels",
       "facebook": "Facebook pages",
-      "twitch": "Twitch channels"
+      "twitch": "Twitch channels",
+      "x": "X accounts"
     },
     "what": {
       "youtube": "Creates the live broadcast on Go live, schedules events with their own watch link, and ends the broadcast on Stop.",
       "facebook": "Every page you manage is added. Goes live on the page and schedules events as upcoming live videos.",
-      "twitch": "Gets the stream key itself and sets the stream title. Events go into the stream schedule (Affiliates and Partners)."
+      "twitch": "Gets the stream key itself and sets the stream title. Events go into the stream schedule (Affiliates and Partners).",
+      "x": "Creates a stream source on the account once, publishes the broadcast on Go live (with an announcing post) and ends it on Stop. Events are not announced on X."
     },
     "appsTitle": "Platform apps",
     "appsText": "Each platform needs an app that you register once in its developer console. The guide walks you through it and gives every value to copy; the secret is stored encrypted.",
     "app": {
       "youtube": "Google Cloud OAuth client",
       "facebook": "Meta app",
-      "twitch": "Twitch app"
+      "twitch": "Twitch app",
+      "x": "X developer app"
     },
     "secretKeep": "Leave empty to keep the stored secret.",
     "reconnectForChat": "Connect again to show the comments of this page in the live chat.",
@@ -829,12 +836,18 @@
           "Sign in to Twitch with the account of the channel.",
           "Twitch asks if the app may read the stream key and manage the broadcast and schedule. Click Authorize.",
           "The pop-up closes and the channel appears on this page."
+        ],
+        "x": [
+          "Sign in to X with the account you want to go live on.",
+          "X asks if the app may read your profile and manage your live broadcasts. Click Authorize app.",
+          "The pop-up closes and the account appears on this page."
         ]
       },
       "require": {
         "youtube": "The channel needs live streaming enabled (YouTube Studio › Go live). The first time, YouTube can take up to 24 hours to enable it.",
         "facebook": "Facebook only allows live video through apps on pages with at least 100 followers, managed by an account that is at least 60 days old.",
-        "twitch": "Scheduling events needs Affiliate or Partner status; going live works for every channel."
+        "twitch": "Scheduling events needs Affiliate or Partner status; going live works for every channel.",
+        "x": "X only lets paid accounts (X Premium) that are not protected go live from streaming software. Connecting works without it, but going live is refused."
       },
       "consent": {
         "youtube": {
@@ -865,6 +878,16 @@
             "Manage your stream schedule"
           ],
           "button": "Authorize"
+        },
+        "x": {
+          "site": "x.com",
+          "title": "{{app}} wants to access your X account",
+          "items": [
+            "See your profile and posts you can see",
+            "Create and manage your live broadcasts",
+            "Stay connected until you revoke access"
+          ],
+          "button": "Authorize app"
         }
       }
     },
@@ -876,7 +899,8 @@
     "guideIntro": {
       "youtube": "You register Restream as an app in Google Cloud. It is free and takes about 10 minutes. Afterwards everyone with operator rights can connect channels with the familiar Google pop-up.",
       "facebook": "You register Restream as an app at Meta for Developers. It is free and takes about 10 minutes. Afterwards pages are connected with the familiar Facebook pop-up.",
-      "twitch": "You register Restream as an application in the Twitch developer console. It takes about 5 minutes."
+      "twitch": "You register Restream as an application in the Twitch developer console. It takes about 5 minutes.",
+      "x": "You register Restream as an app in the X Developer Console. It takes about 10 minutes. X bills API use per call with prepaid credits; going live takes only a handful of calls per broadcast."
     },
     "guide": {
       "youtube": [
@@ -987,6 +1011,39 @@
           "text": "Applications › Manage: copy the Client ID and click New Secret.",
           "link": "twitchApps"
         }
+      ],
+      "x": [
+        {
+          "title": "Create the app",
+          "text": "Sign in to the X Developer Console with an X account (it doesn't have to be the account you stream on) and click Create App. Enter the name people will see in the pop-up.",
+          "link": "xConsole"
+        },
+        {
+          "title": "Turn on user authentication",
+          "text": "App › User authentication settings › Set up. Choose OAuth 2.0, type of app Web App (confidential client), and add these two values as Callback URI and Website URL:",
+          "copy": [
+            "redirectUri",
+            "origin"
+          ],
+          "note": "The callback URI must match exactly, including https and without a trailing slash."
+        },
+        {
+          "title": "Permissions",
+          "text": "Restream asks for these permissions in the pop-up itself; you don't have to tick them in the console:",
+          "copy": [
+            "scopes"
+          ]
+        },
+        {
+          "title": "Add API credit",
+          "text": "X API use is pay-per-use. If the console asks for it, add a small amount of credit under Billing; without credit X refuses the calls.",
+          "link": "xConsole"
+        },
+        {
+          "title": "Copy the Client ID and Client Secret",
+          "text": "App › Keys and tokens › OAuth 2.0 Client ID and Client Secret.",
+          "note": "X shows the client secret only once. Lost it? Regenerate it and paste the new one here."
+        }
       ]
     },
     "copyLabel": {
@@ -1000,16 +1057,25 @@
     "clientIdLabel": {
       "youtube": "Client ID",
       "facebook": "App ID",
-      "twitch": "Client ID"
+      "twitch": "Client ID",
+      "x": "OAuth 2.0 Client ID"
     },
     "clientSecretLabel": {
       "youtube": "Client secret",
       "facebook": "App secret",
-      "twitch": "Client secret"
+      "twitch": "Client secret",
+      "x": "OAuth 2.0 Client Secret"
     },
     "tryTitle": "Try it: connect your first account",
     "tryText": "Click the button. The platform's pop-up opens; sign in and allow access. Does that work? Then setup is done.",
-    "tryAfterSave": "Save the values first; then the connect button appears here."
+    "tryAfterSave": "Save the values first; then the connect button appears here.",
+    "paid": {
+      "x": {
+        "title": "Paid X account required",
+        "text": "X only lets paid accounts (X Premium, or a verified organisation) go live from streaming software. Without it X refuses the broadcast and the dashboard says so. Protected (private) accounts cannot go live either.",
+        "link": "About X Premium"
+      }
+    }
   },
   "events": {
     "title": "Events",

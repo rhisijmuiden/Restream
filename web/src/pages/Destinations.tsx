@@ -9,6 +9,7 @@ import { useMe } from '../lib/auth';
 import { formatKbps, platformMeta, usePresets, useStreams } from '../lib/streams';
 import { Button, Card, ErrorText, Field, Input, Modal, PageHeader, Select, Toggle } from '../components/ui';
 import { OutputBadge, PlatformChip, Segmented } from '../components/media';
+import { PaidNotice } from '../components/PaidNotice';
 
 type Editing = { stream: Stream; dest: Destination | null } | null;
 
@@ -120,7 +121,7 @@ function toBody(d: Destination, patch: Partial<FormState> = {}) {
   };
 }
 
-const accountPlatforms: Platform[] = ['youtube', 'facebook', 'twitch'];
+const accountPlatforms: Platform[] = ['youtube', 'facebook', 'twitch', 'x'];
 
 const platformsList: Platform[] = ['youtube', 'facebook', 'twitch', 'instagram', 'kick', 'x', 'linkedin', 'rtmp', 'srt'];
 
@@ -203,7 +204,9 @@ function DestinationModal({ editing, onClose }: { editing: Editing; onClose: () 
           </div>
         )}
 
-        {preset && (preset.keyPerBroadcast || f.platform === 'kick') && (
+        {f.platform === 'x' && <PaidNotice provider="x" className="mb-0" />}
+
+        {preset && (preset.keyPerBroadcast || f.platform === 'kick' || (f.platform === 'x' && !viaAccount)) && (
           <p className="rounded-xl border border-info/30 bg-info/[0.06] px-4 py-3 text-xs leading-relaxed text-fg-2">{t(`destinations.about_${f.platform}`)}</p>
         )}
 
@@ -217,7 +220,7 @@ function DestinationModal({ editing, onClose }: { editing: Editing; onClose: () 
                 options={[{ value: 'key', label: t('destinations.withKey') }, { value: 'account', label: t('destinations.withAccount') }]}
               />
             </div>
-            <p className="text-xs leading-relaxed text-fg-3">{viaAccount ? t('destinations.withAccountHint') : t('destinations.withKeyHint')}</p>
+            <p className="text-xs leading-relaxed text-fg-3">{viaAccount ? t(f.platform === 'x' ? 'destinations.withAccountHintX' : 'destinations.withAccountHint') : t('destinations.withKeyHint')}</p>
             {viaAccount && (options.length ? (
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label={t('destinations.account')}>
