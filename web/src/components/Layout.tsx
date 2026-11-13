@@ -5,13 +5,14 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { clsx } from 'clsx';
 import {
   LayoutGrid, KeyRound, Share2, CalendarClock, CircleDot, BarChart3, MessageSquare, Link2,
-  Users, Mail, DatabaseBackup, RefreshCw, Settings, ScrollText, Info, LogOut, Menu, X, Webhook,
+  Users, Mail, DatabaseBackup, RefreshCw, Settings, ScrollText, Info, LogOut, Menu, X, Webhook, Sun, Moon, Monitor,
 } from 'lucide-react';
 import { api, type SystemInfo } from '../lib/api';
 import { useMe } from '../lib/auth';
 import { setLanguage } from '../i18n';
 import { Logo } from './ui';
 import { InfoDialog } from './InfoDialog';
+import { setTheme, themePrefs, useTheme, type ThemePref } from '../lib/theme';
 
 interface Item { to: string; label: string; icon: ReactNode; soon?: boolean; admin?: boolean }
 
@@ -51,6 +52,13 @@ export function Layout() {
     await setLanguage(next);
     api('/api/auth/me', { method: 'PATCH', body: { language: next } }).then(() => qc.invalidateQueries({ queryKey: ['me'] })).catch(() => {});
   }
+
+  const theme = useTheme();
+  function switchTheme(next: ThemePref) {
+    setTheme(next);
+    api('/api/auth/me', { method: 'PATCH', body: { theme: next } }).then(() => qc.invalidateQueries({ queryKey: ['me'] })).catch(() => {});
+  }
+  const themeIcon = { light: <Sun size={14} />, dark: <Moon size={14} />, system: <Monitor size={14} /> };
 
   async function logout() {
     await api('/api/auth/logout', { method: 'POST' }).catch(() => {});
@@ -110,6 +118,23 @@ export function Layout() {
             >
               {channel === c && <span className={clsx('size-1.5 rounded-full', c === 'production' ? 'bg-ok' : 'bg-warn')} />}
               {t(`channel.${c}`)}
+            </button>
+          ))}
+        </div>
+        <div role="group" aria-label={t('theme.label')} className="grid grid-cols-3 gap-1 rounded-xl border border-line bg-bg p-1">
+          {themePrefs.map((p) => (
+            <button
+              key={p}
+              onClick={() => switchTheme(p)}
+              aria-pressed={theme === p}
+              title={t(`theme.${p}Hint`)}
+              className={clsx(
+                'flex min-h-8 items-center justify-center gap-1.5 rounded-lg text-xs font-medium transition-colors',
+                theme === p ? 'bg-surface-2 text-fg shadow-[inset_0_0_0_1px_var(--rs-border-strong)]' : 'text-fg-3 hover:text-fg-2',
+              )}
+            >
+              <span className={clsx(theme === p && 'text-accent')}>{themeIcon[p]}</span>
+              {t(`theme.${p}`)}
             </button>
           ))}
         </div>

@@ -22,7 +22,7 @@ export interface Me {
   ssoEnabled: boolean;
   stage: 'mfa' | 'mfa_setup' | 'full' | null;
   user: null | {
-    id: string; email: string; name: string; role: Role; language: 'en' | 'nl';
+    id: string; email: string; name: string; role: Role; language: 'en' | 'nl'; theme: 'dark' | 'light' | 'system';
     totp_enabled: boolean; must_change_password: boolean; auth_source: 'local' | 'microsoft'; recovery_left: number;
   };
 }

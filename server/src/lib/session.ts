@@ -6,6 +6,7 @@ import { randomToken, sha256 } from './crypto.js';
 export const COOKIE = 'restream_session';
 
 export type Role = 'admin' | 'operator' | 'viewer';
+export type Theme = 'dark' | 'light' | 'system';
 export type Stage = 'mfa' | 'mfa_setup' | 'full';
 
 export interface SessionUser {
@@ -14,6 +15,7 @@ export interface SessionUser {
   name: string;
   role: Role;
   language: 'en' | 'nl';
+  theme: Theme;
   totp_enabled: boolean;
   must_change_password: boolean;
 }
@@ -71,14 +73,14 @@ export async function loadSession(sql: Sql, req: FastifyRequest) {
   if (!token) return;
   const rows = await sql<(SessionRow & SessionUser & { disabled: boolean })[]>`
     SELECT s.id, s.user_id, s.stage, s.pending_totp_enc,
-           u.email, u.name, u.role, u.language, u.totp_enabled, u.must_change_password, u.disabled
+           u.email, u.name, u.role, u.language, u.theme, u.totp_enabled, u.must_change_password, u.disabled
     FROM sessions s JOIN users u ON u.id = s.user_id
     WHERE s.id = ${sha256(token)} AND s.expires_at > now()`;
   const r = rows[0];
   if (!r || r.disabled) return;
   req.session = { id: r.id, user_id: r.user_id, stage: r.stage, pending_totp_enc: r.pending_totp_enc };
   req.user = {
-    id: r.user_id, email: r.email, name: r.name, role: r.role, language: r.language,
+    id: r.user_id, email: r.email, name: r.name, role: r.role, language: r.language, theme: r.theme,
     totp_enabled: r.totp_enabled, must_change_password: r.must_change_password,
   };
   // Sliding expiry, written at most once a minute.

@@ -1,12 +1,19 @@
 # Changelog
 
-## 1.4.0 · Connect X as an account
+## 1.5.0 · Connect X as an account
 
 - **X on the Accounts page**: "Connect with X" opens X's own sign-in and permission screen in a pop-up (OAuth 2.0 with PKCE), like YouTube, Facebook and Twitch. A setup guide walks the administrator through the X Developer Console (Web App, callback URI, website URL, client ID and secret, API credit) with every value to copy.
 - **X destinations via account**: Restream creates a stream source on the X account once (X Livestream API, `/2/sources`) and reuses it. On Go live it sends the video and publishes the broadcast as soon as X receives it (`POST /2/broadcasts`, with the stream's title; X announces it in a post); Stop ends it. The dashboard shows "X publishes the broadcast in a few seconds" until then, and the watch link afterwards. Events are not announced on X.
 - **Paid X account required**: X only lets X Premium (or verified organisation) accounts that are not protected go live from streaming software. The Accounts page, the setup guide and the destination form say so, and when X refuses the account the dashboard shows "X refused to go live with this account" instead of a raw error.
 - The X preset no longer says the key changes per broadcast: a Media Studio Producer source keeps its URL and key. The stream-key route explains the Producer steps.
 - A destination on a connected account no longer needs a server URL when the platform hands it out.
+
+## 1.4.0 · Light theme
+
+- **Light theme** next to the dark one, in the same "Signal" brand: white surfaces, a deeper signal cyan and deeper status colours so text stays readable (WCAG AA) on white. Video previews stay dark.
+- **Theme switch** in the left menu (Light · Dark · System) and under My account. "System" follows the device's light or dark setting and changes along with it.
+- The choice is saved per user (new `theme` column, default dark, so nothing changes for existing users) and follows them to every browser; it is applied before the first paint, so there is no dark flash. The sign-in screen has a light/dark button too.
+- Brand tokens: `brand/tokens.css` has a `:root[data-theme="light"]` block; `.rs-dark` keeps a region dark inside the light theme.
 
 ## 1.3.3 · Clear "Connect with YouTube / Facebook / Twitch"
 

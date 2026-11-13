@@ -1,7 +1,7 @@
 import type { FastifyRequest } from 'fastify';
 import type { Sql } from '../db.js';
 import { randomToken, sha256 } from './crypto.js';
-import type { Role } from './session.js';
+import type { Role, Theme } from './session.js';
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -38,16 +38,16 @@ export async function loadApiKey(sql: Sql, req: FastifyRequest, token: string) {
   req.user = null;
   if (!/^rsk_[A-Za-z0-9_-]{20,100}$/.test(token)) return;
   const [r] = await sql<{
-    id: string; name: string; role: Role; user_id: string; email: string; user_role: Role; language: 'en' | 'nl'; last_used_at: Date | null;
+    id: string; name: string; role: Role; user_id: string; email: string; user_role: Role; language: 'en' | 'nl'; theme: Theme; last_used_at: Date | null;
   }[]>`
-    SELECT k.id, k.name, k.role, u.id AS user_id, u.email, u.role AS user_role, u.language, k.last_used_at
+    SELECT k.id, k.name, k.role, u.id AS user_id, u.email, u.role AS user_role, u.language, u.theme, k.last_used_at
     FROM api_keys k JOIN users u ON u.id = k.created_by
     WHERE k.token_hash = ${sha256(token)} AND k.revoked_at IS NULL AND (k.expires_at IS NULL OR k.expires_at > now()) AND NOT u.disabled`;
   if (!r) return;
   const role = rank[r.role] <= rank[r.user_role] ? r.role : r.user_role;
   req.apiKey = { id: r.id, name: r.name };
   req.session = { id: `apikey:${r.id}`, user_id: r.user_id, stage: 'full', pending_totp_enc: null };
-  req.user = { id: r.user_id, email: r.email, name: `${r.name} (API)`, role, language: r.language, totp_enabled: true, must_change_password: false };
+  req.user = { id: r.user_id, email: r.email, name: `${r.name} (API)`, role, language: r.language, theme: r.theme, totp_enabled: true, must_change_password: false };
   if (!r.last_used_at || Date.now() - r.last_used_at.getTime() > 60_000) {
     sql`UPDATE api_keys SET last_used_at = now(), last_used_ip = ${req.ip} WHERE id = ${r.id}`.catch(() => {});
   }

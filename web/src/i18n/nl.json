@@ -38,6 +38,19 @@
     "en": "English",
     "nl": "Nederlands"
   },
+  "theme": {
+    "label": "Thema",
+    "light": "Licht",
+    "dark": "Donker",
+    "system": "Systeem",
+    "lightLong": "Licht",
+    "darkLong": "Donker",
+    "systemLong": "Systeem volgen (licht of donker)",
+    "lightHint": "Licht thema",
+    "darkHint": "Donker thema",
+    "systemHint": "Volg de licht- of donkerinstelling van je apparaat",
+    "hint": "Opgeslagen bij je account, dus het volgt je naar elke browser."
+  },
   "roles": {
     "admin": "Beheerder",
     "operator": "Operator",
