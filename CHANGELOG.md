@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.3 · Clear "Connect with YouTube / Facebook / Twitch"
+
+- **Connect in a pop-up**: the Accounts page has a "Connect with YouTube", "Connect with Facebook" and "Connect with Twitch" button. It opens the platform's own sign-in and permission screen ("… wants access to your Google Account") in a pop-up; after Allow the pop-up closes and the channel or pages appear. A blocked pop-up falls back to the old full-page flow.
+- **How it works** at the top of the page: the three steps (public URL, register the platform app once, connect) with their status.
+- **"What happens when I connect?"** explains every screen of the pop-up, with an example of the permission screen and the platform's requirements (YouTube: live streaming enabled; Facebook: 100 followers and an account older than 60 days).
+- **Setup guide per platform** for administrators: every step in Google Cloud, Meta for Developers and the Twitch console with a direct link, the values to copy (domain, JavaScript origin, redirect URL, the exact permissions Restream asks for), the client ID and secret, and a button to connect the first account as a test.
+
 ## 1.3.2 · Real-time preview with sound, whatever the encoder sends
 
 - **Light preview**: when someone watches the dashboard preview, the server encodes a light copy of the feed (up to 540p, 30 fps, no B-frames, Opus sound) and plays it over WebRTC, so the preview is real time and has sound with any encoder settings. It runs only while the preview is open (stops 20 seconds after the last viewer) and costs about a third to half of a CPU core. The destinations still get the original feed.

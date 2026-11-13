@@ -747,8 +747,7 @@
     "connected_other": "{{count}} accounts gekoppeld.",
     "publicUrlMissing": "Stel eerst de publieke URL van deze server in; de platforms sturen je daar na het inloggen naartoe terug.",
     "openSettings": "Instellingen openen",
-    "connect": "Koppelen",
-    "appMissing": "Een beheerder registreert eerst de app voor dit platform (onderaan deze pagina).",
+    "appMissing": "Een beheerder zet eerst de app voor dit platform op (zie de stappenhandleiding).",
     "none": "Geen accounts gekoppeld.",
     "usedBy_one": "gebruikt door {{count}} bestemming",
     "usedBy_other": "gebruikt door {{count}} bestemmingen",
@@ -768,35 +767,236 @@
       "twitch": "Haalt zelf de streamkey op en zet de titel van de stream. Events komen in het streamschema (Affiliates en Partners)."
     },
     "appsTitle": "Platform-apps",
-    "appsText": "Elk platform heeft een app nodig die je registreert in de ontwikkelaarsconsole, met de redirect-URL hieronder. Dit doe je één keer; het client secret wordt versleuteld opgeslagen.",
+    "appsText": "Elk platform heeft een app nodig die je één keer registreert in de ontwikkelaarsconsole. De handleiding loopt alle stappen met je door en geeft elke waarde om te kopiëren; het secret wordt versleuteld opgeslagen.",
     "app": {
       "youtube": "Google Cloud OAuth-client",
       "facebook": "Meta-app",
       "twitch": "Twitch-app"
     },
-    "steps": {
+    "secretKeep": "Laat leeg om het opgeslagen secret te houden.",
+    "reconnectForChat": "Koppel opnieuw om de reacties van deze pagina in de live chat te tonen.",
+    "connectWith": "Koppelen met {{platform}}",
+    "setUp": "{{platform}} instellen",
+    "askAdmin": "{{platform}} is nog niet ingesteld. Vraag een beheerder de stappenhandleiding op deze pagina te volgen.",
+    "whatHappens": "Wat gebeurt er als ik koppel?",
+    "how": {
+      "eyebrow": "Zo werkt het",
+      "title": "Een kanaal koppelen in drie stappen",
+      "text": "Restream werkt zoals andere apps die namens jou posten: je klikt op Koppelen, een pop-up van het platform vraagt je in te loggen en Restream toestemming te geven om namens jou live te gaan, en het kanaal verschijnt hier. Stap 1 en 2 doe je één keer.",
+      "admin": "Beheerder · eenmalig",
+      "operator": "Iedereen met operatorrechten",
+      "step1": "Publieke URL van deze server",
+      "step1Text": "Het platform stuurt de pop-up na het inloggen terug naar dit adres.",
+      "step1Done": "Ingesteld. De platforms sturen de pop-up terug naar deze server.",
+      "step2": "De platform-app registreren",
+      "step2Text": "Een korte registratie met stappenplan in de ontwikkelaarsconsole van het platform. Klik op een platform om de handleiding te openen.",
+      "step3": "Klik op “Koppelen met …”",
+      "step3Text": "Log in in de pop-up en klik op Toestaan. De pop-up sluit en het kanaal of de pagina verschijnt hieronder, klaar voor bestemmingen en events."
+    },
+    "popup": {
+      "explainTitle": "Koppelen met {{platform}}",
+      "waitingTitle": "Rond het af in het {{platform}}-venster",
+      "waitingText": "Er staat een pop-up van het platform open. Log daar in en geef toestemming; deze pagina werkt zichzelf bij.",
+      "show": "Pop-up tonen",
+      "example": "Voorbeeld van het toestemmingsscherm",
+      "steps": {
+        "youtube": [
+          "Kies het Google-account dat eigenaar is van het kanaal. Staat het kanaal op een merkaccount (Brand Account)? Kies dan dat merkaccount in de lijst.",
+          "Meldt Google dat de app niet geverifieerd is? Het is je eigen app: klik op Geavanceerd › Ga naar … (onveilig).",
+          "Google vraagt of de app je YouTube-account mag beheren. Klik op Doorgaan (of Toestaan).",
+          "De pop-up sluit en het kanaal verschijnt op deze pagina."
+        ],
+        "facebook": [
+          "Log in bij Facebook, of klik op Doorgaan als … .",
+          "Kies de pagina's die Restream mag gebruiken. Vink elke pagina aan waarnaar je wilt streamen.",
+          "Controleer de rechten (video's publiceren, berichten beheren, reacties lezen) en klik op Opslaan of Doorgaan.",
+          "De pop-up sluit en elke gekozen pagina verschijnt op deze pagina."
+        ],
+        "twitch": [
+          "Log in bij Twitch met het account van het kanaal.",
+          "Twitch vraagt of de app de streamkey mag lezen en de uitzending en het schema mag beheren. Klik op Authorize.",
+          "De pop-up sluit en het kanaal verschijnt op deze pagina."
+        ]
+      },
+      "require": {
+        "youtube": "Livestreamen moet aanstaan op het kanaal (YouTube Studio › Live gaan). De eerste keer kan het tot 24 uur duren voordat YouTube dat inschakelt.",
+        "facebook": "Facebook staat live video via apps alleen toe op pagina's met minstens 100 volgers, beheerd door een account dat minstens 60 dagen oud is.",
+        "twitch": "Events inplannen vraagt de status Affiliate of Partner; live gaan werkt voor elk kanaal."
+      },
+      "consent": {
+        "youtube": {
+          "site": "accounts.google.com",
+          "title": "{{app}} wil toegang tot je Google-account",
+          "items": [
+            "Je YouTube-account beheren"
+          ],
+          "button": "Doorgaan"
+        },
+        "facebook": {
+          "site": "facebook.com",
+          "title": "{{app}} vraagt toegang tot je pagina's",
+          "items": [
+            "Video's publiceren op je pagina's",
+            "Content op je pagina's maken en beheren",
+            "Content en reacties op je pagina's lezen",
+            "Een lijst tonen van de pagina's die je beheert"
+          ],
+          "button": "Opslaan"
+        },
+        "twitch": {
+          "site": "id.twitch.tv",
+          "title": "{{app}} wil toegang tot je account",
+          "items": [
+            "Je streamkey bekijken",
+            "De instellingen van je uitzending beheren",
+            "Je streamschema beheren"
+          ],
+          "button": "Authorize"
+        }
+      }
+    },
+    "appReady": "Klaar",
+    "appNotSet": "Niet ingesteld",
+    "openGuide": "Handleiding en instellingen",
+    "startGuide": "Stappenhandleiding starten",
+    "guideTitle": "{{platform}} instellen",
+    "guideIntro": {
+      "youtube": "Je registreert Restream als app in Google Cloud. Dat is gratis en duurt ongeveer 10 minuten. Daarna koppelt iedereen met operatorrechten kanalen via de bekende Google-pop-up.",
+      "facebook": "Je registreert Restream als app bij Meta for Developers. Dat is gratis en duurt ongeveer 10 minuten. Daarna koppel je pagina's via de bekende Facebook-pop-up.",
+      "twitch": "Je registreert Restream als applicatie in de Twitch-ontwikkelaarsconsole. Dat duurt ongeveer 5 minuten."
+    },
+    "guide": {
       "youtube": [
-        "Maak een project in Google Cloud en zet de YouTube Data API v3 aan.",
-        "Stel het OAuth-toestemmingsscherm in (Extern) en voeg je Google-accounts toe als testgebruiker, of publiceer het.",
-        "Maak inloggegevens › OAuth-client-ID › Webapplicatie, met de redirect-URL hieronder."
+        {
+          "title": "Maak een Google Cloud-project",
+          "text": "Log in met het Google-account dat de app gaat beheren (dat hoeft niet de eigenaar van het kanaal te zijn) en maak een project, bijvoorbeeld “Restream”.",
+          "link": "googleProject"
+        },
+        {
+          "title": "Zet de YouTube Data API v3 aan",
+          "text": "Controleer dat je nieuwe project bovenaan de pagina is gekozen en klik op Enable (Inschakelen).",
+          "link": "googleApi"
+        },
+        {
+          "title": "Branding: de naam in de pop-up",
+          "text": "Google Auth Platform › Branding (de eerste keer op Get started klikken). Vul de app-naam in die mensen in de pop-up zien, een e-mailadres voor ondersteuning, en bij Authorized domains dit domein:",
+          "copy": [
+            "domain"
+          ],
+          "link": "googleBranding"
+        },
+        {
+          "title": "Audience: extern en gepubliceerd",
+          "text": "Kies External (Extern). Klik daarna op Publish app (App publiceren).",
+          "note": "In de testmodus kunnen alleen de testgebruikers die je toevoegt koppelen, en verbreekt Google de koppeling na 7 dagen. Gepubliceerd zonder verificatie door Google werkt voor je eigen kanalen; de pop-up toont dan een waarschuwing waar je doorheen klikt (Geavanceerd › Ga naar …).",
+          "link": "googleAudience"
+        },
+        {
+          "title": "Data access: het YouTube-recht",
+          "text": "Klik op Add or remove scopes, plak deze scope bij Manually add scopes (Google toont hem als “Je YouTube-account beheren”), klik op Add to table, Update en Save:",
+          "copy": [
+            "scopes"
+          ],
+          "link": "googleScopes"
+        },
+        {
+          "title": "Maak de OAuth-client",
+          "text": "Clients › Create client › Application type Web application. Voeg deze twee waarden toe en klik op Create:",
+          "copy": [
+            "origin",
+            "redirectUri"
+          ],
+          "note": "Kopieer het client secret meteen: Google toont het maar één keer. Kwijt? Voeg een nieuw secret toe aan de client.",
+          "link": "googleClient"
+        }
       ],
       "facebook": [
-        "Maak een app bij Meta for Developers (type Zakelijk) en voeg Facebook Login for Business toe.",
-        "Zet de redirect-URL hieronder bij Geldige OAuth-omleidings-URI's.",
-        "Vraag de rechten pages_show_list, pages_read_engagement, pages_manage_posts en publish_video aan (App Review voor pagina's die niet van jou zijn)."
+        {
+          "title": "Maak de app",
+          "text": "Meta for Developers › Create app (App maken). Vul de naam in die mensen in de pop-up zien, kies de use case “Authenticate and request data from users with Facebook Login” en koppel je bedrijfsportfolio als daarom gevraagd wordt (of sla die stap over).",
+          "link": "metaCreate"
+        },
+        {
+          "title": "Voeg de paginarechten toe",
+          "text": "Use cases › Authenticate and request data… › Customize › Permissions. Voeg elk van deze rechten toe:",
+          "copy": [
+            "scopes"
+          ],
+          "link": "metaApps"
+        },
+        {
+          "title": "Sta de redirect toe",
+          "text": "Dezelfde use case › Settings: laat Client OAuth login en Web OAuth login aanstaan en voeg dit toe bij Valid OAuth Redirect URIs. Opslaan.",
+          "copy": [
+            "redirectUri"
+          ],
+          "link": "metaApps"
+        },
+        {
+          "title": "App-domein en privacybeleid",
+          "text": "App settings › Basic: voeg dit domein toe bij App domains, vul een URL van je privacybeleid in en kies een categorie. Opslaan.",
+          "copy": [
+            "domain"
+          ],
+          "link": "metaApps"
+        },
+        {
+          "title": "Wie mag koppelen",
+          "text": "In de ontwikkelmodus (Development) kunnen alleen mensen met een rol in de app koppelen. Voeg je technici toe bij App roles › Roles (Administrator, Developer of Tester); zij accepteren de uitnodiging op Facebook.",
+          "note": "Om voor iedereen zichtbaar te publiceren zet je de app op Live. Meta vraagt dan om bedrijfsverificatie en App Review van deze rechten. Test eerst in de ontwikkelmodus.",
+          "link": "metaApps"
+        },
+        {
+          "title": "Kopieer App-ID en App secret",
+          "text": "App settings › Basic: kopieer de App ID en klik op Show (Weergeven) naast App secret.",
+          "link": "metaApps"
+        }
       ],
       "twitch": [
-        "Registreer een applicatie in de Twitch-ontwikkelaarsconsole (categorie: Broadcaster Suite).",
-        "Gebruik de redirect-URL hieronder als OAuth Redirect URL.",
-        "Kies clienttype Confidential en maak een nieuw secret."
+        {
+          "title": "Registreer de applicatie",
+          "text": "Twitch-ontwikkelaarsconsole › Register your application. Twitch vraagt hiervoor tweestapsverificatie op je account. Vul de naam in die mensen in de pop-up zien.",
+          "link": "twitchCreate"
+        },
+        {
+          "title": "Redirect-URL",
+          "text": "Voeg dit toe bij OAuth Redirect URLs:",
+          "copy": [
+            "redirectUri"
+          ]
+        },
+        {
+          "title": "Categorie en clienttype",
+          "text": "Categorie Broadcaster Suite, clienttype Confidential. Klik op Create."
+        },
+        {
+          "title": "Kopieer Client-ID en secret",
+          "text": "Applications › Manage: kopieer de Client ID en klik op New Secret.",
+          "link": "twitchApps"
+        }
       ]
     },
-    "openConsole": "Ontwikkelaarsconsole openen",
-    "redirectUri": "Redirect-URL",
-    "clientId": "Client-ID / App-ID",
-    "clientSecret": "Client secret",
-    "secretKeep": "Laat leeg om het opgeslagen secret te houden.",
-    "reconnectForChat": "Koppel opnieuw om de reacties van deze pagina in de live chat te tonen."
+    "copyLabel": {
+      "redirectUri": "Redirect-URL (Authorized redirect URI)",
+      "origin": "JavaScript-origin",
+      "domain": "Domein",
+      "scopes": "Rechten"
+    },
+    "openStep": "Deze pagina openen",
+    "pasteTitle": "Plak de waarden in Restream",
+    "clientIdLabel": {
+      "youtube": "Client-ID",
+      "facebook": "App-ID",
+      "twitch": "Client-ID"
+    },
+    "clientSecretLabel": {
+      "youtube": "Client secret",
+      "facebook": "App secret",
+      "twitch": "Client secret"
+    },
+    "tryTitle": "Probeer het: koppel je eerste account",
+    "tryText": "Klik op de knop. De pop-up van het platform opent; log in en geef toestemming. Werkt dat? Dan is de inrichting klaar.",
+    "tryAfterSave": "Sla eerst de waarden op; daarna verschijnt hier de koppelknop."
   },
   "events": {
     "title": "Events",
