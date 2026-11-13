@@ -6,7 +6,7 @@ import type { FastifyBaseLogger } from 'fastify';
 import type { Sql } from '../db.js';
 import { config } from '../config.js';
 import { decrypt } from '../lib/crypto.js';
-import { fallbackArgs, ffmpegArgs, parseProgress, previewArgs, recordArgs, redact, type OutputSpec } from './ffmpeg.js';
+import { classifyOutputError, fallbackArgs, ffmpegArgs, parseProgress, previewArgs, recordArgs, redact, type OutputErrorCode, type OutputSpec } from './ffmpeg.js';
 import { fallbackImagePath } from '../lib/fallback.js';
 import { bus } from '../lib/events.js';
 import { cleanupRecordings, recordingsDir } from '../lib/recordings.js';
@@ -77,6 +77,10 @@ export interface OutputState {
   speed: number | null;
   attempts: number;
   lastError: string | null;
+  /** What the last failure means (see classifyOutputError); null while on air or before a failure. */
+  errorCode: OutputErrorCode | null;
+  /** When the next connection attempt starts (only while waiting to retry). */
+  nextRetryAt: string | null;
 }
 
 interface DestRow {
@@ -115,10 +119,12 @@ interface Proc {
   fromFeed: boolean;
   /** Stopped to start again right away (other feed or settings). */
   restart: boolean;
+  /** Data reached the destination at least once. */
+  flowed: boolean;
 }
 
 export const offline: IngestState = { online: false, since: null, protocol: null, video: null, audio: null, bitrateKbps: null, readers: 0, overLimit: false };
-const idle = (): OutputState => ({ state: 'off', since: null, bitrateKbps: null, fps: null, speed: null, attempts: 0, lastError: null });
+const idle = (): OutputState => ({ state: 'off', since: null, bitrateKbps: null, fps: null, speed: null, attempts: 0, lastError: null, errorCode: null, nextRetryAt: null });
 
 const protocolOf = (sourceType: string | undefined) =>
   !sourceType ? null : sourceType.startsWith('rtmp') ? 'RTMP' : sourceType.startsWith('srt') ? 'SRT'
@@ -336,11 +342,11 @@ export class MediaSupervisor {
         continue;
       }
       if (viaAccount && !d.remote_url_enc) {
-        if (!proc) this.outputs.set(d.id, { ...idle(), state: 'preparing', lastError: d.prepare_error });
+        if (!proc) this.outputs.set(d.id, { ...idle(), state: 'preparing', lastError: d.prepare_error, errorCode: d.prepare_error ? 'rejected' : null });
         continue;
       }
       if (input.source === 'none') {
-        if (!proc) this.outputs.set(d.id, { ...idle(), state: 'waiting', attempts: 0, lastError: out.lastError });
+        if (!proc) this.outputs.set(d.id, { ...idle(), state: 'waiting', attempts: 0, lastError: out.lastError, errorCode: out.errorCode });
         this.nextAttempt.delete(d.id);
         this.launched.delete(d.id);
         continue;
@@ -442,9 +448,9 @@ export class MediaSupervisor {
     const prev = this.outputs.get(id) ?? idle();
     const secrets = [spec.streamKey, spec.passphrase, encodeURIComponent(spec.streamKey), encodeURIComponent(spec.passphrase), inputPath?.split('/').pop() ?? ''];
     const child = spawn(config.media.ffmpegPath, args, { stdio: ['ignore', 'pipe', 'pipe'] });
-    const proc: Proc = { child, hash, startedAt: Date.now(), stopping: false, secrets, stderr: [], lastBytes: null, fromFeed: inputPath !== null, restart: false };
+    const proc: Proc = { child, hash, startedAt: Date.now(), stopping: false, secrets, stderr: [], lastBytes: null, fromFeed: inputPath !== null, restart: false, flowed: false };
     this.procs.set(id, proc);
-    this.outputs.set(id, { ...prev, state: prev.attempts > 0 ? 'reconnecting' : 'connecting', since: null, bitrateKbps: null, fps: null, speed: null });
+    this.outputs.set(id, { ...prev, state: prev.attempts > 0 ? 'reconnecting' : 'connecting', since: null, bitrateKbps: null, fps: null, speed: null, nextRetryAt: null });
 
     let buf = '';
     child.stdout!.setEncoding('utf8');
@@ -486,6 +492,7 @@ export class MediaSupervisor {
     }
     const cur = this.outputs.get(id) ?? idle();
     const flowing = (p.totalBytes ?? 0) > 0;
+    if (flowing) proc.flowed = true;
     // A connection that stays up for a minute resets the backoff.
     const attempts = now - proc.startedAt > 60_000 ? 0 : cur.attempts;
     this.outputs.set(id, {
@@ -494,23 +501,29 @@ export class MediaSupervisor {
       since: flowing ? (cur.since ?? new Date().toISOString()) : cur.since,
       bitrateKbps: kbps, fps: p.fps, speed: p.speed, attempts,
       lastError: flowing && attempts === 0 ? null : cur.lastError,
+      errorCode: flowing ? null : cur.errorCode,
     });
   }
 
   private onExit(id: string, proc: Proc, code: number | null, signal: NodeJS.Signals | null) {
     if (this.procs.get(id) === proc) this.procs.delete(id);
     const cur = this.outputs.get(id) ?? idle();
-    const lastError = proc.stderr.filter((l) => !/^\s*(frame|size)=/.test(l)).slice(-1)[0] ?? (code !== 0 ? `FFmpeg exited with code ${code ?? signal}` : null);
+    const lines = proc.stderr.filter((l) => !/^\s*(frame|size)=/.test(l));
+    const lastError = lines.slice(-1)[0] ?? (code !== 0 ? `FFmpeg exited with code ${code ?? signal}` : null);
     if (proc.stopping) {
-      this.outputs.set(id, { ...cur, state: proc.restart ? 'connecting' : 'off', since: null, bitrateKbps: null, fps: null, speed: null });
+      this.outputs.set(id, { ...cur, state: proc.restart ? 'connecting' : 'off', since: null, bitrateKbps: null, fps: null, speed: null, errorCode: proc.restart ? cur.errorCode : null, nextRetryAt: null });
       this.nudge();
       return;
     }
     const attempts = cur.attempts + 1;
     const delay = Math.min(30, 2 ** Math.min(attempts, 5)) * 1000;
     this.nextAttempt.set(id, Date.now() + delay);
-    this.outputs.set(id, { ...cur, state: 'reconnecting', since: null, bitrateKbps: null, fps: null, speed: null, attempts, lastError });
-    this.log.warn({ destination: id, code, signal, attempts, lastError }, 'output stopped, reconnecting');
+    const errorCode = classifyOutputError(lines, proc.flowed);
+    this.outputs.set(id, {
+      ...cur, state: 'reconnecting', since: null, bitrateKbps: null, fps: null, speed: null, attempts, lastError, errorCode,
+      nextRetryAt: new Date(Date.now() + delay).toISOString(),
+    });
+    this.log.warn({ destination: id, code, signal, attempts, lastError, errorCode }, 'output stopped, reconnecting');
   }
 
   private stop(id: string, restart = false) {

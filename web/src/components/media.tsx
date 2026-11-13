@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { clsx } from 'clsx';
-import type { Destination, IngestStatus, Platform, SourceState } from '../lib/api';
+import type { Destination, IngestStatus, OutputStatus, Platform, SourceState } from '../lib/api';
 import { platformMeta } from '../lib/streams';
 import { Badge } from './ui';
 
@@ -17,15 +17,83 @@ export function PlatformChip({ platform, size = 36 }: { platform: Platform; size
   );
 }
 
-export function OutputBadge({ status }: { status: Destination['status'] }) {
+/** What the console shows for an output: a few clear states instead of the supervisor's internal ones. */
+export type OutputView = 'off' | 'waiting' | 'preparing' | 'connecting' | 'live' | 'retrying' | 'error';
+
+/** Errors that do not go away by retrying (wrong address or key): shown as an error at once. */
+const settingErrors = new Set(['dns', 'refused', 'rejected', 'tls']);
+
+export function outputView(status: OutputStatus): OutputView {
+  switch (status.state) {
+    case 'live': return 'live';
+    case 'off': return 'off';
+    case 'waiting': return 'waiting';
+    case 'preparing': return status.lastError ? 'error' : 'preparing';
+    case 'connecting': return 'connecting';
+    case 'reconnecting':
+      return status.attempts >= 3 || (status.errorCode !== null && settingErrors.has(status.errorCode)) ? 'error' : 'retrying';
+  }
+}
+
+const viewTone = { off: 'neutral', waiting: 'warn', preparing: 'accent', connecting: 'accent', live: 'live', retrying: 'warn', error: 'danger' } as const;
+
+export function OutputBadge({ status }: { status: OutputStatus }) {
   const { t } = useTranslation();
-  const tone = { off: 'neutral', waiting: 'warn', preparing: 'accent', connecting: 'accent', live: 'live', reconnecting: 'warn' } as const;
+  const view = outputView(status);
   return (
-    <Badge tone={tone[status.state]} dot>
-      {status.state === 'reconnecting' && status.attempts > 0
-        ? t('output.reconnectingN', { n: status.attempts })
-        : status.state === 'preparing' && status.lastError ? t('output.preparingFailed') : t(`output.${status.state}`)}
+    <Badge tone={viewTone[view]} dot>
+      {view === 'retrying' && status.attempts > 0 ? t('output.reconnectingN', { n: status.attempts })
+        : view === 'error' && status.state === 'preparing' ? t('output.preparingFailed')
+          : t(`output.view.${view}`)}
     </Badge>
+  );
+}
+
+/**
+ * Explains why an output is not on air and when it tries again, with FFmpeg's own message folded away.
+ * Renders nothing while the output is on air, off or starting normally.
+ */
+export function OutputProblem({ status, now }: { status: OutputStatus; now: number }) {
+  const { t } = useTranslation();
+  const view = outputView(status);
+  if (view !== 'error' && view !== 'retrying') return null;
+  const reason = status.state === 'preparing' ? t('output.why.preparing') : t(`output.why.${status.errorCode ?? 'unknown'}`);
+  const retryIn = status.nextRetryAt ? Math.max(0, Math.ceil((new Date(status.nextRetryAt).getTime() - now) / 1000)) : null;
+  return (
+    <div className={clsx('flex flex-col gap-1 rounded-lg border px-3 py-2 text-xs leading-relaxed', view === 'error' ? 'border-danger/30 bg-danger/[0.06] text-fg-2' : 'border-warn/30 bg-warn/[0.05] text-fg-2')} role="status">
+      <span>{reason}</span>
+      <span className="text-fg-3">{retryIn !== null && retryIn > 0 ? t('output.retryIn', { seconds: retryIn }) : t('output.retryNow')}</span>
+      {status.lastError && (
+        <details className="text-fg-3">
+          <summary className="cursor-pointer select-none">{t('output.details')}</summary>
+          <code className="mt-1 block break-words font-mono text-[11px]">{status.lastError}</code>
+        </details>
+      )}
+    </div>
+  );
+}
+
+/** One line with how many included destinations are live, starting or failing; shown while a stream is live. */
+export function OutputSummary({ destinations }: { destinations: Destination[] }) {
+  const { t } = useTranslation();
+  const live = destinations.filter((d) => d.live);
+  if (live.length === 0) return null;
+  const count = (v: OutputView[]) => live.filter((d) => v.includes(outputView(d.status))).length;
+  const parts = [
+    { n: count(['live']), label: t('output.summary.live'), tone: 'text-ok' },
+    { n: count(['connecting', 'preparing']), label: t('output.summary.connecting'), tone: 'text-accent' },
+    { n: count(['retrying']), label: t('output.summary.retrying'), tone: 'text-warn' },
+    { n: count(['error']), label: t('output.summary.error'), tone: 'text-danger' },
+    { n: count(['waiting']), label: t('output.summary.waiting'), tone: 'text-warn' },
+  ].filter((p) => p.n > 0);
+  return (
+    <p className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs" aria-live="polite">
+      {parts.map((p) => (
+        <span key={p.label} className={clsx('flex items-center gap-1.5', p.tone)}>
+          <span className="size-1.5 rounded-full bg-current" />{p.n} {p.label}
+        </span>
+      ))}
+    </p>
   );
 }
 

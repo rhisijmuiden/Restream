@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Client, addUser, loginWithEnrolment, setup } from './helpers.js';
-import { ffmpegArgs, parseProgress, redact, type OutputSpec } from '../src/media/ffmpeg.js';
+import { classifyOutputError, ffmpegArgs, parseProgress, redact, type OutputSpec } from '../src/media/ffmpeg.js';
 import { publishUrl, serverUrlProblem } from '../src/media/platforms.js';
 import { ingestFromPath } from '../src/media/supervisor.js';
 
@@ -62,6 +62,21 @@ describe('ffmpeg arguments', () => {
       .toEqual({ fps: 50, bitrateKbps: 6012, totalBytes: 1000, speed: 1.01, outTimeUs: null });
     expect(parseProgress('bitrate=N/A\nspeed=N/A\n').bitrateKbps).toBeNull();
     expect(redact('Error opening rtmp://x/app/abcd-efgh', ['abcd-efgh'])).toBe('Error opening rtmp://x/app/••••');
+  });
+
+  it('explains why an output could not connect', () => {
+    const io = 'Error opening output files: Input/output error';
+    expect(classifyOutputError(['[tcp @ 0x1] Failed to resolve hostname a.example: Name or service not known', io], false)).toBe('dns');
+    expect(classifyOutputError(['[tcp @ 0x1] Connection to tcp://127.0.0.1:1 failed: Connection refused'], false)).toBe('refused');
+    expect(classifyOutputError(['[tcp @ 0x1] Connection to tcp://10.0.0.1:1935 failed: Connection timed out'], false)).toBe('timeout');
+    expect(classifyOutputError(['[tls @ 0x1] error:0A000086:SSL routines::certificate verify failed', io], false)).toBe('tls');
+    // A closed TLS session after connecting is the platform hanging up, not a certificate problem.
+    expect(classifyOutputError(['[tls @ 0x1] Error in the pull function.', io], false)).toBe('rejected');
+    // Connected, then closed by the platform: usually a wrong stream key.
+    expect(classifyOutputError(['[out#0/flv @ 0x1] Error opening output rtmp://h/app/k: Input/output error', io], false)).toBe('rejected');
+    expect(classifyOutputError(['[tls @ 0x1] IO error: Connection reset by peer'], false)).toBe('rejected');
+    expect(classifyOutputError(['av_interleaved_write_frame(): Broken pipe'], true)).toBe('dropped');
+    expect(classifyOutputError([], false)).toBe('unknown');
   });
 
   it('reads ingest details from MediaMTX', () => {
