@@ -54,16 +54,18 @@ export function OutputBadge({ status }: { status: OutputStatus }) {
  * Renders nothing while the output is on air, off or starting normally.
  */
 export function OutputProblem({ status, now }: { status: OutputStatus; now: number }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const view = outputView(status);
   if (view !== 'error' && view !== 'retrying') return null;
-  const reason = status.state === 'preparing' ? t('output.why.preparing') : t(`output.why.${status.errorCode ?? 'unknown'}`);
+  // A platform refusal on a connected account may come as a known error key (e.g. x_not_eligible).
+  const known = status.lastError && i18n.exists(`errors.${status.lastError}`) ? t(`errors.${status.lastError}`) : null;
+  const reason = known ?? (status.state === 'preparing' ? t('output.why.preparing') : t(`output.why.${status.errorCode ?? 'unknown'}`));
   const retryIn = status.nextRetryAt ? Math.max(0, Math.ceil((new Date(status.nextRetryAt).getTime() - now) / 1000)) : null;
   return (
     <div className={clsx('flex flex-col gap-1 rounded-lg border px-3 py-2 text-xs leading-relaxed', view === 'error' ? 'border-danger/30 bg-danger/[0.06] text-fg-2' : 'border-warn/30 bg-warn/[0.05] text-fg-2')} role="status">
       <span>{reason}</span>
       <span className="text-fg-3">{retryIn !== null && retryIn > 0 ? t('output.retryIn', { seconds: retryIn }) : t('output.retryNow')}</span>
-      {status.lastError && (
+      {status.lastError && !known && (
         <details className="text-fg-3">
           <summary className="cursor-pointer select-none">{t('output.details')}</summary>
           <code className="mt-1 block break-words font-mono text-[11px]">{status.lastError}</code>

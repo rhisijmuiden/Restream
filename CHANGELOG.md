@@ -1,11 +1,19 @@
 # Changelog
 
-## 1.4.1 · Clear live status per destination after Go live
+## 1.5.1 · Clear live status per destination after Go live
 
 - **Status per destination** on the dashboard: Connecting, Live, Reconnecting or **Error**, with a summary line above the tiles ("2 online · 1 error"). The console refreshes every second while a destination is starting.
 - **Why it fails, in plain words**: instead of FFmpeg's "Input/output error" the tile says what to check: the server address does not exist, the server refuses the connection, no answer (firewall), the secure connection failed, or the platform closed the connection (usually a wrong or expired stream key, or live streaming not enabled on the account). FFmpeg's own message stays under "Technical details", with a countdown to the next attempt.
 - A wrong address or key shows as an error at once; other failures after three attempts. Restream keeps retrying in the background, so a destination comes on air by itself once the problem is fixed.
 - The output status in the API has two new fields: `errorCode` and `nextRetryAt`.
+
+## 1.5.0 · Connect X as an account
+
+- **X on the Accounts page**: "Connect with X" opens X's own sign-in and permission screen in a pop-up (OAuth 2.0 with PKCE), like YouTube, Facebook and Twitch. A setup guide walks the administrator through the X Developer Console (Web App, callback URI, website URL, client ID and secret, API credit) with every value to copy.
+- **X destinations via account**: Restream creates a stream source on the X account once (X Livestream API, `/2/sources`) and reuses it. On Go live it sends the video and publishes the broadcast as soon as X receives it (`POST /2/broadcasts`, with the stream's title; X announces it in a post); Stop ends it. The dashboard shows "X publishes the broadcast in a few seconds" until then, and the watch link afterwards. Events are not announced on X.
+- **Paid X account required**: X only lets X Premium (or verified organisation) accounts that are not protected go live from streaming software. The Accounts page, the setup guide and the destination form say so, and when X refuses the account the dashboard shows "X refused to go live with this account" instead of a raw error.
+- The X preset no longer says the key changes per broadcast: a Media Studio Producer source keeps its URL and key. The stream-key route explains the Producer steps.
+- A destination on a connected account no longer needs a server URL when the platform hands it out.
 
 ## 1.4.0 · Light theme
 

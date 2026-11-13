@@ -3,7 +3,7 @@ export const platforms = ['youtube', 'facebook', 'twitch', 'instagram', 'kick', 
 export type Platform = (typeof platforms)[number];
 
 /** Platforms a destination can reach through a connected (OAuth) account instead of a stream key. */
-export const accountPlatforms = ['youtube', 'facebook', 'twitch'] as const;
+export const accountPlatforms = ['youtube', 'facebook', 'twitch', 'x'] as const;
 
 export interface PlatformPreset {
   /** Default ingest server; the operator can change it (e.g. YouTube backup ingest). Empty: the platform hands out a URL per broadcast. */
@@ -30,7 +30,7 @@ export interface PlatformPreset {
   audioSampleRate: 44100 | 48000;
   /** Keyframe interval in seconds the platform asks for. */
   keyframeSeconds: number;
-  /** True when the stream key changes for every broadcast (Instagram, LinkedIn, X). */
+  /** True when the stream key changes for every broadcast (Instagram, LinkedIn). */
   keyPerBroadcast: boolean;
 }
 
@@ -42,7 +42,7 @@ const base = {
 /**
  * Presets per platform, checked against the platforms' own guidance in November 2026:
  * Instagram Live Producer (720x1280 portrait, 30 fps, up to 6 Mbps, 44.1 kHz audio), Kick (1080p60, up to 8 Mbps, CBR, H.264 only),
- * X Media Studio Producer (720p30, up to 4 Mbps; 3 s keyframes) and LinkedIn Live custom stream (1080p30, 3.5 to 6 Mbps).
+ * X Media Studio Producer (720p30, up to 4 Mbps; 3 s keyframes; a source keeps its URL and key) and LinkedIn Live custom stream (1080p30, 3.5 to 6 Mbps).
  */
 export const presets: Record<Platform, PlatformPreset> = {
   youtube: { ...base, server: 'rtmps://a.rtmps.youtube.com/live2', protocols: ['rtmp', 'rtmps'], recommendedKbps: 9000, maxKbps: 51000 },
@@ -56,7 +56,7 @@ export const presets: Record<Platform, PlatformPreset> = {
   kick: { ...base, server: '', protocols: ['rtmps'], serverRequired: true, serverExample: 'rtmps://….global-contribute.live-video.net:443/app', recommendedKbps: 6000, maxKbps: 8000 },
   x: {
     ...base, server: '', protocols: ['rtmp', 'rtmps'], serverRequired: true, serverExample: 'rtmps://va.pscp.tv:443/x',
-    recommendedKbps: 4000, maxKbps: 4000, maxHeight: 720, maxFps: 30, defaultMode: 'transcode', keyframeSeconds: 3, keyPerBroadcast: true,
+    recommendedKbps: 4000, maxKbps: 4000, maxHeight: 720, maxFps: 30, defaultMode: 'transcode', keyframeSeconds: 3,
   },
   linkedin: {
     ...base, server: '', protocols: ['rtmp', 'rtmps'], serverRequired: true, serverExample: 'rtmps://…/live',

@@ -4,7 +4,8 @@ import { getSettings, type OAuthProvider, type Settings } from '../lib/settings.
 
 /**
  * Platform endpoints. Mutable so the tests can point them at a local fake.
- * Checked against the platform documentation in November 2026 (Graph API v26.0, YouTube Data API v3, Twitch Helix).
+ * Checked against the platform documentation in November 2026 (Graph API v26.0, YouTube Data API v3, Twitch Helix,
+ * X API v2 with the Livestream API routes /2/sources and /2/broadcasts).
  */
 export const endpoints = {
   googleAuth: 'https://accounts.google.com/o/oauth2/v2/auth',
@@ -16,6 +17,8 @@ export const endpoints = {
   twitchApi: 'https://api.twitch.tv/helix',
   /** Twitch chat (IRC over WebSocket); read anonymously, so no extra scope is needed. */
   twitchChat: 'wss://irc-ws.chat.twitch.tv:443',
+  xAuth: 'https://x.com/i/oauth2/authorize',
+  xApi: 'https://api.x.com/2',
 };
 
 export const scopes: Record<OAuthProvider, string> = {
@@ -24,6 +27,8 @@ export const scopes: Record<OAuthProvider, string> = {
   // Pages the user manages, posting live videos on them, and reading the comments on them (live chat).
   facebook: 'pages_show_list,pages_read_engagement,pages_read_user_content,pages_manage_posts,publish_video',
   twitch: 'channel:read:stream_key channel:manage:broadcast channel:manage:schedule',
+  // Who the account is (users/me needs tweet.read and users.read), its stream sources and broadcasts, and a refresh token.
+  x: 'tweet.read users.read broadcast.read broadcast.write offline.access',
 };
 
 export class PlatformError extends Error {
@@ -68,6 +73,14 @@ function errorMessage(data: unknown): string | null {
     const reason = Array.isArray(eo.errors) && eo.errors[0] && typeof eo.errors[0] === 'object' ? (eo.errors[0] as Record<string, unknown>).reason : null;
     return [eo.message, reason].filter(Boolean).join(' · ') || null;
   }
+  // X: RFC 7807 problem ({ title, detail }) or { errors: [{ message }] }.
+  if (typeof d.detail === 'string') return typeof d.title === 'string' ? `${d.title}: ${d.detail}` : d.detail;
+  if (Array.isArray(d.errors) && d.errors[0] && typeof d.errors[0] === 'object') {
+    const e0 = d.errors[0] as Record<string, unknown>;
+    if (typeof e0.message === 'string') return e0.message;
+    if (typeof e0.detail === 'string') return e0.detail;
+  }
+  if (typeof d.title === 'string') return d.title;
   return typeof d.message === 'string' ? d.message : null;
 }
 
@@ -92,10 +105,19 @@ export function authorizeUrl(s: Settings, p: OAuthProvider, state: string, chall
     })}`;
   }
   if (p === 'facebook') return `${endpoints.facebookDialog}?${new URLSearchParams({ ...common, scope: scopes.facebook })}`;
+  if (p === 'x') {
+    return `${endpoints.xAuth}?${new URLSearchParams({ ...common, scope: scopes.x, code_challenge: challenge, code_challenge_method: 'S256' })}`;
+  }
   return `${endpoints.twitchAuth}/authorize?${new URLSearchParams({ ...common, scope: scopes.twitch, force_verify: 'true' })}`;
 }
 
-/** An identity that becomes a connected account: a YouTube channel, a Facebook page or a Twitch channel. */
+/** X takes the client credentials of a confidential client as HTTP Basic authentication. */
+function xBasic(s: Settings) {
+  const app = s.platforms.x;
+  return { authorization: `Basic ${Buffer.from(`${encodeURIComponent(app.clientId)}:${encodeURIComponent(decrypt(app.clientSecretEnc))}`).toString('base64')}` };
+}
+
+/** An identity that becomes a connected account: a YouTube channel, a Facebook page, a Twitch channel or an X account. */
 export interface Identity {
   externalId: string;
   name: string;
@@ -143,6 +165,18 @@ export async function exchangeCode(s: Settings, p: OAuthProvider, code: string, 
       accessToken: pg.access_token, refreshToken: '', expiresAt: null, scopes: scopes.facebook,
     }));
   }
+  if (p === 'x') {
+    const t = await call<TokenReply>(p, `${endpoints.xApi}/oauth2/token`, { headers: xBasic(s), form: {
+      code, grant_type: 'authorization_code', client_id: app.clientId, redirect_uri: redirectUri(s, p), code_verifier: verifier,
+    } });
+    const u = await call<{ data?: { id: string; name: string; username: string; profile_image_url?: string } }>(
+      p, `${endpoints.xApi}/users/me?user.fields=profile_image_url`, { token: t.access_token });
+    if (!u.data?.id) throw new PlatformError(p, 'no_channel');
+    return [{
+      externalId: u.data.id, name: u.data.name || u.data.username, handle: u.data.username ? `@${u.data.username}` : '', imageUrl: u.data.profile_image_url ?? '',
+      accessToken: t.access_token, refreshToken: t.refresh_token ?? '', expiresAt: expiry(t.expires_in), scopes: scopeText(t.scope),
+    }];
+  }
   const t = await call<TokenReply>(p, `${endpoints.twitchAuth}/token`, { form: {
     client_id: app.clientId, client_secret: secret, code, grant_type: 'authorization_code', redirect_uri: redirectUri(s, p),
   } });
@@ -168,8 +202,13 @@ export async function accessToken(sql: Sql, a: AccountRow, s?: Settings): Promis
   const app = settings.platforms[a.provider];
   try {
     if (!app.clientId || !app.clientSecretEnc) throw new PlatformError(a.provider, 'app_not_configured');
-    const form = { grant_type: 'refresh_token', refresh_token: decrypt(a.refresh_token_enc), client_id: app.clientId, client_secret: decrypt(app.clientSecretEnc) };
-    const t = await call<TokenReply>(a.provider, a.provider === 'youtube' ? endpoints.googleToken : `${endpoints.twitchAuth}/token`, { form });
+    const refresh = decrypt(a.refresh_token_enc);
+    // X rotates the refresh token on every use; the new one is stored below.
+    const t = a.provider === 'x'
+      ? await call<TokenReply>('x', `${endpoints.xApi}/oauth2/token`, { headers: xBasic(settings), form: { grant_type: 'refresh_token', refresh_token: refresh, client_id: app.clientId } })
+      : await call<TokenReply>(a.provider, a.provider === 'youtube' ? endpoints.googleToken : `${endpoints.twitchAuth}/token`, {
+        form: { grant_type: 'refresh_token', refresh_token: refresh, client_id: app.clientId, client_secret: decrypt(app.clientSecretEnc) },
+      });
     const exp = expiry(t.expires_in);
     await sql`
       UPDATE platform_accounts SET access_token_enc = ${encrypt(t.access_token)},
@@ -424,5 +463,74 @@ export const twitchLive = {
   async viewers(s: Settings, token: string, userId: string): Promise<number> {
     const r = await call<{ data?: { viewer_count?: number }[] }>('twitch', `${endpoints.twitchApi}/streams?user_id=${encodeURIComponent(userId)}`, { token, headers: twitch.headers(s) });
     return Number(r.data?.[0]?.viewer_count ?? 0) || 0;
+  },
+};
+
+// ---------------------------------------------------------------------------------------------
+// X (Livestream API)
+
+/** A broadcast can only go live once X sees video on the source; these answers mean "try again shortly". */
+export const xNotReady = (err: unknown) => err instanceof PlatformError && (err.status === 409 || err.status === 404 || err.status === 503);
+
+/** Regions X accepts when creating a source; Europe is served from US East. */
+const xRegions = new Set(['us-east-1', 'us-west-2']);
+
+export const x = {
+  /** The ingest region X recommends for this server; US East when X does not say. */
+  async region(token: string): Promise<string> {
+    try {
+      const r = await call<{ region?: string; data?: { region?: string } }>('x', `${endpoints.xApi}/region`, { token });
+      const v = r.region ?? r.data?.region;
+      return v && xRegions.has(v) ? v : 'us-east-1';
+    } catch {
+      return 'us-east-1';
+    }
+  },
+
+  /**
+   * Returns the publish URL of the destination's reusable X source (Media Studio Producer source), creating it when needed.
+   * The stream key only comes with a new source or from the stream_key route, never in other answers.
+   */
+  async ensureSource(token: string, existingId: string | null, name: string): Promise<{ id: string; url: string }> {
+    type Source = { id: string; rtmps_url?: string; rtmp_url?: string; stream_key?: string };
+    const urlOf = (src: Source, key: string | undefined) => {
+      const server = src.rtmps_url || src.rtmp_url;
+      if (!server || !key) throw new PlatformError('x', 'no ingest URL or stream key');
+      return `${server.replace(/\/+$/, '')}/${key}`;
+    };
+    if (existingId) {
+      try {
+        const src = await call<{ data?: Source }>('x', `${endpoints.xApi}/sources/${encodeURIComponent(existingId)}`, { token });
+        const k = await call<{ data?: { stream_key?: string; key?: string } }>('x', `${endpoints.xApi}/sources/${encodeURIComponent(existingId)}/stream_key`, { token });
+        if (src.data) return { id: existingId, url: urlOf(src.data, k.data?.stream_key ?? k.data?.key) };
+      } catch (err) {
+        // Removed in Media Studio: create a new one below.
+        if (!(err instanceof PlatformError && err.status === 404)) throw err;
+      }
+    }
+    const region = await x.region(token);
+    const r = await call<{ data?: Source }>('x', `${endpoints.xApi}/sources`, { token, json: { name: name.slice(0, 80) || 'Restream', region } });
+    if (!r.data?.id) throw new PlatformError('x', 'no source id');
+    return { id: r.data.id, url: urlOf(r.data, r.data.stream_key) };
+  },
+
+  /** Whether X receives video on the source right now. */
+  async sourceActive(token: string, sourceId: string): Promise<boolean> {
+    const r = await call<{ data?: { is_stream_active?: boolean } }>('x', `${endpoints.xApi}/sources/${encodeURIComponent(sourceId)}`, { token });
+    return !!r.data?.is_stream_active;
+  },
+
+  /** Takes the source live: creates and publishes the broadcast in one call (safe to retry; a live source returns its broadcast). */
+  async goLive(token: string, sourceId: string, title: string): Promise<{ id: string; watchUrl: string | null }> {
+    const r = await call<{ data?: { id?: string; broadcast_id?: string; share_url?: string } }>('x', `${endpoints.xApi}/broadcasts`, {
+      token, json: { source_id: sourceId, title: title.replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, 100) || 'Live' },
+    });
+    const id = r.data?.id ?? r.data?.broadcast_id;
+    if (!id) throw new PlatformError('x', 'no broadcast id');
+    return { id, watchUrl: r.data?.share_url ?? null };
+  },
+
+  async end(token: string, broadcastId: string) {
+    await call('x', `${endpoints.xApi}/broadcasts/${encodeURIComponent(broadcastId)}/state`, { method: 'PUT', token, json: { state: 'END' } });
   },
 };

@@ -177,7 +177,9 @@
     "eventAuto": "Gaat automatisch live op de begintijd",
     "watch": "Bekijken op het platform",
     "previewHls": "HLS-preview · paar seconden vertraging",
-    "previewHlsHint": "Een WebRTC-preview zonder vertraging kan niet voor deze stream, meestal omdat de encoder B-frames stuurt. Zet B-frames in OBS op 0 voor een vrijwel directe preview."
+    "previewHlsHint": "Een WebRTC-preview zonder vertraging kan niet voor deze stream, meestal omdat de encoder B-frames stuurt. Zet B-frames in OBS op 0 voor een vrijwel directe preview.",
+    "xPublishing": "Beeld wordt verstuurd; X publiceert de uitzending binnen enkele seconden…",
+    "xRefused": "X heeft de uitzending nog niet gepubliceerd: {{error}}"
   },
   "soon": {
     "title": "Komt in fase {{phase}}",
@@ -382,7 +384,8 @@
     "url_not_allowed": "Restream roept dit adres niet aan (deze server zelf of een link-local adres).",
     "too_many_webhooks": "Je kunt maximaal 20 webhooks toevoegen.",
     "invalid_api_key": "De API-sleutel klopt niet, is verlopen of ingetrokken.",
-    "not_allowed_with_api_key": "Deze actie kan niet met een API-sleutel."
+    "not_allowed_with_api_key": "Deze actie kan niet met een API-sleutel.",
+    "x_not_eligible": "X weigert live te gaan met dit account. X staat dat alleen toe voor betaalde accounts (X Premium) die niet beschermd zijn."
   },
   "time": {
     "seconds": "{{n}}s",
@@ -528,12 +531,12 @@
     "portraitShort": "staand 9:16",
     "about_instagram": "Instagram: werkt met een professioneel account (zakelijk of creator). In Instagram Live Producer krijg je per uitzending een nieuwe server-URL en streamkey; plak die hier vóór je live gaat. Instagram toont staande video (9:16, 720p, 30 fps), en dat stuurt deze preset ook.",
     "about_kick": "Kick: kopieer de stream-URL en streamkey uit Kick › Instellingen › Stream. Kick accepteert H.264 tot 1080p60 en 8 Mbps.",
-    "about_x": "X: maak een uitzending aan in Media Studio › Producer en kopieer de RTMP-URL en streamkey. X accepteert 720p30 tot 4 Mbps; keyframes elke 3 seconden worden voor je ingesteld.",
+    "about_x": "X: maak in Media Studio › Producer een bron aan en kopieer de RTMPS-URL en streamkey; de bron houdt die vast, dus dit doe je één keer. Start de uitzending in Producer zodra Restream beeld stuurt. X accepteert 720p30 tot 4 Mbps; keyframes elke 3 seconden worden voor je ingesteld. Makkelijker: koppel het X-account onder Accounts, dan doet Restream dit allemaal.",
     "about_linkedin": "LinkedIn: live streamen vraagt goedkeuring van LinkedIn. Maak een live evenement met \"Custom stream (RTMP)\" en kopieer de stream-URL en key (ongeveer een uur voor de start beschikbaar). LinkedIn accepteert tot 1080p30 en 6 Mbps.",
     "serverFromPlatform": "Kopieer de server- of stream-URL van {{platform}}.",
     "igKeyHint": "Instagram Live Producer → Streamsleutel. Die verandert bij elke uitzending.",
     "kickKeyHint": "Kick → Instellingen → Stream → Streamsleutel.",
-    "xKeyHint": "Media Studio → Producer → jouw uitzending → Streamsleutel.",
+    "xKeyHint": "Media Studio → Producer → Bronnen → jouw bron → Streamsleutel.",
     "liKeyHint": "LinkedIn live evenement → Stream setup → Streamsleutel.",
     "recommendedMax": "Aanbevolen {{rate}}, maximaal {{max}} voor dit platform.",
     "orientation": "Beeld",
@@ -541,7 +544,8 @@
     "portrait": "Staand 9:16",
     "landscapeHint": "Het beeld houdt de vorm van je ingest.",
     "portraitHint": "Restream snijdt het middelste 9:16-deel uit het beeld, voor platforms die staande video tonen, zoals Instagram. Houd het belangrijkste in het midden van het shot.",
-    "transcodeAdvised": "{{platform}} accepteert maximaal {{height}}p op {{fps}} fps. Doorgeven werkt alleen als je encoder dat al stuurt; kies anders Transcoderen."
+    "transcodeAdvised": "{{platform}} accepteert maximaal {{height}}p op {{fps}} fps. Doorgeven werkt alleen als je encoder dat al stuurt; kies anders Transcoderen.",
+    "withAccountHintX": "Restream maakt één keer een bron aan op het X-account. Bij Go live publiceert het de uitzending met de titel van de stream zodra X het beeld ontvangt (X kondigt hem aan in een post), en bij Stop beëindigt het hem. Events worden niet op X aangekondigd."
   },
   "mail": {
     "title": "Mailserver",
@@ -784,7 +788,7 @@
   },
   "accounts": {
     "title": "Gekoppelde accounts",
-    "subtitle": "Koppel YouTube-kanalen, Facebook-pagina's en Twitch-kanalen één keer. Bestemmingen gaan dan live zonder streamkeys te kopiëren, en events worden op de platforms aangekondigd.",
+    "subtitle": "Koppel YouTube-kanalen, Facebook-pagina's, Twitch-kanalen en X-accounts één keer. Bestemmingen gaan dan live zonder streamkeys te kopiëren, en events worden op de platforms aangekondigd.",
     "connected_one": "Account gekoppeld.",
     "connected_other": "{{count}} accounts gekoppeld.",
     "publicUrlMissing": "Stel eerst de publieke URL van deze server in; de platforms sturen je daar na het inloggen naartoe terug.",
@@ -801,19 +805,22 @@
     "kind": {
       "youtube": "YouTube-kanalen",
       "facebook": "Facebook-pagina's",
-      "twitch": "Twitch-kanalen"
+      "twitch": "Twitch-kanalen",
+      "x": "X-accounts"
     },
     "what": {
       "youtube": "Maakt de live-uitzending aan bij Go live, plant events met een eigen kijklink en beëindigt de uitzending bij Stop.",
       "facebook": "Elke pagina die je beheert wordt toegevoegd. Gaat live op de pagina en plant events als aangekondigde live video's.",
-      "twitch": "Haalt zelf de streamkey op en zet de titel van de stream. Events komen in het streamschema (Affiliates en Partners)."
+      "twitch": "Haalt zelf de streamkey op en zet de titel van de stream. Events komen in het streamschema (Affiliates en Partners).",
+      "x": "Maakt één keer een streambron aan op het account, publiceert de uitzending bij Go live (met een aankondigingspost) en beëindigt hem bij Stop. Events worden niet op X aangekondigd."
     },
     "appsTitle": "Platform-apps",
     "appsText": "Elk platform heeft een app nodig die je één keer registreert in de ontwikkelaarsconsole. De handleiding loopt alle stappen met je door en geeft elke waarde om te kopiëren; het secret wordt versleuteld opgeslagen.",
     "app": {
       "youtube": "Google Cloud OAuth-client",
       "facebook": "Meta-app",
-      "twitch": "Twitch-app"
+      "twitch": "Twitch-app",
+      "x": "X-ontwikkelaarsapp"
     },
     "secretKeep": "Laat leeg om het opgeslagen secret te houden.",
     "reconnectForChat": "Koppel opnieuw om de reacties van deze pagina in de live chat te tonen.",
@@ -858,12 +865,18 @@
           "Log in bij Twitch met het account van het kanaal.",
           "Twitch vraagt of de app de streamkey mag lezen en de uitzending en het schema mag beheren. Klik op Authorize.",
           "De pop-up sluit en het kanaal verschijnt op deze pagina."
+        ],
+        "x": [
+          "Log in bij X met het account waarop je live wilt gaan.",
+          "X vraagt of de app je profiel mag zien en je live-uitzendingen mag beheren. Klik op Authorize app (App autoriseren).",
+          "De pop-up sluit en het account verschijnt op deze pagina."
         ]
       },
       "require": {
         "youtube": "Livestreamen moet aanstaan op het kanaal (YouTube Studio › Live gaan). De eerste keer kan het tot 24 uur duren voordat YouTube dat inschakelt.",
         "facebook": "Facebook staat live video via apps alleen toe op pagina's met minstens 100 volgers, beheerd door een account dat minstens 60 dagen oud is.",
-        "twitch": "Events inplannen vraagt de status Affiliate of Partner; live gaan werkt voor elk kanaal."
+        "twitch": "Events inplannen vraagt de status Affiliate of Partner; live gaan werkt voor elk kanaal.",
+        "x": "X laat alleen betaalde accounts (X Premium) die niet beschermd zijn live gaan vanuit streamingsoftware. Koppelen lukt ook zonder, maar live gaan wordt dan geweigerd."
       },
       "consent": {
         "youtube": {
@@ -894,6 +907,16 @@
             "Je streamschema beheren"
           ],
           "button": "Authorize"
+        },
+        "x": {
+          "site": "x.com",
+          "title": "{{app}} wil toegang tot je X-account",
+          "items": [
+            "Je profiel en posts die jij kunt zien bekijken",
+            "Je live-uitzendingen aanmaken en beheren",
+            "Gekoppeld blijven tot je de toegang intrekt"
+          ],
+          "button": "Authorize app"
         }
       }
     },
@@ -905,7 +928,8 @@
     "guideIntro": {
       "youtube": "Je registreert Restream als app in Google Cloud. Dat is gratis en duurt ongeveer 10 minuten. Daarna koppelt iedereen met operatorrechten kanalen via de bekende Google-pop-up.",
       "facebook": "Je registreert Restream als app bij Meta for Developers. Dat is gratis en duurt ongeveer 10 minuten. Daarna koppel je pagina's via de bekende Facebook-pop-up.",
-      "twitch": "Je registreert Restream als applicatie in de Twitch-ontwikkelaarsconsole. Dat duurt ongeveer 5 minuten."
+      "twitch": "Je registreert Restream als applicatie in de Twitch-ontwikkelaarsconsole. Dat duurt ongeveer 5 minuten.",
+      "x": "Je registreert Restream als app in de X Developer Console. Dat duurt ongeveer 10 minuten. X rekent API-gebruik per aanroep af met vooraf gekocht tegoed; live gaan kost maar een handvol aanroepen per uitzending."
     },
     "guide": {
       "youtube": [
@@ -1016,6 +1040,39 @@
           "text": "Applications › Manage: kopieer de Client ID en klik op New Secret.",
           "link": "twitchApps"
         }
+      ],
+      "x": [
+        {
+          "title": "Maak de app aan",
+          "text": "Log in bij de X Developer Console met een X-account (dat hoeft niet het account te zijn waarop je streamt) en klik op Create App. Vul de naam in die mensen in de pop-up zien.",
+          "link": "xConsole"
+        },
+        {
+          "title": "Zet gebruikersauthenticatie aan",
+          "text": "App › User authentication settings › Set up. Kies OAuth 2.0, type app Web App (confidential client), en vul deze twee waarden in bij Callback URI en Website URL:",
+          "copy": [
+            "redirectUri",
+            "origin"
+          ],
+          "note": "De callback-URI moet exact kloppen, met https en zonder slash aan het eind."
+        },
+        {
+          "title": "Rechten",
+          "text": "Restream vraagt deze rechten zelf in de pop-up; je hoeft ze niet aan te vinken in de console:",
+          "copy": [
+            "scopes"
+          ]
+        },
+        {
+          "title": "Zet API-tegoed klaar",
+          "text": "De X API werkt met betalen per gebruik. Vraagt de console erom, zet dan een klein bedrag aan tegoed klaar onder Billing; zonder tegoed weigert X de aanroepen.",
+          "link": "xConsole"
+        },
+        {
+          "title": "Kopieer Client-ID en Client Secret",
+          "text": "App › Keys and tokens › OAuth 2.0 Client ID en Client Secret.",
+          "note": "X toont het client secret maar één keer. Kwijt? Genereer een nieuw secret en plak dat hier."
+        }
       ]
     },
     "copyLabel": {
@@ -1029,16 +1086,25 @@
     "clientIdLabel": {
       "youtube": "Client-ID",
       "facebook": "App-ID",
-      "twitch": "Client-ID"
+      "twitch": "Client-ID",
+      "x": "OAuth 2.0-client-ID"
     },
     "clientSecretLabel": {
       "youtube": "Client secret",
       "facebook": "App secret",
-      "twitch": "Client secret"
+      "twitch": "Client secret",
+      "x": "OAuth 2.0-client secret"
     },
     "tryTitle": "Probeer het: koppel je eerste account",
     "tryText": "Klik op de knop. De pop-up van het platform opent; log in en geef toestemming. Werkt dat? Dan is de inrichting klaar.",
-    "tryAfterSave": "Sla eerst de waarden op; daarna verschijnt hier de koppelknop."
+    "tryAfterSave": "Sla eerst de waarden op; daarna verschijnt hier de koppelknop.",
+    "paid": {
+      "x": {
+        "title": "Betaald X-account nodig",
+        "text": "X laat alleen betaalde accounts (X Premium of een geverifieerde organisatie) live gaan vanuit streamingsoftware. Zonder abonnement weigert X de uitzending en meldt het dashboard dat. Beschermde (privé) accounts kunnen ook niet live.",
+        "link": "Over X Premium"
+      }
+    }
   },
   "events": {
     "title": "Events",
