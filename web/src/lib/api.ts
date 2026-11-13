@@ -3,12 +3,13 @@ export class ApiError extends Error {
   constructor(public status: number, public code: string, public detail?: string) { super(code); }
 }
 
-export async function api<T = unknown>(path: string, opts: { method?: string; body?: unknown } = {}): Promise<T> {
+/** Calls the API. `body` is sent as JSON; `raw` (a file) is sent as it is, with the content type in `headers`. */
+export async function api<T = unknown>(path: string, opts: { method?: string; body?: unknown; raw?: Blob; headers?: Record<string, string> } = {}): Promise<T> {
   const res = await fetch(path, {
     method: opts.method ?? 'GET',
     credentials: 'same-origin',
-    headers: { 'x-restream': '1', ...(opts.body !== undefined ? { 'content-type': 'application/json' } : {}) },
-    body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+    headers: { 'x-restream': '1', ...(opts.body !== undefined ? { 'content-type': 'application/json' } : {}), ...opts.headers },
+    body: opts.raw ?? (opts.body !== undefined ? JSON.stringify(opts.body) : undefined),
   });
   const data = res.headers.get('content-type')?.includes('json') ? await res.json() : null;
   if (!res.ok) throw new ApiError(res.status, data?.error ?? 'request_failed', data?.detail);
@@ -64,6 +65,9 @@ export interface RecordingState {
 export interface Stream {
   id: string; name: string; enabled: boolean; playbackEnabled: boolean; playbackId: string; createdAt: string;
   allowedDomains: string[]; requireToken: boolean; record: boolean; autoRecord: boolean; title: string; description: string;
+  thumbnailSet: boolean;
+  /** A scheduled event that is live now: its title is what the platforms show. */
+  liveEvent: { id: string; title: string; description: string } | null;
   recording: RecordingState;
   ingest: { rtmpServer: string; streamKey: string | null; rtmpUrl: string | null; srtUrl: string | null };
   backupIngest: { configured: boolean; streamKey: string | null; rtmpUrl: string | null; srtUrl: string | null };
@@ -140,3 +144,47 @@ export interface Broadcast {
 export interface BroadcastDetail extends Broadcast { series: { at: string; total: number; outputs: Record<string, number> }[] }
 export interface ChatMessage { seq: number; outputId: string; destination: string; platform: Platform; author: string; text: string; highlight: string | null; at: string }
 export interface LiveResponse { broadcast: Broadcast | null; destinations: LiveDestination[]; totalViewers: number | null; chat: ChatMessage[]; cursor: number }
+
+// Health monitor and the check before Go live (phase 6)
+
+export type IssueCode =
+  | 'feed_bitrate_drop' | 'feed_fps_low' | 'feed_keyframes' | 'feed_errors' | 'feed_srt_drops'
+  | 'output_slow' | 'server_cpu' | 'server_memory' | 'server_disk' | 'server_upload';
+export interface HealthIssue {
+  key: string; code: IssueCode; severity: 'warn' | 'danger'; since: string;
+  streamId: string | null; streamName: string | null; input: 'main' | 'backup' | null;
+  destinationId: string | null; destinationName: string | null; params: Record<string, number>;
+}
+export interface FeedPoint { t: number; kbps: number | null; fps: number | null }
+export interface OutputPoint { t: number; kbps: number | null; speed: number | null; cpu: number | null }
+export interface ServerPoint { t: number; cpu: number | null; memory: number | null; upload: number | null; download: number | null }
+export interface FeedHealth {
+  streamId: string; input: 'main' | 'backup'; protocol: string | null;
+  video: { codec: string; width: number | null; height: number | null } | null;
+  bitrateKbps: number | null; fps: number | null; nominalFps: number | null; keyframeSeconds: number | null; errors: number;
+  srt: { rttMs: number | null; retransPercent: number | null; linkMbps: number | null; drops: number } | null;
+  history: FeedPoint[];
+}
+export interface OutputHealth {
+  destinationId: string; streamId: string; name: string; platform: Platform; mode: 'copy' | 'transcode'; state: OutputStateName;
+  bitrateKbps: number | null; targetKbps: number | null; speed: number | null; cpuPercent: number | null; history: OutputPoint[];
+}
+export interface HealthSnapshot {
+  enabled: boolean; sampledAt: string | null;
+  server: {
+    cpuPercent: number | null; cores: number; memory: { totalBytes: number; usedBytes: number } | null;
+    uploadKbps: number | null; downloadKbps: number | null; disk: { totalBytes: number; freeBytes: number } | null; load1: number;
+    uploadCapacityKbps: number | null; history: ServerPoint[];
+  };
+  feeds: FeedHealth[]; outputs: OutputHealth[]; issues: HealthIssue[];
+}
+
+export type CheckStatus = 'ok' | 'info' | 'warn' | 'fail';
+export interface PreflightCheck {
+  code: string; status: CheckStatus; params: Record<string, string | number>;
+  destinationId?: string; destinationName?: string; platform?: Platform;
+}
+export interface PreflightResult { ok: boolean; fails: number; warnings: number; checkedAt: string; checks: PreflightCheck[] }
+
+export type InfoResult = 'updated' | 'pending' | 'next' | 'manual' | 'unsupported' | 'failed';
+export interface InfoOutcome { destinationId: string; name: string; platform: Platform; result: InfoResult; error: string | null; thumbnail: 'updated' | 'failed' | null }

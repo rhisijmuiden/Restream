@@ -9,6 +9,8 @@ export const webhookEvents = [
   'recording.started', 'recording.finished',
   'event.started', 'event.ended',
   'backup.finished',
+  'health.warning', 'health.cleared',
+  'broadcast.info.updated',
 ] as const;
 export type WebhookEvent = (typeof webhookEvents)[number] | 'ping';
 

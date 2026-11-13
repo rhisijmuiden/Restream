@@ -32,7 +32,7 @@ export interface MailSettings {
 }
 
 export const notifyEvents = [
-  'streamDown', 'outputFailed', 'mediaServerDown', 'backupFailed', 'backupSucceeded', 'updateFinished', 'updateAvailable',
+  'streamDown', 'outputFailed', 'healthWarning', 'mediaServerDown', 'backupFailed', 'backupSucceeded', 'updateFinished', 'updateAvailable',
 ] as const;
 export type NotifyEvent = (typeof notifyEvents)[number];
 
@@ -90,6 +90,11 @@ export interface RecordingSettings {
   retentionDays: number;
 }
 
+export interface HealthSettings {
+  /** Upload capacity of the server's line in Mbit/s (0 = unknown): above 85 % the health monitor warns. */
+  uploadMbps: number;
+}
+
 export interface Settings {
   instanceName: string;
   defaultLanguage: 'en' | 'nl';
@@ -103,6 +108,7 @@ export interface Settings {
   backup: BackupSettings;
   platforms: Record<OAuthProvider, OAuthApp>;
   recordings: RecordingSettings;
+  health: HealthSettings;
 }
 
 export const defaultSettings: Settings = {
@@ -123,7 +129,7 @@ export const defaultSettings: Settings = {
     recipients: [],
     includeAdmins: true,
     events: {
-      streamDown: true, outputFailed: true, mediaServerDown: true,
+      streamDown: true, outputFailed: true, healthWarning: true, mediaServerDown: true,
       backupFailed: true, backupSucceeded: false, updateFinished: true, updateAvailable: false,
     },
   },
@@ -142,6 +148,7 @@ export const defaultSettings: Settings = {
     x: { clientId: '', clientSecretEnc: '' },
   },
   recordings: { retentionDays: 0 },
+  health: { uploadMbps: 0 },
 };
 
 /** Stored values over defaults, one level of nested objects deep (so new fields get their default). */

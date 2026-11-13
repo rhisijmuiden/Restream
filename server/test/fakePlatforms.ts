@@ -42,6 +42,13 @@ export async function startFakePlatforms() {
     if (key === 'POST /youtube/liveStreams') return send(200, { id: 'ls-1', cdn: { ingestionInfo: { rtmpsIngestionAddress: 'rtmps://a.rtmps.youtube.com/live2', streamName: 'yt-key-1' } } });
     if (key === 'POST /youtube/liveBroadcasts') return send(200, { id: `bc-${++n}` });
     if (key === 'PUT /youtube/liveBroadcasts') return send(200, { id: body.id });
+    if (key === 'GET /youtube/liveBroadcasts') {
+      return send(200, { items: [{ id: url.searchParams.get('id'), snippet: { title: 'Old title', description: 'Old', scheduledStartTime: '2026-11-13T18:00:00Z' } }] });
+    }
+    if (key === 'POST /yt-upload/thumbnails/set') {
+      call.body = { contentType: req.headers['content-type'], bytes: Buffer.concat(chunks).length };
+      return send(200, { items: [{ default: { url: 'https://img/thumb.jpg' } }] });
+    }
     if (key === 'DELETE /youtube/liveBroadcasts') { res.writeHead(204); return res.end(); }
     if (key === 'POST /youtube/liveBroadcasts/bind') return send(200, { id: url.searchParams.get('id') });
     if (key === 'GET /youtube/videos') {
@@ -61,6 +68,7 @@ export async function startFakePlatforms() {
     if (key === 'GET /graph/me/accounts') return send(200, { data: [{ id: 'page-1', name: 'Kerk Pagina', access_token: 'page-token-1' }, { id: 'page-2', name: 'Tweede', access_token: 'page-token-2' }] });
     let m = /^\/graph\/([\w-]+)\/live_videos$/.exec(url.pathname);
     if (m && req.method === 'POST') return send(200, { id: `lv-${++n}`, secure_stream_url: `rtmps://live-api-s.facebook.com:443/rtmp/FB-${n}` });
+    if (/^\/graph\/page-\d+$/.test(url.pathname) && req.method === 'GET') return send(200, { id: url.pathname.split('/').pop() });
     m = /^\/graph\/(lv-\d+)\/comments$/.exec(url.pathname);
     if (m && req.method === 'GET') return send(200, { data: [...(live.fbComments.get(m[1]) ?? [])].reverse() });
     m = /^\/graph\/(lv-\d+)$/.exec(url.pathname);
@@ -112,7 +120,7 @@ export async function startFakePlatforms() {
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   const saved = { ...endpoints };
   Object.assign(endpoints, {
-    googleAuth: `${base}/google/auth`, googleToken: `${base}/google/token`, youtube: `${base}/youtube`,
+    googleAuth: `${base}/google/auth`, googleToken: `${base}/google/token`, youtube: `${base}/youtube`, youtubeUpload: `${base}/yt-upload`,
     facebookDialog: `${base}/fb/dialog`, facebookGraph: `${base}/graph`, twitchAuth: `${base}/twitch-auth`, twitchApi: `${base}/helix`,
     xAuth: `${base}/x-auth`, xApi: `${base}/x`,
   });

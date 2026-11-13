@@ -50,6 +50,11 @@ Fase 0 t/m 2 vormen samen v1.0. Elke fase gaat eerst naar `test` en pas na akkoo
 - Reserve-ingest met automatische overname en een fallback-beeld bij uitval
 - API en webhooks voor koppeling met andere projecten
 
+### Fase 6 · Betrouwbaar uitzenden · klaar op `test` (v1.6.0)
+- Gezondheidsmonitor: bitrate, beeldsnelheid, keyframes en fouten van de feed, snelheid en CPU per bestemming, CPU, upload en schijf van de server, met waarschuwingen op het dashboard, per mail en via webhooks
+- Controle vóór Go Live: feed, keys, accounts, bereikbaarheid, platformlimieten, CPU, upload en schijf
+- Titel, beschrijving en thumbnail in één keer naar YouTube, Facebook en Twitch, ook tijdens de uitzending
+
 ## Platforms
 
 | Platform | Streamen | Event plannen | Kijkers live | Chat | Fase |
