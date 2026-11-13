@@ -3,10 +3,15 @@ import { useTranslation } from 'react-i18next';
 import { Logo } from '../components/ui';
 import { setLanguage } from '../i18n';
 import { clsx } from 'clsx';
+import { Moon, Sun } from 'lucide-react';
+import { setTheme, useTheme } from '../lib/theme';
 
 /** Split screen used by sign-in, 2FA and forced password change. */
 export function AuthShell({ children }: { children: ReactNode }) {
   const { t, i18n } = useTranslation();
+  const theme = useTheme();
+  // Before sign-in there is no account to save to: the choice stays in this browser until the account's own choice loads.
+  const isLight = theme === 'light' || (theme === 'system' && window.matchMedia?.('(prefers-color-scheme: light)').matches);
   return (
     <div className="grid-bg flex min-h-dvh flex-col lg:flex-row">
       <div className="flex flex-1 flex-col justify-between gap-10 px-6 py-8 sm:px-12 lg:p-[72px]">
@@ -15,13 +20,19 @@ export function AuthShell({ children }: { children: ReactNode }) {
             <Logo size={40} />
             <span className="font-display text-xl font-bold tracking-[0.04em]">RESTREAM</span>
           </div>
-          <div className="flex gap-1 rounded-xl border border-line bg-surface p-1 font-mono text-xs" role="group" aria-label={t('lang.switch')}>
-            {(['en', 'nl'] as const).map((l) => (
-              <button key={l} onClick={() => setLanguage(l)} aria-pressed={i18n.language === l}
-                className={clsx('rounded-lg px-2.5 py-1.5', i18n.language === l ? 'bg-surface-2 text-accent' : 'text-fg-3 hover:text-fg-2')}>
-                {l.toUpperCase()}
-              </button>
-            ))}
+          <div className="flex items-center gap-2">
+            <button onClick={() => setTheme(isLight ? 'dark' : 'light')} aria-label={isLight ? t('theme.darkHint') : t('theme.lightHint')} title={isLight ? t('theme.darkHint') : t('theme.lightHint')}
+              className="flex size-[38px] items-center justify-center rounded-xl border border-line bg-surface text-fg-3 hover:text-accent">
+              {isLight ? <Moon size={16} /> : <Sun size={16} />}
+            </button>
+            <div className="flex gap-1 rounded-xl border border-line bg-surface p-1 font-mono text-xs" role="group" aria-label={t('lang.switch')}>
+              {(['en', 'nl'] as const).map((l) => (
+                <button key={l} onClick={() => setLanguage(l)} aria-pressed={i18n.language === l}
+                  className={clsx('rounded-lg px-2.5 py-1.5', i18n.language === l ? 'bg-surface-2 text-accent' : 'text-fg-3 hover:text-fg-2')}>
+                  {l.toUpperCase()}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
         <div className="hidden max-w-xl flex-col gap-6 lg:flex">
@@ -32,7 +43,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
         <SignalDiagram />
       </div>
       <div className="flex items-center justify-center px-4 pb-10 sm:px-12 lg:w-[560px] lg:p-12">
-        <div className="w-full max-w-[440px] rounded-[20px] border border-line bg-surface/90 p-6 shadow-[0_0_0_1px_rgba(46,230,214,0.06),0_30px_80px_rgba(0,0,0,0.5)] backdrop-blur sm:p-10">
+        <div className="w-full max-w-[440px] rounded-[20px] border border-line bg-surface/90 p-6 shadow-[0_0_0_1px_var(--rs-grid-line),var(--rs-shadow)] backdrop-blur sm:p-10">
           {children}
         </div>
       </div>

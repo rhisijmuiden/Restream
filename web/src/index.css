@@ -25,22 +25,23 @@
 
 @layer base {
   html { color-scheme: dark; }
+  html[data-theme="light"] { color-scheme: light; }
   body {
     @apply bg-bg text-fg font-sans antialiased;
     min-height: 100dvh;
   }
   :focus-visible { outline: 2px solid var(--rs-accent); outline-offset: 2px; }
-  ::selection { background: rgba(46, 230, 214, 0.3); }
+  ::selection { background: var(--rs-accent-soft); }
 }
 
 .grid-bg {
   background-image:
-    linear-gradient(rgba(46, 230, 214, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(46, 230, 214, 0.045) 1px, transparent 1px);
+    linear-gradient(var(--rs-grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--rs-grid-line) 1px, transparent 1px);
   background-size: 64px 64px;
 }
 .eyebrow { @apply font-mono text-[11px] tracking-[0.14em] uppercase text-fg-3; }
-.glow { box-shadow: 0 0 0 1px rgba(46, 230, 214, 0.25), 0 8px 32px -8px var(--rs-accent-glow); }
+.glow { box-shadow: 0 0 0 1px color-mix(in srgb, var(--rs-accent) 25%, transparent), 0 8px 32px -8px var(--rs-accent-glow); }
 @keyframes pulse-dot { 0%, 100% { opacity: 1 } 50% { opacity: .35 } }
 .pulse-dot { animation: pulse-dot 1.6s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .pulse-dot { animation: none; } }
@@ -49,3 +50,5 @@ select {
   background-repeat: no-repeat;
   background-position: right 12px center;
 }
+/* A region that stays dark in the light theme (video stages): re-apply the text colour it inherits. */
+.rs-dark { color: var(--rs-text); color-scheme: dark; }

@@ -47,6 +47,21 @@ describe('authentication', () => {
     expect(r.statusCode).toBe(403);
   });
 
+  it('remembers the colour theme per user', async () => {
+    await addUser(ctx.sql, 'theme@example.com', 'correct horse battery', 'viewer');
+    const c = new Client(ctx.app);
+    await loginWithEnrolment(c, 'theme@example.com', 'correct horse battery');
+    expect((await c.get('/api/auth/me')).json().user.theme).toBe('dark');
+    expect((await c.req('PATCH', '/api/auth/me', { theme: 'light' })).statusCode).toBe(200);
+    expect((await c.get('/api/auth/me')).json().user.theme).toBe('light');
+    expect((await c.req('PATCH', '/api/auth/me', { theme: 'system' })).statusCode).toBe(200);
+    expect((await c.get('/api/auth/me')).json().user.theme).toBe('system');
+    expect((await c.req('PATCH', '/api/auth/me', { theme: 'purple' })).statusCode).toBe(400);
+    // Changing only the language keeps the theme.
+    await c.req('PATCH', '/api/auth/me', { language: 'nl' });
+    expect((await c.get('/api/auth/me')).json().user).toMatchObject({ theme: 'system', language: 'nl' });
+  });
+
   it('logs out', async () => {
     const c = new Client(ctx.app);
     await c.post('/api/auth/login', { email: 'admin@example.com', password: 'correct horse battery' });

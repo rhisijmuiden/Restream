@@ -5,6 +5,7 @@ import { api } from '../lib/api';
 import { useMe, useRefreshMe } from '../lib/auth';
 import { formatDate } from '../lib/format';
 import { setLanguage } from '../i18n';
+import { setTheme, themePrefs, useTheme, type ThemePref } from '../lib/theme';
 import { Badge, Button, Card, ErrorText, Field, Input, Modal, PageHeader, Select } from '../components/ui';
 import { PasswordForm } from './ChangePassword';
 import { RecoveryCodes, TotpEnrol } from './Setup2fa';
@@ -24,6 +25,7 @@ export function Account() {
   const [error, setError] = useState<unknown>(null);
   const sessions = useQuery({ queryKey: ['sessions'], queryFn: () => api<Session[]>('/api/auth/sessions') });
   const local = me.auth_source === 'local';
+  const theme = useTheme();
 
   async function saveProfile(e: FormEvent) {
     e.preventDefault();
@@ -56,6 +58,18 @@ export function Account() {
                   refresh();
                 }}>
                   <option value="en">{t('lang.en')}</option><option value="nl">{t('lang.nl')}</option>
+                </Select>
+              )}
+            </Field>
+            <Field label={t('theme.label')} hint={t('theme.hint')}>
+              {(id) => (
+                <Select id={id} value={theme} onChange={async (e) => {
+                  const next = e.target.value as ThemePref;
+                  setTheme(next);
+                  await api('/api/auth/me', { method: 'PATCH', body: { theme: next } });
+                  refresh();
+                }}>
+                  {themePrefs.map((p) => <option key={p} value={p}>{t(`theme.${p}Long`)}</option>)}
                 </Select>
               )}
             </Field>

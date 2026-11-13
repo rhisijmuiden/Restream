@@ -38,6 +38,19 @@
     "en": "English",
     "nl": "Nederlands"
   },
+  "theme": {
+    "label": "Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "lightLong": "Light",
+    "darkLong": "Dark",
+    "systemLong": "Follow system (light or dark)",
+    "lightHint": "Light theme",
+    "darkHint": "Dark theme",
+    "systemHint": "Follow your device's light or dark setting",
+    "hint": "Saved with your account, so it follows you to every browser."
+  },
   "roles": {
     "admin": "Administrator",
     "operator": "Operator",
