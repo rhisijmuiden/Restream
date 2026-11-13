@@ -405,7 +405,36 @@
     "reconnecting": "Reconnecting",
     "reconnectingN": "Reconnecting ({{n}})",
     "preparing": "Preparing broadcast",
-    "preparingFailed": "Platform refused, retrying"
+    "preparingFailed": "Platform refused, retrying",
+    "view": {
+      "off": "Off",
+      "waiting": "Waiting for ingest",
+      "preparing": "Preparing broadcast",
+      "connecting": "Connecting",
+      "live": "Live",
+      "retrying": "Reconnecting",
+      "error": "Error"
+    },
+    "why": {
+      "dns": "The server address does not exist. Check the server URL of this destination.",
+      "refused": "The server refused the connection. Check the server URL and port.",
+      "timeout": "The server does not answer. Check the server URL, and whether a firewall blocks outgoing traffic from this server.",
+      "tls": "The secure connection (RTMPS/SRT) failed. Check the server URL, or try the platform's plain RTMP address.",
+      "rejected": "The platform closed the connection. Usually the stream key is wrong or expired, or live streaming is not enabled on the account.",
+      "dropped": "The connection to the platform was lost.",
+      "unknown": "The output stopped unexpectedly.",
+      "preparing": "The platform did not accept the broadcast. Check the connected account on the Accounts page."
+    },
+    "summary": {
+      "live": "online",
+      "connecting": "connecting",
+      "retrying": "reconnecting",
+      "error": "error",
+      "waiting": "waiting for ingest"
+    },
+    "retryIn": "Trying again in {{seconds}} s",
+    "retryNow": "Trying again…",
+    "details": "Technical details"
   },
   "streams": {
     "title": "Streams & keys",

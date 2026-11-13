@@ -186,3 +186,27 @@ export function previewArgs(input: string, output: string): string[] {
     '-f', 'rtsp', '-rtsp_transport', 'tcp', output,
   ];
 }
+
+/**
+ * Why an output could not connect, read from FFmpeg's log, so the console can say what to check:
+ * - dns: the server name does not resolve;
+ * - refused: nothing listens at that address;
+ * - timeout: no answer (firewall, wrong port, network);
+ * - tls: the secure connection failed (rtmps/srt);
+ * - rejected: the connection was made but the platform closed it, usually a wrong or expired stream key
+ *   or live streaming that is not enabled on the account;
+ * - dropped: the output was on air and the connection broke;
+ * - unknown: anything else (the raw message is still shown).
+ */
+export type OutputErrorCode = 'dns' | 'refused' | 'timeout' | 'tls' | 'rejected' | 'dropped' | 'unknown';
+
+export function classifyOutputError(lines: string[], wasFlowing: boolean): OutputErrorCode {
+  const text = lines.join('\n');
+  if (/Failed to resolve hostname|Name or service not known|Temporary failure in name resolution|No address associated/i.test(text)) return 'dns';
+  if (/Connection refused/i.test(text)) return 'refused';
+  if (/timed out|Operation timed out|Connection timeout/i.test(text)) return 'timeout';
+  if (/certificate|handshake|SSL routines|unknown CA|verify failed/i.test(text)) return 'tls';
+  if (wasFlowing) return 'dropped';
+  if (/Connection reset by peer|Broken pipe|Input\/output error|End of file|Server error|NetStream\.Publish|Unauthorized|Forbidden|403|401|rejected/i.test(text)) return 'rejected';
+  return 'unknown';
+}

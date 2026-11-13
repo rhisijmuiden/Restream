@@ -10,7 +10,7 @@ import { formatBytes, formatDate, formatDuration } from '../lib/format';
 import { useEvents } from './Events';
 import { clock, formatKbps, sinceSeconds, useStreams } from '../lib/streams';
 import { Button, Card, CopyButton, ErrorText, KeyValue } from '../components/ui';
-import { IngestBadge, OutputBadge, PlatformChip, Segmented, SourceBadge, audioLabel, videoLabel } from '../components/media';
+import { IngestBadge, OutputBadge, OutputProblem, OutputSummary, PlatformChip, Segmented, SourceBadge, audioLabel, videoLabel, outputView } from '../components/media';
 import { WhepPlayer } from '../components/WhepPlayer';
 import { Audience, ChatList } from '../components/live';
 import { formatCount, useLive } from '../lib/live';
@@ -194,8 +194,11 @@ function StreamControl({ stream, canOperate, sys }: { stream: Stream; canOperate
                 {canOperate && <Link to="/destinations?new=1"><Button><Plus size={16} /> {t('destinations.add')}</Button></Link>}
               </div>
             ) : (
-              <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
-                {stream.destinations.map((d) => <DestinationTile key={d.id} d={d} canOperate={canOperate} now={now} live={audience.get(d.id)} />)}
+              <div className="flex flex-col gap-4">
+                <OutputSummary destinations={stream.destinations} />
+                <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+                  {stream.destinations.map((d) => <DestinationTile key={d.id} d={d} canOperate={canOperate} now={now} live={audience.get(d.id)} />)}
+                </div>
               </div>
             )}
           </Card>
@@ -313,7 +316,8 @@ function DestinationTile({ d, canOperate, now, live }: { d: Destination; canOper
   });
   const s = d.status;
   return (
-    <div className={clsx('flex flex-col gap-3 rounded-xl border p-4 transition-colors', s.state === 'live' ? 'border-live/40 bg-live/[0.04]' : 'border-line bg-bg/40')}>
+    <div className={clsx('flex flex-col gap-3 rounded-xl border p-4 transition-colors',
+      s.state === 'live' ? 'border-live/40 bg-live/[0.04]' : d.live && outputView(s) === 'error' ? 'border-danger/40' : 'border-line bg-bg/40')}>
       <div className="flex items-center gap-3">
         <PlatformChip platform={d.platform} />
         <div className="flex min-w-0 flex-1 flex-col">
@@ -349,9 +353,7 @@ function DestinationTile({ d, canOperate, now, live }: { d: Destination; canOper
             : t('dashboard.xPublishing')}
         </p>
       )}
-      {s.lastError && s.state !== 'live' && s.state !== 'off' && (
-        <p className="line-clamp-2 font-mono text-[11px] leading-relaxed text-warn" title={s.lastError}>{i18n.exists(`errors.${s.lastError}`) ? t(`errors.${s.lastError}`) : s.lastError}</p>
-      )}
+      <OutputProblem status={s} now={now} />
       {canOperate && (
         d.live
           ? <Button variant="ghost" className="min-h-9 border border-line" onClick={() => toggle.mutate(false)} loading={toggle.isPending}><Square size={13} /> {t('dashboard.stop')}</Button>

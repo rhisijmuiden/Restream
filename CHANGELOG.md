@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.1 · Clear live status per destination after Go live
+
+- **Status per destination** on the dashboard: Connecting, Live, Reconnecting or **Error**, with a summary line above the tiles ("2 online · 1 error"). The console refreshes every second while a destination is starting.
+- **Why it fails, in plain words**: instead of FFmpeg's "Input/output error" the tile says what to check: the server address does not exist, the server refuses the connection, no answer (firewall), the secure connection failed, or the platform closed the connection (usually a wrong or expired stream key, or live streaming not enabled on the account). FFmpeg's own message stays under "Technical details", with a countdown to the next attempt.
+- A wrong address or key shows as an error at once; other failures after three attempts. Restream keeps retrying in the background, so a destination comes on air by itself once the problem is fixed.
+- The output status in the API has two new fields: `errorCode` and `nextRetryAt`.
+
 ## 1.5.0 · Connect X as an account
 
 - **X on the Accounts page**: "Connect with X" opens X's own sign-in and permission screen in a pop-up (OAuth 2.0 with PKCE), like YouTube, Facebook and Twitch. A setup guide walks the administrator through the X Developer Console (Web App, callback URI, website URL, client ID and secret, API credit) with every value to copy.

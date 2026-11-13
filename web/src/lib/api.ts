@@ -35,6 +35,11 @@ export interface SystemInfo {
 export type Platform = 'youtube' | 'facebook' | 'twitch' | 'instagram' | 'kick' | 'x' | 'linkedin' | 'rtmp' | 'srt';
 export type Orientation = 'landscape' | 'portrait';
 export type OutputStateName = 'off' | 'waiting' | 'preparing' | 'connecting' | 'live' | 'reconnecting';
+export type OutputErrorCode = 'dns' | 'refused' | 'timeout' | 'tls' | 'rejected' | 'dropped' | 'unknown';
+export interface OutputStatus {
+  state: OutputStateName; since: string | null; bitrateKbps: number | null; fps: number | null; speed: number | null; attempts: number; lastError: string | null;
+  errorCode: OutputErrorCode | null; nextRetryAt: string | null;
+}
 export interface IngestStatus {
   online: boolean; since: string | null; protocol: string | null;
   video: { codec: string; width: number | null; height: number | null } | null;
@@ -50,7 +55,7 @@ export interface Destination {
   privacy: Privacy; watchUrl: string | null;
   /** Why a destination on a connected account is not on the platform yet, e.g. x_not_eligible. */
   prepareError: string | null;
-  status: { state: OutputStateName; since: string | null; bitrateKbps: number | null; fps: number | null; speed: number | null; attempts: number; lastError: string | null };
+  status: OutputStatus;
 }
 export type Privacy = 'public' | 'unlisted' | 'private';
 export interface RecordingState {

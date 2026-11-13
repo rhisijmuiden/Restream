@@ -1,9 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
 import { api, type PlatformPreset, type Platform, type StreamsResponse } from './api';
 
-/** Streams with live ingest and output status, refreshed every two seconds. */
+/** Output states that change within seconds: the console refreshes faster while one is shown. */
+const settling = new Set(['preparing', 'connecting', 'reconnecting']);
+
+/** Streams with live ingest and output status: every second while a destination is starting, else every two seconds. */
 export function useStreams() {
-  return useQuery({ queryKey: ['streams'], queryFn: () => api<StreamsResponse>('/api/streams'), refetchInterval: 2000 });
+  return useQuery({
+    queryKey: ['streams'], queryFn: () => api<StreamsResponse>('/api/streams'),
+    refetchInterval: (q) => (q.state.data?.streams.some((s) => s.destinations.some((d) => d.live && settling.has(d.status.state))) ? 1000 : 2000),
+  });
 }
 
 export function usePresets() {

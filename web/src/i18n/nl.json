@@ -405,7 +405,36 @@
     "reconnecting": "Opnieuw verbinden",
     "reconnectingN": "Opnieuw verbinden ({{n}})",
     "preparing": "Uitzending voorbereiden",
-    "preparingFailed": "Platform weigert, opnieuw…"
+    "preparingFailed": "Platform weigert, opnieuw…",
+    "view": {
+      "off": "Uit",
+      "waiting": "Wacht op ingest",
+      "preparing": "Uitzending voorbereiden",
+      "connecting": "Verbinden",
+      "live": "Live",
+      "retrying": "Opnieuw verbinden",
+      "error": "Fout"
+    },
+    "why": {
+      "dns": "Het serveradres bestaat niet. Controleer de server-URL van deze bestemming.",
+      "refused": "De server weigert de verbinding. Controleer de server-URL en de poort.",
+      "timeout": "De server geeft geen antwoord. Controleer de server-URL, en of een firewall uitgaand verkeer van deze server tegenhoudt.",
+      "tls": "De beveiligde verbinding (RTMPS/SRT) is mislukt. Controleer de server-URL, of probeer het gewone RTMP-adres van het platform.",
+      "rejected": "Het platform heeft de verbinding verbroken. Meestal is de streamkey fout of verlopen, of staat livestreamen niet aan op het account.",
+      "dropped": "De verbinding met het platform is weggevallen.",
+      "unknown": "De uitvoer is onverwacht gestopt.",
+      "preparing": "Het platform accepteert de uitzending niet. Controleer het gekoppelde account op de pagina Accounts."
+    },
+    "summary": {
+      "live": "online",
+      "connecting": "verbinden",
+      "retrying": "opnieuw verbinden",
+      "error": "fout",
+      "waiting": "wacht op ingest"
+    },
+    "retryIn": "Nieuwe poging over {{seconds}} s",
+    "retryNow": "Nieuwe poging…",
+    "details": "Technische details"
   },
   "streams": {
     "title": "Streams en keys",
