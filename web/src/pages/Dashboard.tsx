@@ -348,13 +348,13 @@ function DestinationTile({ d, canOperate, now, live }: { d: Destination; canOper
       {d.watchUrl && (
         <a href={d.watchUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-xs">{t('dashboard.watch')} <ExternalLink size={12} /></a>
       )}
-      {d.live && d.platform === 'x' && d.auth === 'account' && !d.watchUrl && s.state === 'live' && (
-        // FFmpeg already sends; X publishes the broadcast once it sees the video, or refuses (no Premium).
+      {d.live && (d.platform === 'x' || d.platform === 'linkedin') && d.auth === 'account' && !d.watchUrl && s.state === 'live' && (
+        // FFmpeg already sends; X and LinkedIn publish the broadcast once they see the video, or refuse (no Premium, no Live access).
         <p className={clsx('flex items-start gap-1.5 text-xs leading-relaxed', d.prepareError ? 'text-warn' : 'text-fg-2')}>
           {!d.prepareError && <span className="mt-1 size-3 shrink-0 animate-spin rounded-full border-2 border-accent border-t-transparent" aria-hidden />}
           {d.prepareError
-            ? (i18n.exists(`errors.${d.prepareError}`) ? t(`errors.${d.prepareError}`) : t('dashboard.xRefused', { error: d.prepareError }))
-            : t('dashboard.xPublishing')}
+            ? (i18n.exists(`errors.${d.prepareError}`) ? t(`errors.${d.prepareError}`) : t(d.platform === 'x' ? 'dashboard.xRefused' : 'dashboard.linkedinRefused', { error: d.prepareError }))
+            : t(d.platform === 'x' ? 'dashboard.xPublishing' : 'dashboard.linkedinPublishing')}
         </p>
       )}
       <OutputProblem status={s} now={now} />

@@ -55,6 +55,12 @@ Fase 0 t/m 2 vormen samen v1.0. Elke fase gaat eerst naar `test` en pas na akkoo
 - Controle vóór Go Live: feed, keys, accounts, bereikbaarheid, platformlimieten, CPU, upload en schijf
 - Titel, beschrijving en thumbnail in één keer naar YouTube, Facebook en Twitch, ook tijdens de uitzending
 
+### Fase 7 · Meer bestemmingen · klaar op `test` (v1.7.0)
+- TikTok LIVE (alleen accounts met streamkey-toegang), Vimeo, Dailymotion, Rumble en Trovo met streamkey
+- Eigen servers: Owncast, PeerTube en SRT
+- LinkedIn Live als gekoppeld account (profiel of bedrijfspagina) via de Live Events API
+- Uitleg per platform waar je server-URL en streamkey vindt
+
 ## Platforms
 
 | Platform | Streamen | Event plannen | Kijkers live | Chat | Fase |
@@ -65,7 +71,11 @@ Fase 0 t/m 2 vormen samen v1.0. Elke fase gaat eerst naar `test` en pas na akkoo
 | Eigen RTMP / SRT | Ja | n.v.t. | Nee | Nee | 1 |
 | Instagram | RTMPS, server-URL en key per uitzending, staand 9:16 | Nee | Nee | Nee | 5 |
 | Kick | RTMPS met streamkey | Nee | Nee | Nee | 5 |
-| LinkedIn Live | RTMP(S) per live evenement, na goedkeuring door LinkedIn | Nee | Nee | Nee | 5 |
+| LinkedIn Live | RTMP(S) per live evenement, of OAuth (Live Events API) voor profiel of bedrijfspagina, na goedkeuring door LinkedIn | Nee | Nee | Nee | 5 / 7 |
+| TikTok LIVE | RTMP(S) met streamkey per LIVE, alleen voor accounts met streamkey-toegang, staand 9:16 | Nee | Nee | Nee | 7 |
+| Vimeo / Dailymotion | RTMPS / RTMP met streamkey | Nee | Nee | Nee | 7 |
+| Rumble / Trovo | RTMP met streamkey (Rumble: CBR, max. 8 Mbps) | Nee | Nee | Nee | 7 |
+| Owncast / PeerTube | RTMP (PeerTube ook RTMPS) naar je eigen server | n.v.t. | Nee | Nee | 7 |
 | X | RTMP(S) via Media Studio Producer, key per uitzending | Nee | Nee | Nee | 5 |
 
 Fase 5 voegt Instagram, Kick, X en LinkedIn toe met een streamkey (geen OAuth): kijkers, chat en events plannen zijn bij die platforms niet via een openbare API beschikbaar (X en Kick alleen beperkt of betaald, LinkedIn alleen voor goedgekeurde partners). Reservefeed, fallback-beeld, API-sleutels en webhooks staan in de README en in [API.md](API.md).

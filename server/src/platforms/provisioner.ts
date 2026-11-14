@@ -3,7 +3,7 @@ import type { Sql } from '../db.js';
 import { decrypt, encrypt } from '../lib/crypto.js';
 import { getSettings, type OAuthProvider, type Settings } from '../lib/settings.js';
 import { publishUrl } from '../media/platforms.js';
-import { accessToken, facebook, PlatformError, twitch, x, xNotReady, youtube, type AccountRow, type BroadcastInfo } from './api.js';
+import { accessToken, facebook, linkedin, PlatformError, twitch, x, xNotReady, youtube, type AccountRow, type BroadcastInfo } from './api.js';
 import { readThumbnail } from '../lib/thumbnail.js';
 import type { Platform } from '../media/platforms.js';
 
@@ -13,7 +13,7 @@ import type { Platform } from '../media/platforms.js';
  * - pending: the broadcast is still being created; it gets the new title then;
  * - next: the destination is not live; its next broadcast uses the new title;
  * - manual: a destination with a stream key; Restream cannot reach its title, change it on the platform;
- * - unsupported: the platform has no way to change the title of a running broadcast (X);
+ * - unsupported: the platform has no way to change the title of a running broadcast (X, LinkedIn);
  * - failed: the platform refused; error says why.
  */
 export type InfoResult = 'updated' | 'pending' | 'next' | 'manual' | 'unsupported' | 'failed';
@@ -50,6 +50,8 @@ export class Provisioner {
   private timer: NodeJS.Timeout | null = null;
   private running: Promise<void> | null = null;
   private retryAt = new Map<string, number>();
+  /** LinkedIn: when the live video was registered, to tell when no video has arrived for too long. */
+  private linkedinSince = new Map<string, number>();
   private closed = false;
   /** Called after a destination got its publish URL, so FFmpeg starts without waiting for the next poll. */
   onReady: () => void = () => {};
@@ -86,6 +88,7 @@ export class Provisioner {
       if (!d.live && (d.remote_url_enc || d.remote_id)) await this.finish(s, d);
       else if (d.live && !d.remote_url_enc && now >= (this.retryAt.get(d.id) ?? 0)) await this.prepare(s, d);
       else if (d.live && d.platform === 'x' && d.remote_url_enc && !d.remote_id && now >= (this.retryAt.get(d.id) ?? 0)) await this.publishX(s, d);
+      else if (d.live && d.platform === 'linkedin' && d.remote_url_enc && !d.remote_id && now >= (this.retryAt.get(d.id) ?? 0)) await this.publishLinkedIn(s, d);
     }
     await this.syncEventTargets(s);
   }
@@ -146,6 +149,11 @@ export class Provisioner {
         // The source is reused for every broadcast; the broadcast itself is published once the video arrives (publishX).
         const src = await x.ensureSource(token, d.remote_stream_id, `Restream · ${d.name}`);
         streamId = src.id; url = src.url;
+      } else if (a.provider === 'linkedin') {
+        // A new live video per broadcast; the post is published once LinkedIn receives the video (publishLinkedIn).
+        const live = await linkedin.register(token, a.external_id);
+        streamId = live.asset; url = live.url;
+        this.linkedinSince.set(d.id, Date.now());
       } else {
         const key = await twitch.streamKey(s, token, a.external_id);
         url = publishUrl('twitch', d.server_url, key);
@@ -163,8 +171,9 @@ export class Provisioner {
       this.onReady();
     } catch (err) {
       this.retryAt.set(d.id, Date.now() + 30_000);
-      const xRefused = d.platform === 'x' && err instanceof PlatformError && err.status === 403 && !/scope/i.test(err.message);
-      await this.sql`UPDATE destinations SET prepare_error = ${xRefused ? 'x_not_eligible' : message(err)} WHERE id = ${d.id}`;
+      const refused = err instanceof PlatformError && err.status === 403 && !/scope/i.test(err.message);
+      const code = refused && d.platform === 'x' ? 'x_not_eligible' : refused && d.platform === 'linkedin' ? 'linkedin_not_eligible' : message(err);
+      await this.sql`UPDATE destinations SET prepare_error = ${code} WHERE id = ${d.id}`;
       this.log.warn({ err, destination: d.id }, 'preparing broadcast failed');
     }
   }
@@ -201,8 +210,60 @@ export class Provisioner {
     }
   }
 
+  /**
+   * LinkedIn: publishes the post with the live video once LinkedIn reports the video as available
+   * (LinkedIn asks to start sending first). Shows "waiting for LinkedIn" until then, and a warning when no video arrives.
+   */
+  private async publishLinkedIn(s: Settings, d: DestRow) {
+    const wait = (ms: number) => this.retryAt.set(d.id, Date.now() + ms);
+    try {
+      const a = await this.account(d.account_id);
+      if (!a || a.provider !== 'linkedin' || !d.remote_stream_id) throw new Error('account_missing');
+      const token = await accessToken(this.sql, a, s);
+      const status = await linkedin.assetStatus(token, d.remote_stream_id);
+      if (status !== 'AVAILABLE') {
+        wait(3000);
+        if (!this.linkedinSince.has(d.id)) this.linkedinSince.set(d.id, Date.now());
+        // No video after two minutes: show it (the dashboard explains), keep checking.
+        const late = Date.now() - this.linkedinSince.get(d.id)! > 120_000;
+        await this.sql`UPDATE destinations SET prepare_error = ${late ? 'linkedin_no_video' : null} WHERE id = ${d.id} AND prepare_error IS DISTINCT FROM ${late ? 'linkedin_no_video' : null}`;
+        return;
+      }
+      const b = await this.info(d, await this.liveEvent(d.id));
+      const post = await linkedin.publish(token, a.external_id, d.remote_stream_id, b.title, b.description);
+      await this.sql`
+        UPDATE destinations SET remote_id = ${post.id}, watch_url = ${post.watchUrl}, prepare_error = NULL
+        WHERE id = ${d.id} AND live`;
+      this.retryAt.delete(d.id);
+      this.linkedinSince.delete(d.id);
+      this.log.info({ destination: d.id, post: post.id }, 'linkedin: live post published');
+    } catch (err) {
+      const code = err instanceof PlatformError && err.status === 403 && !/scope/i.test(err.message) ? 'linkedin_not_eligible' : message(err);
+      wait(code === 'linkedin_not_eligible' ? 60_000 : 15_000);
+      await this.sql`UPDATE destinations SET prepare_error = ${code} WHERE id = ${d.id}`;
+      this.log.warn({ err, destination: d.id }, 'linkedin: publishing the live post failed');
+    }
+  }
+
   /** Ends the broadcast of a destination that stopped and forgets its publish URL. */
-  private async finish(s: Settings, d: DestRow) {
+  private async finish(s: Settings, d: DestRow, immediately = false) {
+    if (d.platform === 'linkedin' && d.remote_stream_id) {
+      // LinkedIn asks to wait about ten seconds after the video stops, so the end of the broadcast is not cut off.
+      const key = `end:${d.id}`;
+      const at = this.retryAt.get(key);
+      if (!immediately && at === undefined) { this.retryAt.set(key, Date.now() + 10_000); return; }
+      if (!immediately && Date.now() < at!) return;
+      this.retryAt.delete(key);
+      try {
+        const a = await this.account(d.account_id);
+        if (a) await linkedin.end(await accessToken(this.sql, a, s), d.remote_stream_id);
+      } catch (err) {
+        this.log.info({ err: message(err), destination: d.id }, 'ending the live video on linkedin');
+      }
+      this.linkedinSince.delete(d.id);
+      // The live video is used once; the next broadcast registers a new one.
+      await this.sql`UPDATE destinations SET remote_stream_id = NULL WHERE id = ${d.id} AND NOT live`;
+    }
     if (d.remote_id && (d.platform === 'youtube' || d.platform === 'facebook' || d.platform === 'x')) {
       try {
         const a = await this.account(d.account_id);
@@ -226,7 +287,7 @@ export class Provisioner {
   /** Ends a destination's broadcast right away, e.g. before the destination is deleted. */
   async release(destId: string) {
     const [d] = await this.sql<DestRow[]>`SELECT * FROM destinations WHERE id = ${destId}`;
-    if (d && (d.remote_id || d.remote_url_enc)) await this.finish(await getSettings(this.sql), { ...d, live: false });
+    if (d && (d.remote_id || d.remote_url_enc)) await this.finish(await getSettings(this.sql), { ...d, live: false }, true);
   }
 
   // -------------------------------------------------------------------------------------------
@@ -321,7 +382,7 @@ export class Provisioner {
       const out: InfoOutcome = { destinationId: d.id, name: d.name, platform: d.platform as Platform, result: 'next', error: null, thumbnail: null };
       if (!d.live) return out;
       if (d.auth !== 'account') return { ...out, result: 'manual' };
-      if (d.platform === 'x') return { ...out, result: 'unsupported' };
+      if (d.platform === 'x' || d.platform === 'linkedin') return { ...out, result: 'unsupported' };
       if (d.platform !== 'twitch' && !d.remote_id) return { ...out, result: 'pending' };
       try {
         const a = await this.account(d.account_id);

@@ -79,7 +79,7 @@ export interface BackupSettings {
   target: BackupTarget;
 }
 
-export const oauthProviders = ['youtube', 'facebook', 'twitch', 'x'] as const;
+export const oauthProviders = ['youtube', 'facebook', 'twitch', 'x', 'linkedin'] as const;
 export type OAuthProvider = (typeof oauthProviders)[number];
 
 /** OAuth app (client) of a platform, registered by the administrator in the platform's developer console. */
@@ -146,6 +146,7 @@ export const defaultSettings: Settings = {
     facebook: { clientId: '', clientSecretEnc: '' },
     twitch: { clientId: '', clientSecretEnc: '' },
     x: { clientId: '', clientSecretEnc: '' },
+    linkedin: { clientId: '', clientSecretEnc: '' },
   },
   recordings: { retentionDays: 0 },
   health: { uploadMbps: 0 },

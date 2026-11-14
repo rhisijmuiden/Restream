@@ -33,7 +33,8 @@ export interface SystemInfo {
   mediamtx: string | null; ffmpeg: string | null;
 }
 
-export type Platform = 'youtube' | 'facebook' | 'twitch' | 'instagram' | 'kick' | 'x' | 'linkedin' | 'rtmp' | 'srt';
+export type Platform = 'youtube' | 'facebook' | 'twitch' | 'instagram' | 'kick' | 'x' | 'linkedin'
+  | 'tiktok' | 'vimeo' | 'dailymotion' | 'rumble' | 'trovo' | 'owncast' | 'peertube' | 'rtmp' | 'srt';
 export type Orientation = 'landscape' | 'portrait';
 export type OutputStateName = 'off' | 'waiting' | 'preparing' | 'connecting' | 'live' | 'reconnecting';
 export type OutputErrorCode = 'dns' | 'refused' | 'timeout' | 'tls' | 'rejected' | 'dropped' | 'unknown';
@@ -101,7 +102,7 @@ export interface WebhookDelivery {
   durationMs: number | null; createdAt: string; deliveredAt: string | null; nextAttemptAt: string | null; payload: unknown;
 }
 
-export type OAuthProvider = 'youtube' | 'facebook' | 'twitch' | 'x';
+export type OAuthProvider = 'youtube' | 'facebook' | 'twitch' | 'x' | 'linkedin';
 export interface Account {
   id: string; provider: OAuthProvider; name: string; handle: string; imageUrl: string; status: 'ok' | 'error'; lastError: string | null;
   createdAt: string; destinations: number; missingScopes: string[];

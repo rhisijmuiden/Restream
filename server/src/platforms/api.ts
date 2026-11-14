@@ -5,7 +5,7 @@ import { getSettings, type OAuthProvider, type Settings } from '../lib/settings.
 /**
  * Platform endpoints. Mutable so the tests can point them at a local fake.
  * Checked against the platform documentation in November 2026 (Graph API v26.0, YouTube Data API v3, Twitch Helix,
- * X API v2 with the Livestream API routes /2/sources and /2/broadcasts).
+ * X API v2 with the Livestream API routes /2/sources and /2/broadcasts, LinkedIn Live Events API: /v2/liveAssetActions and /v2/ugcPosts).
  */
 export const endpoints = {
   googleAuth: 'https://accounts.google.com/o/oauth2/v2/auth',
@@ -20,6 +20,20 @@ export const endpoints = {
   twitchChat: 'wss://irc-ws.chat.twitch.tv:443',
   xAuth: 'https://x.com/i/oauth2/authorize',
   xApi: 'https://api.x.com/2',
+  linkedinAuth: 'https://www.linkedin.com/oauth/v2',
+  linkedinApi: 'https://api.linkedin.com/v2',
+};
+
+/** Who a LinkedIn connection goes live as: the person who signs in, or the company pages they administer. */
+export type LinkedInTarget = 'member' | 'organization';
+
+/**
+ * LinkedIn does not allow member and company-page permissions in one sign-in, so a company page is connected
+ * with its own set. Both need the Live Events API product (LinkedIn approves it per app).
+ */
+export const linkedinScopes: Record<LinkedInTarget, string> = {
+  member: 'openid profile r_member_live w_member_live',
+  organization: 'r_organization_live w_organization_live r_organization_admin',
 };
 
 export const scopes: Record<OAuthProvider, string> = {
@@ -30,6 +44,8 @@ export const scopes: Record<OAuthProvider, string> = {
   twitch: 'channel:read:stream_key channel:manage:broadcast channel:manage:schedule',
   // Who the account is (users/me needs tweet.read and users.read), its stream sources and broadcasts, and a refresh token.
   x: 'tweet.read users.read broadcast.read broadcast.write offline.access',
+  // Going live as the member who signs in; company pages use linkedinScopes.organization.
+  linkedin: linkedinScopes.member,
 };
 
 export class PlatformError extends Error {
@@ -42,6 +58,8 @@ interface CallOpts {
   json?: unknown;
   form?: Record<string, string>;
   headers?: Record<string, string>;
+  /** Receives the response headers (LinkedIn returns the id of a new post only in X-RestLi-Id). */
+  onHeaders?: (h: Headers) => void;
 }
 
 /** Calls a platform API and returns the JSON body; non-2xx answers become a PlatformError with the platform's message. */
@@ -57,6 +75,7 @@ export async function call<T = Record<string, unknown>>(provider: OAuthProvider,
   } catch (err) {
     throw new PlatformError(provider, `cannot reach ${new URL(url).host}: ${(err as Error).message}`);
   }
+  o.onHeaders?.(res.headers);
   const text = await res.text();
   let data: unknown = null;
   try { data = text ? JSON.parse(text) : null; } catch { /* not JSON */ }
@@ -96,7 +115,7 @@ export function redirectUri(s: Settings, p: OAuthProvider) {
   return `${s.publicUrl.replace(/\/+$/, '')}/api/accounts/oauth/${p}/callback`;
 }
 
-export function authorizeUrl(s: Settings, p: OAuthProvider, state: string, challenge: string): string {
+export function authorizeUrl(s: Settings, p: OAuthProvider, state: string, challenge: string, target: LinkedInTarget = 'member'): string {
   const app = s.platforms[p];
   const common = { client_id: app.clientId, redirect_uri: redirectUri(s, p), response_type: 'code', state };
   if (p === 'youtube') {
@@ -109,6 +128,7 @@ export function authorizeUrl(s: Settings, p: OAuthProvider, state: string, chall
   if (p === 'x') {
     return `${endpoints.xAuth}?${new URLSearchParams({ ...common, scope: scopes.x, code_challenge: challenge, code_challenge_method: 'S256' })}`;
   }
+  if (p === 'linkedin') return `${endpoints.linkedinAuth}/authorization?${new URLSearchParams({ ...common, scope: linkedinScopes[target] })}`;
   return `${endpoints.twitchAuth}/authorize?${new URLSearchParams({ ...common, scope: scopes.twitch, force_verify: 'true' })}`;
 }
 
@@ -135,9 +155,29 @@ const expiry = (sec?: number) => (sec ? new Date(Date.now() + sec * 1000) : null
 const scopeText = (v: TokenReply['scope']) => (Array.isArray(v) ? v.join(' ') : v ?? '');
 
 /** Exchanges the authorization code and returns the identities it gives access to. */
-export async function exchangeCode(s: Settings, p: OAuthProvider, code: string, verifier: string): Promise<Identity[]> {
+export async function exchangeCode(s: Settings, p: OAuthProvider, code: string, verifier: string, target: LinkedInTarget = 'member'): Promise<Identity[]> {
   const app = s.platforms[p];
   const secret = decrypt(app.clientSecretEnc);
+  if (p === 'linkedin') {
+    const t = await call<TokenReply>(p, `${endpoints.linkedinAuth}/accessToken`, { form: {
+      grant_type: 'authorization_code', code, client_id: app.clientId, client_secret: secret, redirect_uri: redirectUri(s, p),
+    } });
+    const common = { accessToken: t.access_token, refreshToken: t.refresh_token ?? '', expiresAt: expiry(t.expires_in), scopes: scopeText(t.scope) || linkedinScopes[target] };
+    if (target === 'organization') {
+      type Acl = { organization?: string; 'organization~'?: { localizedName?: string; vanityName?: string } };
+      const r = await call<{ elements?: Acl[] }>(p, `${endpoints.linkedinApi}/organizationAcls?q=roleAssignee&role=ADMINISTRATOR&state=APPROVED&projection=(elements*(organization~(localizedName,vanityName)))`,
+        { token: t.access_token, headers: linkedin.headers });
+      const orgs = (r.elements ?? []).filter((e) => e.organization?.startsWith('urn:li:organization:'));
+      if (!orgs.length) throw new PlatformError(p, 'no_pages');
+      return orgs.map((e) => ({
+        externalId: e.organization!, name: e['organization~']?.localizedName || e.organization!, handle: e['organization~']?.vanityName ? `linkedin.com/company/${e['organization~'].vanityName}` : '',
+        imageUrl: '', ...common,
+      }));
+    }
+    const u = await call<{ sub?: string; name?: string; picture?: string }>(p, `${endpoints.linkedinApi}/userinfo`, { token: t.access_token });
+    if (!u.sub) throw new PlatformError(p, 'no_channel');
+    return [{ externalId: `urn:li:person:${u.sub}`, name: u.name || 'LinkedIn', handle: '', imageUrl: u.picture ?? '', ...common }];
+  }
   if (p === 'youtube') {
     const t = await call<TokenReply>(p, endpoints.googleToken, { form: {
       code, client_id: app.clientId, client_secret: secret, redirect_uri: redirectUri(s, p), grant_type: 'authorization_code', code_verifier: verifier,
@@ -207,7 +247,7 @@ export async function accessToken(sql: Sql, a: AccountRow, s?: Settings): Promis
     // X rotates the refresh token on every use; the new one is stored below.
     const t = a.provider === 'x'
       ? await call<TokenReply>('x', `${endpoints.xApi}/oauth2/token`, { headers: xBasic(settings), form: { grant_type: 'refresh_token', refresh_token: refresh, client_id: app.clientId } })
-      : await call<TokenReply>(a.provider, a.provider === 'youtube' ? endpoints.googleToken : `${endpoints.twitchAuth}/token`, {
+      : await call<TokenReply>(a.provider, a.provider === 'youtube' ? endpoints.googleToken : a.provider === 'linkedin' ? `${endpoints.linkedinAuth}/accessToken` : `${endpoints.twitchAuth}/token`, {
         form: { grant_type: 'refresh_token', refresh_token: refresh, client_id: app.clientId, client_secret: decrypt(app.clientSecretEnc) },
       });
     const exp = expiry(t.expires_in);
@@ -235,6 +275,11 @@ export async function verifyAccount(sql: Sql, a: AccountRow, s: Settings): Promi
   if (a.provider === 'youtube') await call('youtube', `${endpoints.youtube}/channels?part=id&mine=true`, { token });
   else if (a.provider === 'facebook') await call('facebook', `${endpoints.facebookGraph}/${encodeURIComponent(a.external_id)}?fields=id`, { token });
   else if (a.provider === 'x') await call('x', `${endpoints.xApi}/users/me`, { token });
+  else if (a.provider === 'linkedin') {
+    if (a.external_id.startsWith('urn:li:organization:')) {
+      await call('linkedin', `${endpoints.linkedinApi}/organizationAcls?q=roleAssignee&role=ADMINISTRATOR&state=APPROVED`, { token, headers: linkedin.headers });
+    } else await call('linkedin', `${endpoints.linkedinApi}/userinfo`, { token });
+  }
   else await call('twitch', `${endpoints.twitchApi}/users?id=${encodeURIComponent(a.external_id)}`, { token, headers: { 'client-id': s.platforms.twitch.clientId } });
 }
 
@@ -589,5 +634,80 @@ export const x = {
 
   async end(token: string, broadcastId: string) {
     await call('x', `${endpoints.xApi}/broadcasts/${encodeURIComponent(broadcastId)}/state`, { method: 'PUT', token, json: { state: 'END' } });
+  },
+};
+
+// ---------------------------------------------------------------------------------------------
+// LinkedIn (Live Events API)
+
+/** Recipe of a live video in the member's or page's feed. */
+const liveRecipe = 'urn:li:digitalmediaRecipe:feedshare-live-video';
+
+/**
+ * LinkedIn's ingest regions. Restream picks the one nearest to the server's time zone; West Europe is the default
+ * (the Netherlands), as LinkedIn advises the region closest to the encoder.
+ */
+export function linkedinRegion(timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone): string {
+  if (/^America\/(Los_Angeles|Vancouver|Tijuana|Phoenix|Denver|Boise|Edmonton)/.test(timeZone)) return 'WEST_US';
+  if (/^America\/(Chicago|Winnipeg|Mexico_City)/.test(timeZone)) return 'CENTRAL_US';
+  if (/^America\/(New_York|Toronto|Detroit|Montreal|Halifax)/.test(timeZone)) return 'EAST_US_NORTH';
+  if (/^America\/(Sao_Paulo|Argentina|Buenos_Aires|Santiago|Bogota|Lima)/.test(timeZone)) return 'SOUTH_AMERICA';
+  if (/^Europe\/(Stockholm|Helsinki|Oslo|Copenhagen|Dublin|Riga|Tallinn|Vilnius)/.test(timeZone) || timeZone === 'Atlantic/Reykjavik') return 'NORTH_EUROPE';
+  return 'WEST_EUROPE';
+}
+
+export const linkedin = {
+  headers: { 'x-restli-protocol-version': '2.0.0' } as Record<string, string>,
+
+  /**
+   * Registers a live video for the member or page and returns its ingest URL (RTMPS when offered) and asset.
+   * LinkedIn discards it when no video arrives within an hour, so it is registered at Go live.
+   */
+  async register(token: string, owner: string): Promise<{ asset: string; url: string }> {
+    const r = await call<{ value?: { asset?: string; ingestUrls?: { ingestProtocol?: string; url?: string }[] } }>('linkedin',
+      `${endpoints.linkedinApi}/liveAssetActions?action=register`, {
+        token, headers: linkedin.headers,
+        json: { registerLiveEventRequest: { owner, recipes: [liveRecipe], region: linkedinRegion() } },
+      });
+    const urls = r.value?.ingestUrls ?? [];
+    const url = (urls.find((u) => u.ingestProtocol === 'RTMPS') ?? urls.find((u) => u.ingestProtocol === 'RTMP'))?.url;
+    if (!r.value?.asset || !url) throw new PlatformError('linkedin', 'no ingest URL');
+    return { asset: r.value.asset, url };
+  },
+
+  /** LinkedIn's state of the live video: AVAILABLE once it receives the video, then the post can be published. */
+  async assetStatus(token: string, asset: string): Promise<string> {
+    const id = asset.split(':').pop()!;
+    const r = await call<{ recipes?: { recipe?: string; status?: string }[] }>('linkedin', `${endpoints.linkedinApi}/assets/${encodeURIComponent(id)}`, { token, headers: linkedin.headers });
+    return r.recipes?.find((x) => x.recipe === liveRecipe)?.status ?? 'NEW';
+  },
+
+  /** Publishes the live video as a public post with the title (and description) as its text. */
+  async publish(token: string, owner: string, asset: string, title: string, description: string): Promise<{ id: string; watchUrl: string }> {
+    let id = '';
+    const text = [title, description].map((v) => v.replace(/[\u0000-\u0008\u000b-\u001f]/g, ' ').trim()).filter(Boolean).join('\n\n').slice(0, 3000) || 'Live';
+    const r = await call<{ id?: string }>('linkedin', `${endpoints.linkedinApi}/ugcPosts`, {
+      token, headers: { ...linkedin.headers, 'x-restli-method': 'create' }, onHeaders: (h) => { id = h.get('x-restli-id') ?? ''; },
+      json: {
+        author: owner,
+        lifecycleState: 'PUBLISHED',
+        specificContent: {
+          'com.linkedin.ugc.ShareContent': {
+            shareCommentary: { text, attributes: [] },
+            shareMediaCategory: 'LIVE_VIDEO',
+            media: [{ media: asset, status: 'READY' }],
+          },
+        },
+        visibility: { 'com.linkedin.ugc.MemberNetworkVisibility': 'PUBLIC' },
+      },
+    });
+    id = id || r.id || '';
+    if (!id) throw new PlatformError('linkedin', 'no post id');
+    return { id, watchUrl: `https://www.linkedin.com/feed/update/${id}` };
+  },
+
+  /** Ends the live video; LinkedIn turns it into a normal video in the post. */
+  async end(token: string, asset: string) {
+    await call('linkedin', `${endpoints.linkedinApi}/liveAssetActions?action=end`, { token, headers: linkedin.headers, json: { asset } });
   },
 };

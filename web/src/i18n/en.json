@@ -180,7 +180,9 @@
     "previewHls": "HLS preview · a few seconds delay",
     "previewHlsHint": "Low-latency WebRTC preview is not possible for this feed, usually because the encoder sends B-frames. Set B-frames to 0 in OBS for a near real-time preview.",
     "xPublishing": "Sending video; X publishes the broadcast in a few seconds…",
-    "xRefused": "X has not published the broadcast yet: {{error}}"
+    "xRefused": "X has not published the broadcast yet: {{error}}",
+    "linkedinPublishing": "Sending video; LinkedIn publishes the post as soon as it receives it…",
+    "linkedinRefused": "LinkedIn has not published the post yet: {{error}}"
   },
   "soon": {
     "title": "Coming in phase {{phase}}",
@@ -389,7 +391,10 @@
     "invalid_api_key": "The API key is wrong, expired or revoked.",
     "not_allowed_with_api_key": "This action is not available with an API key.",
     "x_not_eligible": "X refused to go live with this account. X only allows this for paid accounts (X Premium) that are not protected.",
-    "thumbnail_too_large": "The thumbnail is larger than 2 MB, the most YouTube accepts."
+    "thumbnail_too_large": "The thumbnail is larger than 2 MB, the most YouTube accepts.",
+    "linkedin_not_eligible": "LinkedIn refused to go live. The app needs the Live Events API approved by LinkedIn, and the profile or page must be allowed to use LinkedIn Live.",
+    "linkedin_no_video": "LinkedIn has not received usable video yet. Check that the feed is H.264 at most 1080p30 (Transcode does this) and that outgoing port 2935 is open.",
+    "no_linkedin_pages": "This LinkedIn account administers no company pages. Connect the profile instead, or ask a page administrator to connect."
   },
   "time": {
     "seconds": "{{n}}s",
@@ -536,7 +541,7 @@
     "about_instagram": "Instagram: needs a professional (Business or Creator) account. In Instagram Live Producer you get a new server URL and stream key for every broadcast, so paste both here before you go live. Instagram shows portrait video (9:16, 720p, 30 fps), which is what this preset sends.",
     "about_kick": "Kick: copy the stream URL and stream key from Kick › Settings › Stream. Kick takes H.264 up to 1080p60 and 8 Mbps.",
     "about_x": "X: in Media Studio › Producer, create a source and copy its RTMPS URL and stream key; the source keeps them, so you do this once. Start the broadcast in Producer once Restream sends video. X takes 720p30 up to 4 Mbps; keyframes every 3 seconds are set for you. Easier: connect the X account under Accounts and Restream does all of this.",
-    "about_linkedin": "LinkedIn: live streaming needs approval by LinkedIn. Create a live event with \"Custom stream (RTMP)\", then copy the stream URL and key (available about an hour before the start). LinkedIn takes up to 1080p30 and 6 Mbps.",
+    "about_linkedin": "LinkedIn: live streaming needs approval by LinkedIn. Create a live event with \"Custom stream (RTMP)\", then copy the stream URL and key (available about an hour before the start). LinkedIn takes up to 1080p30 and 6 Mbps. Easier: connect LinkedIn under Accounts and Restream creates the live video itself.",
     "serverFromPlatform": "Copy the server or stream URL from {{platform}}.",
     "igKeyHint": "Instagram Live Producer → Stream key. It changes for every broadcast.",
     "kickKeyHint": "Kick → Settings → Stream → Stream key.",
@@ -549,7 +554,114 @@
     "landscapeHint": "The picture keeps the shape of your ingest.",
     "portraitHint": "Restream cuts the middle 9:16 out of the picture, for platforms that show portrait video such as Instagram. Keep the important part in the centre of the shot.",
     "transcodeAdvised": "{{platform}} takes at most {{height}}p at {{fps}} fps. Passthrough only works when your encoder already sends that; otherwise choose Transcode.",
-    "withAccountHintX": "Restream creates a source on the X account once. On Go live it publishes the broadcast with the stream's title as soon as X receives the video (X announces it in a post) and ends it on Stop. Events are not announced on X."
+    "withAccountHintX": "Restream creates a source on the X account once. On Go live it publishes the broadcast with the stream's title as soon as X receives the video (X announces it in a post) and ends it on Stop. Events are not announced on X.",
+    "group": {
+      "social": "Social media",
+      "gaming": "Streaming and gaming",
+      "video": "Video platforms",
+      "own": "Your own servers"
+    },
+    "keyGuideTitle": "Where do I find the server URL and stream key on {{platform}}?",
+    "keyGuideOpen": "Open {{platform}}",
+    "keyGuideDocs": "{{platform}} documentation",
+    "keyGuide": {
+      "youtube": [
+        "Open YouTube Studio and click Create › Go live.",
+        "Choose Stream (not Webcam). YouTube shows the stream URL and stream key under Stream settings.",
+        "Copy the stream key and paste it here. The server is filled in for you (RTMPS)."
+      ],
+      "facebook": [
+        "Open Facebook Live Producer and choose where to post: your profile, a page or a group.",
+        "Under Streaming software, copy the stream key (choose a persistent key if you stream often).",
+        "Paste it here. Facebook only accepts RTMPS; the server is filled in for you."
+      ],
+      "twitch": [
+        "Open the Twitch dashboard: Settings › Stream.",
+        "Under Primary stream key, click Copy.",
+        "Paste it here. The server is filled in for you."
+      ],
+      "instagram": [
+        "Instagram needs a professional account (Business or Creator). On instagram.com, click Create › Live video.",
+        "Give the broadcast a title and audience, then copy the Stream URL and Stream key.",
+        "Paste both here and go live within a few minutes; Instagram gives a new URL and key for every broadcast."
+      ],
+      "kick": [
+        "Open Kick › Settings › Stream (Creator Dashboard).",
+        "Copy the Stream URL (it starts with rtmps://) and the Stream key.",
+        "Paste both here. Kick takes H.264 up to 1080p60 and 8 Mbps."
+      ],
+      "x": [
+        "Open Media Studio › Producer on studio.x.com and create a source (Sources › Create source).",
+        "Copy its RTMPS URL and stream key; the source keeps them.",
+        "Paste both here. Start the broadcast in Producer once Restream sends video, or connect the X account under Accounts so Restream does it for you."
+      ],
+      "linkedin": [
+        "Create a LinkedIn event with the format LinkedIn Live and Custom stream (RTMP) as the streaming tool.",
+        "On the event page, open Stream setup and copy the Stream URL and Stream key (shown from about an hour before the start).",
+        "Paste both here, or connect LinkedIn under Accounts so Restream creates the live video for you."
+      ],
+      "tiktok": [
+        "Open TikTok LIVE Producer (livecenter.tiktok.com/producer) with the account you stream on.",
+        "Choose Streaming software (stream key). TikTok shows a Server URL and a Stream key. Don't see that option? Your account has no stream key access yet (see above).",
+        "Copy both and paste them here before every LIVE: TikTok gives a new key each time."
+      ],
+      "vimeo": [
+        "Open Vimeo › Events and create an event (or open an existing one).",
+        "Choose Stream with RTMP (Streaming software) and copy the Stream key.",
+        "Paste it here; the RTMPS server is filled in for you. An event keeps its key, so you do this once per event."
+      ],
+      "dailymotion": [
+        "Open Dailymotion Studio › Live streams and create a live stream.",
+        "Under Encoder settings, copy the Stream URL and Stream key. The key ends with ?auth=…; copy it completely.",
+        "Paste the key here; the server is filled in for you."
+      ],
+      "rumble": [
+        "Open Rumble › Go Live (camera icon) and fill in the details; or use Account › Live streaming › Static stream key for a key that does not change.",
+        "Click Get the streamer configuration and copy the Server URL and Stream key.",
+        "Paste both here. Rumble asks for CBR, keyframes every 2 seconds and at most 8 Mbps; Transcode does exactly that."
+      ],
+      "trovo": [
+        "Open Trovo Creator Studio › Stream.",
+        "Copy the Host URL (server) and the Stream key.",
+        "Paste the key here; the default server is filled in. Trovo shows a different host URL? Paste that as well."
+      ],
+      "owncast": [
+        "Open the admin page of your Owncast server: https://your-server/admin.",
+        "Under Configuration › Server setup › Stream keys, copy a stream key (or create one for Restream).",
+        "Server URL: rtmp://your-server:1935/live. Paste the key here. Owncast transcodes itself, so Passthrough is usually best."
+      ],
+      "peertube": [
+        "On your PeerTube instance, click Publish › Go live (the instance must allow lives).",
+        "Choose a normal or permanent live and click Go live. PeerTube shows the RTMP URL, the RTMPS URL (if enabled) and a Live stream key.",
+        "Paste the URL and key here. A permanent live keeps its key, so you can reuse this destination."
+      ],
+      "rtmp": [
+        "Ask the receiving server for its RTMP or RTMPS address, for example rtmp://host:1935/app.",
+        "Paste the address without the stream key in Server URL, and the key (stream name) in Stream key.",
+        "Not sure what goes where? The last part of an OBS-style URL is usually the key."
+      ],
+      "srt": [
+        "The receiving server listens for SRT (Restream connects as caller). Ask for its address: srt://host:port.",
+        "If it uses a stream ID or a passphrase, enter them below; otherwise leave them empty.",
+        "Latency: add ?latency=… in microseconds to the Server URL, for example srt://host:9000?latency=500000 for 500 ms. More latency survives a worse connection."
+      ]
+    },
+    "ttKeyHint": "TikTok LIVE Producer → Streaming software → Stream key. It changes for every LIVE.",
+    "vimeoKeyHint": "Vimeo event → Stream with RTMP → Stream key.",
+    "dmKeyHint": "Dailymotion Studio → Live stream → Encoder settings → Stream key (with ?auth=…).",
+    "rumbleKeyHint": "Rumble → Go Live → Get the streamer configuration → Stream key.",
+    "trovoKeyHint": "Trovo Creator Studio → Stream → Stream key.",
+    "owncastKeyHint": "Owncast admin → Configuration → Server setup → Stream keys.",
+    "peertubeKeyHint": "PeerTube → Go live → Live stream key.",
+    "tiktokAccessTitle": "Only for accounts with stream key access",
+    "tiktokAccess": "TikTok only hands out a stream key to accounts it has approved for it. Today that usually means 18 or older, at least 1,000 followers, an account in good standing and a region where TikTok offers it; TikTok can change this without notice. Without that access TikTok shows no stream key and you can only go live from the app or TikTok LIVE Studio; Restream cannot work around it. The key changes for every LIVE, so paste the new one before you go live. TikTok shows portrait video (1080x1920), which is what this preset sends.",
+    "about_vimeo": "Vimeo: live streaming needs a Vimeo plan with live events (Advanced or higher). The RTMPS server is filled in; Vimeo takes up to 1080p60.",
+    "about_dailymotion": "Dailymotion: live streaming is part of Dailymotion for Business / Studio. Dailymotion takes RTMP only (no RTMPS).",
+    "about_rumble": "Rumble: by default you get a new key for every broadcast; a static stream key (Account › Live streaming) stays the same. Rumble is strict: constant bitrate, keyframes every 2 seconds and at most 8 Mbps, so this preset transcodes.",
+    "about_trovo": "Trovo: takes H.264 up to 1080p60. The stream key stays the same until you reset it in Creator Studio.",
+    "about_owncast": "Owncast: your own live streaming server. Restream sends RTMP to port 1935; Owncast makes the viewer qualities itself, so Passthrough is enough.",
+    "about_peertube": "PeerTube: the instance administrator must allow lives. Use RTMPS (port 1936) when the instance offers it. A permanent live keeps its key between broadcasts.",
+    "withAccountHintLinkedIn": "On Go live Restream registers a new live video on LinkedIn and publishes the post (with the stream's title and description) as soon as LinkedIn receives the video. Stop ends it; the video stays in the post. LinkedIn allows up to 4 hours per broadcast. Events are not announced on LinkedIn."
   },
   "mail": {
     "title": "Mail server",
@@ -794,7 +906,7 @@
   },
   "accounts": {
     "title": "Connected accounts",
-    "subtitle": "Connect YouTube channels, Facebook pages, Twitch channels and X accounts once. Destinations can then go live without copying stream keys, and events are announced on the platforms.",
+    "subtitle": "Connect YouTube channels, Facebook pages, Twitch channels, X accounts and LinkedIn profiles or pages once. Destinations can then go live without copying stream keys, and events are announced on the platforms.",
     "connected_one": "Account connected.",
     "connected_other": "{{count}} accounts connected.",
     "publicUrlMissing": "Set the public URL of this server first; the platforms send you back to it after signing in.",
@@ -812,13 +924,15 @@
       "youtube": "YouTube channels",
       "facebook": "Facebook pages",
       "twitch": "Twitch channels",
-      "x": "X accounts"
+      "x": "X accounts",
+      "linkedin": "LinkedIn profiles and pages"
     },
     "what": {
       "youtube": "Creates the live broadcast on Go live, schedules events with their own watch link, and ends the broadcast on Stop.",
       "facebook": "Every page you manage is added. Goes live on the page and schedules events as upcoming live videos.",
       "twitch": "Gets the stream key itself and sets the stream title. Events go into the stream schedule (Affiliates and Partners).",
-      "x": "Creates a stream source on the account once, publishes the broadcast on Go live (with an announcing post) and ends it on Stop. Events are not announced on X."
+      "x": "Creates a stream source on the account once, publishes the broadcast on Go live (with an announcing post) and ends it on Stop. Events are not announced on X.",
+      "linkedin": "Registers a live video on Go live, publishes the post as soon as the video arrives and ends it on Stop. Connect your own profile, or the company pages you administer. Events are not announced on LinkedIn."
     },
     "appsTitle": "Platform apps",
     "appsText": "Each platform needs an app that you register once in its developer console. The guide walks you through it and gives every value to copy; the secret is stored encrypted.",
@@ -826,7 +940,8 @@
       "youtube": "Google Cloud OAuth client",
       "facebook": "Meta app",
       "twitch": "Twitch app",
-      "x": "X developer app"
+      "x": "X developer app",
+      "linkedin": "LinkedIn developer app"
     },
     "secretKeep": "Leave empty to keep the stored secret.",
     "reconnectForChat": "Connect again to show the comments of this page in the live chat.",
@@ -876,13 +991,19 @@
           "Sign in to X with the account you want to go live on.",
           "X asks if the app may read your profile and manage your live broadcasts. Click Authorize app.",
           "The pop-up closes and the account appears on this page."
+        ],
+        "linkedin": [
+          "Sign in to LinkedIn with the profile you want to go live on. For a company page: sign in as an administrator of that page.",
+          "LinkedIn asks if the app may use your profile and create live videos for you (or for your pages). Click Allow.",
+          "The pop-up closes and the profile or pages appear on this page."
         ]
       },
       "require": {
         "youtube": "The channel needs live streaming enabled (YouTube Studio › Go live). The first time, YouTube can take up to 24 hours to enable it.",
         "facebook": "Facebook only allows live video through apps on pages with at least 100 followers, managed by an account that is at least 60 days old.",
         "twitch": "Scheduling events needs Affiliate or Partner status; going live works for every channel.",
-        "x": "X only lets paid accounts (X Premium) that are not protected go live from streaming software. Connecting works without it, but going live is refused."
+        "x": "X only lets paid accounts (X Premium) that are not protected go live from streaming software. Connecting works without it, but going live is refused.",
+        "linkedin": "LinkedIn only lets approved profiles and pages go live, and the app needs the Live Events API approved by LinkedIn. Connecting works without it, but going live is refused and the dashboard says why."
       },
       "consent": {
         "youtube": {
@@ -923,6 +1044,16 @@
             "Stay connected until you revoke access"
           ],
           "button": "Authorize app"
+        },
+        "linkedin": {
+          "site": "linkedin.com",
+          "title": "{{app}} would like to access your LinkedIn account",
+          "items": [
+            "Use your name and photo",
+            "Create and manage your live videos",
+            "Post the live video to your profile or page"
+          ],
+          "button": "Allow"
         }
       }
     },
@@ -935,7 +1066,8 @@
       "youtube": "You register Restream as an app in Google Cloud. It is free and takes about 10 minutes. Afterwards everyone with operator rights can connect channels with the familiar Google pop-up.",
       "facebook": "You register Restream as an app at Meta for Developers. It is free and takes about 10 minutes. Afterwards pages are connected with the familiar Facebook pop-up.",
       "twitch": "You register Restream as an application in the Twitch developer console. It takes about 5 minutes.",
-      "x": "You register Restream as an app in the X Developer Console. It takes about 10 minutes. X bills API use per call with prepaid credits; going live takes only a handful of calls per broadcast."
+      "x": "You register Restream as an app in the X Developer Console. It takes about 10 minutes. X bills API use per call with prepaid credits; going live takes only a handful of calls per broadcast.",
+      "linkedin": "You register Restream as an app in the LinkedIn Developer Portal and request the Live Events API. LinkedIn reviews that request; until it is approved, connecting works but going live is refused. Allow a few days for the review."
     },
     "guide": {
       "youtube": [
@@ -1079,6 +1211,40 @@
           "text": "App › Keys and tokens › OAuth 2.0 Client ID and Client Secret.",
           "note": "X shows the client secret only once. Lost it? Regenerate it and paste the new one here."
         }
+      ],
+      "linkedin": [
+        {
+          "title": "Create the app",
+          "text": "Sign in to the LinkedIn Developer Portal and click Create app. LinkedIn asks for a company page to link the app to (any page you administer) and a logo.",
+          "link": "linkedinCreate"
+        },
+        {
+          "title": "Add the products",
+          "text": "App › Products: request Live Events (the LinkedIn Live Events API) and add Sign In with LinkedIn using OpenID Connect. Restream needs both: one to go live, one to see who connected.",
+          "link": "linkedinApps",
+          "note": "Live Events starts on the Development tier (100 calls a day, plenty for a few broadcasts). LinkedIn approves the product; check its status on the Products tab."
+        },
+        {
+          "title": "Add the redirect URL",
+          "text": "App › Auth › OAuth 2.0 settings › Authorized redirect URLs for your app: add this URL exactly:",
+          "copy": [
+            "redirectUri"
+          ],
+          "note": "It must match exactly, including https and without a trailing slash."
+        },
+        {
+          "title": "Permissions",
+          "text": "Restream asks for these permissions in the pop-up itself; you don't have to add them. The first four are for your own profile, the last three for company pages (LinkedIn asks for them separately):",
+          "copy": [
+            "scopes"
+          ]
+        },
+        {
+          "title": "Copy the Client ID and Client Secret",
+          "text": "App › Auth › Application credentials: Client ID and Primary Client Secret.",
+          "link": "linkedinLiveDocs",
+          "note": "LinkedIn access lasts 60 days. Ask LinkedIn to enable refresh tokens for the app; otherwise connect the account again when the dashboard asks for it."
+        }
       ]
     },
     "copyLabel": {
@@ -1093,13 +1259,15 @@
       "youtube": "Client ID",
       "facebook": "App ID",
       "twitch": "Client ID",
-      "x": "OAuth 2.0 Client ID"
+      "x": "OAuth 2.0 Client ID",
+      "linkedin": "Client ID"
     },
     "clientSecretLabel": {
       "youtube": "Client secret",
       "facebook": "App secret",
       "twitch": "Client secret",
-      "x": "OAuth 2.0 Client Secret"
+      "x": "OAuth 2.0 Client Secret",
+      "linkedin": "Primary Client Secret"
     },
     "tryTitle": "Try it: connect your first account",
     "tryText": "Click the button. The platform's pop-up opens; sign in and allow access. Does that work? Then setup is done.",
@@ -1110,7 +1278,8 @@
         "text": "X only lets paid accounts (X Premium, or a verified organisation) go live from streaming software. Without it X refuses the broadcast and the dashboard says so. Protected (private) accounts cannot go live either.",
         "link": "About X Premium"
       }
-    }
+    },
+    "connectPage": "Connect a company page"
   },
   "events": {
     "title": "Events",
