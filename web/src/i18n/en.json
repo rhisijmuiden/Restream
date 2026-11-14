@@ -1817,5 +1817,13 @@
     "result_failed": "failed",
     "thumbnailFailed": "thumbnail failed",
     "saveLive": "Save and update live"
+  },
+  "goLiveProgress": {
+    "title": "Go live",
+    "elapsed": "Time since Go live",
+    "starting": "Starting destinations: {{sending}} of {{total}} sending data",
+    "allSending": "All destinations are sending data, after {{time}}",
+    "doneWithErrors": "{{sending}} sending data, {{failed}} with an error",
+    "sendingAfter": "Sending after {{time}}"
   }
 }

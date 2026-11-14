@@ -9,6 +9,11 @@
 - **LinkedIn Live via a connected account** (LinkedIn Live Events API): connect your own profile, or the company pages you administer (a separate button, as LinkedIn does not combine both permissions). On Go live Restream registers a new live video (RTMPS, ingest region from the server's time zone, West Europe by default), publishes the public post with the stream's title and description as soon as LinkedIn receives the video, and ends the live video ten seconds after Stop. The dashboard shows "waiting for LinkedIn", and explains when LinkedIn refuses (app not approved for Live Events) or receives no usable video. Setup guide on the Accounts page, step by step, with the redirect URL to copy. Events, viewers, chat and title changes during a broadcast are not available for LinkedIn.
 - **Platform picker in groups** (social media, streaming and gaming, video platforms, your own servers) and a **guide per platform** in the destination form: "Where do I find the server URL and stream key?", with the steps and a link to the right page.
 - Migration 010 (new platforms and LinkedIn accounts). All texts in English and Dutch.
+## 1.6.1 · Stopwatch after Go live
+
+- After **Go live** a panel shows a running stopwatch and, per destination, whether it is still connecting or already **sending data**, and how long that took ("Sending after 4.8 s"). A progress bar fills as destinations come up; the stopwatch stops when the last one sends data or fails.
+- The panel turns green when everything is on air and closes by itself 20 seconds later (or with ×). Times come from the server, corrected for the browser's clock, so a reload during the start shows the same timer.
+- `/api/streams` returns `serverTime`.
 
 ## 1.6.0 · Health monitor, check before Go live, one title for every platform
 

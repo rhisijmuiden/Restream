@@ -82,7 +82,7 @@ export type SourceName = 'main' | 'backup' | 'fallback' | 'none';
 export interface SourceState {
   active: SourceName; since: string | null; fallbackEndsAt: string | null; fallbackExpired: boolean; backupConfigured: boolean; backup: IngestStatus;
 }
-export interface StreamsResponse { mediaEnabled: boolean; mediamtxOnline: boolean; streams: Stream[] }
+export interface StreamsResponse { mediaEnabled: boolean; mediamtxOnline: boolean; serverTime?: string; streams: Stream[] }
 export interface PlatformPreset {
   server: string; protocols: string[]; keyRequired: boolean; serverRequired: boolean; serverExample: string;
   recommendedKbps: number; maxKbps: number; maxHeight: 720 | 1080; maxFps: 30 | 60; orientation: Orientation; defaultMode: 'copy' | 'transcode';

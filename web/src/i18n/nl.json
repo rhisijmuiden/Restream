@@ -1817,5 +1817,13 @@
     "result_failed": "mislukt",
     "thumbnailFailed": "thumbnail mislukt",
     "saveLive": "Opslaan en live bijwerken"
+  },
+  "goLiveProgress": {
+    "title": "Go live",
+    "elapsed": "Tijd sinds Go live",
+    "starting": "Bestemmingen starten: {{sending}} van {{total}} versturen data",
+    "allSending": "Alle bestemmingen versturen data, na {{time}}",
+    "doneWithErrors": "{{sending}} versturen data, {{failed}} met een fout",
+    "sendingAfter": "Verstuurt na {{time}}"
   }
 }

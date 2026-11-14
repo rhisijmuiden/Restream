@@ -16,6 +16,7 @@ import { Audience, ChatList } from '../components/live';
 import { formatCount, useLive } from '../lib/live';
 import type { LiveDestination } from '../lib/api';
 import { GoLiveControls } from '../components/preflight';
+import { GoLiveProgress } from '../components/GoLiveProgress';
 import { HealthStrip } from '../components/health';
 import { BroadcastInfoCard } from '../components/BroadcastInfo';
 
@@ -150,6 +151,7 @@ function StreamControl({ stream, canOperate, sys }: { stream: Stream; canOperate
       </header>
       <ErrorText error={live.error} />
       <HealthStrip streamId={stream.id} />
+      <GoLiveProgress stream={stream} />
 
       <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
         <div className="flex min-w-0 flex-col gap-6">
