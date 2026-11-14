@@ -105,6 +105,8 @@ export async function streamRoutes(app: FastifyInstance, { sql, media, playback,
     return {
       mediaEnabled: config.media.enabled,
       mediamtxOnline: media.mediamtxOnline,
+      // Lets the console run timers against this server's clock (Go live progress).
+      serverTime: new Date().toISOString(),
       streams: streams.map((s) => {
         const key = canSeeKeys ? decrypt(s.ingest_key_enc) : null;
         const bkey = canSeeKeys && s.backup_key_enc ? decrypt(s.backup_key_enc) : null;

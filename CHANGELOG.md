@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.1 · Stopwatch after Go live
+
+- After **Go live** a panel shows a running stopwatch and, per destination, whether it is still connecting or already **sending data**, and how long that took ("Sending after 4.8 s"). A progress bar fills as destinations come up; the stopwatch stops when the last one sends data or fails.
+- The panel turns green when everything is on air and closes by itself 20 seconds later (or with ×). Times come from the server, corrected for the browser's clock, so a reload during the start shows the same timer.
+- `/api/streams` returns `serverTime`.
+
 ## 1.6.0 · Health monitor, check before Go live, one title for every platform
 
 - **Health page** (Broadcast › Health) with 15 minutes of history, refreshed every 2 seconds:
