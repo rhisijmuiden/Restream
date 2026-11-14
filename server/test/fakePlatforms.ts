@@ -1,9 +1,9 @@
-/** A local stand-in for the Google/YouTube, Facebook Graph, Twitch and X APIs, recording every call. */
+/** A local stand-in for the Google/YouTube, Facebook Graph, Twitch, X and LinkedIn APIs, recording every call. */
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { endpoints } from '../src/platforms/api.js';
 
-export interface Call { method: string; path: string; query: Record<string, string>; body: Record<string, unknown>; auth: string }
+export interface Call { method: string; path: string; query: Record<string, string>; body: Record<string, unknown>; auth: string; headers: Record<string, string | string[] | undefined> }
 
 export async function startFakePlatforms() {
   const calls: Call[] = [];
@@ -17,6 +17,9 @@ export async function startFakePlatforms() {
     /** X: whether the source receives video, and whether the account may go live (X asks for Premium). */
     xActive: false,
     xEligible: true,
+    /** LinkedIn: the live video's recipe status (AVAILABLE once video arrives) and whether the app may go live. */
+    liStatus: 'NEW',
+    liEligible: true,
   };
 
   const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
@@ -26,7 +29,7 @@ export async function startFakePlatforms() {
     const url = new URL(req.url!, 'http://x');
     let body: Record<string, unknown> = {};
     if (raw) body = (req.headers['content-type'] ?? '').includes('json') ? JSON.parse(raw) : Object.fromEntries(new URLSearchParams(raw));
-    const call: Call = { method: req.method!, path: url.pathname, query: Object.fromEntries(url.searchParams), body, auth: String(req.headers.authorization ?? '') };
+    const call: Call = { method: req.method!, path: url.pathname, query: Object.fromEntries(url.searchParams), body, auth: String(req.headers.authorization ?? ''), headers: req.headers };
     calls.push(call);
     const send = (status: number, data: unknown) => { res.writeHead(status, { 'content-type': 'application/json' }); res.end(JSON.stringify(data)); };
     const key = `${req.method} ${url.pathname}`;
@@ -114,6 +117,36 @@ export async function startFakePlatforms() {
     m = /^\/x\/broadcasts\/(\w+)\/state$/.exec(url.pathname);
     if (m && req.method === 'PUT') return send(200, { data: { id: m[1], state: 'ENDED' } });
 
+    // --- LinkedIn
+    if (key === 'POST /li-auth/accessToken') {
+      if (body.grant_type === 'refresh_token') return send(200, { access_token: `li-access-${++n}`, expires_in: 5184000, refresh_token: 'li-refresh', refresh_token_expires_in: 31536000 });
+      return send(200, { access_token: 'li-access-0', expires_in: 5184000, refresh_token: 'li-refresh', scope: 'openid,profile,r_member_live,w_member_live' });
+    }
+    if (key === 'GET /li/userinfo') return send(200, { sub: 'abc123', name: 'Reinder Kerk', picture: 'https://img/li.png' });
+    if (key === 'GET /li/organizationAcls') {
+      return send(200, { elements: [
+        { organization: 'urn:li:organization:555', 'organization~': { localizedName: 'Kerk BV', vanityName: 'kerkbv' } },
+        { organization: 'urn:li:organization:777', 'organization~': { localizedName: 'Stichting Koor' } },
+      ] });
+    }
+    if (key === 'POST /li/liveAssetActions') {
+      if (url.searchParams.get('action') === 'register') {
+        if (!live.liEligible) return send(403, { message: 'Not enough permissions to access: liveAssetActions.ACTION', status: 403, serviceErrorCode: 100 });
+        const id = `C4E${++n}`;
+        return send(200, { value: {
+          asset: `urn:li:digitalmediaAsset:${id}`,
+          ingestUrls: [
+            { ingestProtocol: 'RTMP', url: `rtmp://${id}.channel.media.azure.net:1935/live/${id}` },
+            { ingestProtocol: 'RTMPS', url: `rtmps://${id}.channel.media.azure.net:2935/live/${id}` },
+          ],
+        } });
+      }
+      return send(200, {});
+    }
+    m = /^\/li\/assets\/(\w+)$/.exec(url.pathname);
+    if (m) return send(200, { id: m[1], status: 'ALLOWED', recipes: [{ recipe: 'urn:li:digitalmediaRecipe:feedshare-live-video', status: live.liStatus }] });
+    if (key === 'POST /li/ugcPosts') { res.writeHead(201, { 'x-restli-id': `urn:li:ugcPost:${7000 + ++n}` }); return res.end(); }
+
     send(404, { error: { message: `fake: no route ${key}` } });
   });
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
@@ -122,7 +155,7 @@ export async function startFakePlatforms() {
   Object.assign(endpoints, {
     googleAuth: `${base}/google/auth`, googleToken: `${base}/google/token`, youtube: `${base}/youtube`, youtubeUpload: `${base}/yt-upload`,
     facebookDialog: `${base}/fb/dialog`, facebookGraph: `${base}/graph`, twitchAuth: `${base}/twitch-auth`, twitchApi: `${base}/helix`,
-    xAuth: `${base}/x-auth`, xApi: `${base}/x`,
+    xAuth: `${base}/x-auth`, xApi: `${base}/x`, linkedinAuth: `${base}/li-auth`, linkedinApi: `${base}/li`,
   });
   return {
     calls, fail, live,

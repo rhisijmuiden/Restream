@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { clsx } from 'clsx';
-import { ExternalLink, Pencil, Plus, Trash2, Link2 } from 'lucide-react';
+import { BookOpen, ChevronDown, ExternalLink, Pencil, Plus, Trash2, Link2 } from 'lucide-react';
 import { api, type AccountsResponse, type Destination, type Orientation, type Platform, type PlatformPreset, type Privacy, type Stream } from '../lib/api';
 import { useMe } from '../lib/auth';
 import { formatKbps, platformMeta, usePresets, useStreams } from '../lib/streams';
@@ -121,16 +121,41 @@ function toBody(d: Destination, patch: Partial<FormState> = {}) {
   };
 }
 
-const accountPlatforms: Platform[] = ['youtube', 'facebook', 'twitch', 'x'];
+const accountPlatforms: Platform[] = ['youtube', 'facebook', 'twitch', 'x', 'linkedin'];
 
-const platformsList: Platform[] = ['youtube', 'facebook', 'twitch', 'instagram', 'kick', 'x', 'linkedin', 'rtmp', 'srt'];
+/** The platform picker, in groups so the growing list stays easy to scan. */
+const platformGroups: { key: 'social' | 'gaming' | 'video' | 'own'; platforms: Platform[] }[] = [
+  { key: 'social', platforms: ['youtube', 'facebook', 'instagram', 'tiktok', 'x', 'linkedin'] },
+  { key: 'gaming', platforms: ['twitch', 'kick', 'trovo', 'rumble'] },
+  { key: 'video', platforms: ['vimeo', 'dailymotion'] },
+  { key: 'own', platforms: ['owncast', 'peertube', 'rtmp', 'srt'] },
+];
+const platformsList: Platform[] = platformGroups.flatMap((g) => g.platforms);
+
+/** Where the in-app guide sends the operator to find the server URL and stream key. */
+const keyGuideLinks: Partial<Record<Platform, string>> = {
+  youtube: 'https://studio.youtube.com',
+  facebook: 'https://www.facebook.com/live/producer',
+  twitch: 'https://dashboard.twitch.tv/settings/stream',
+  instagram: 'https://www.instagram.com',
+  kick: 'https://kick.com/dashboard/settings/stream',
+  x: 'https://studio.x.com/producer',
+  linkedin: 'https://www.linkedin.com/events/',
+  tiktok: 'https://livecenter.tiktok.com/producer',
+  vimeo: 'https://vimeo.com/events',
+  dailymotion: 'https://studio.dailymotion.com',
+  rumble: 'https://rumble.com/account/live-streaming',
+  trovo: 'https://studio.trovo.live',
+  owncast: 'https://owncast.online/docs/',
+  peertube: 'https://docs.joinpeertube.org/use/setup-account#live',
+};
 
 /** Settings a new destination starts with, from the platform's preset. */
 function fromPreset(p: Platform, preset: PlatformPreset | undefined): Partial<FormState> {
   if (!preset) return {};
   return {
     mode: preset.defaultMode, videoBitrate: preset.recommendedKbps, maxHeight: preset.maxHeight,
-    fps: preset.maxFps === 30 ? 30 : null, orientation: preset.orientation, audioBitrate: p === 'instagram' ? 128 : 160,
+    fps: preset.maxFps === 30 ? 30 : null, orientation: preset.orientation, audioBitrate: (['instagram', 'tiktok', 'rumble', 'linkedin'] as Platform[]).includes(p) ? 128 : 160,
   };
 }
 
@@ -138,10 +163,51 @@ function fromPreset(p: Platform, preset: PlatformPreset | undefined): Partial<Fo
 const keyHints: Partial<Record<Platform, string>> = {
   youtube: 'destinations.ytKeyHint', facebook: 'destinations.fbKeyHint', instagram: 'destinations.igKeyHint',
   kick: 'destinations.kickKeyHint', x: 'destinations.xKeyHint', linkedin: 'destinations.liKeyHint',
+  tiktok: 'destinations.ttKeyHint', vimeo: 'destinations.vimeoKeyHint', dailymotion: 'destinations.dmKeyHint',
+  rumble: 'destinations.rumbleKeyHint', trovo: 'destinations.trovoKeyHint', owncast: 'destinations.owncastKeyHint', peertube: 'destinations.peertubeKeyHint',
 };
 
+/** "Where do I find the server URL and stream key?": a short step list per platform with a link to the right page. */
+function KeyGuide({ platform }: { platform: Platform }) {
+  const { t, i18n } = useTranslation();
+  const [open, setOpen] = useState(false);
+  if (!i18n.exists(`destinations.keyGuide.${platform}`)) return null;
+  const steps = t(`destinations.keyGuide.${platform}`, { returnObjects: true }) as string[];
+  const link = keyGuideLinks[platform];
+  const label = platform === 'rtmp' ? t('destinations.customRtmp') : platform === 'srt' ? t('destinations.customSrt') : platformMeta[platform].label;
+  return (
+    <div className="rounded-xl border border-line bg-bg/40">
+      <button
+        type="button" onClick={() => setOpen(!open)} aria-expanded={open}
+        className="flex w-full items-center gap-2.5 px-4 py-3 text-left text-sm font-medium hover:text-fg"
+      >
+        <BookOpen size={15} className="shrink-0 text-accent" />
+        <span className="min-w-0 flex-1">{t('destinations.keyGuideTitle', { platform: label })}</span>
+        <ChevronDown size={16} className={clsx('shrink-0 text-fg-3 transition-transform', open && 'rotate-180')} />
+      </button>
+      {open && (
+        <div className="flex flex-col gap-3 border-t border-line px-4 pt-3 pb-4">
+          <ol className="flex flex-col gap-2">
+            {steps.map((step, i) => (
+              <li key={i} className="flex gap-2.5 text-[13px] leading-relaxed text-fg-2">
+                <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-surface-2 font-mono text-[10px] font-semibold text-accent">{i + 1}</span>
+                <span>{step}</span>
+              </li>
+            ))}
+          </ol>
+          {link && (
+            <a href={link} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 self-start text-[13px]">
+              {t(platform === 'owncast' || platform === 'peertube' ? 'destinations.keyGuideDocs' : 'destinations.keyGuideOpen', { platform: label })} <ExternalLink size={12} />
+            </a>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DestinationModal({ editing, onClose }: { editing: Editing; onClose: () => void }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const qc = useQueryClient();
   const presets = usePresets().data;
   const accounts = useQuery({ queryKey: ['accounts'], queryFn: () => api<AccountsResponse>('/api/accounts'), enabled: !!editing });
@@ -190,23 +256,37 @@ function DestinationModal({ editing, onClose }: { editing: Editing; onClose: () 
     <Modal open={!!editing} onClose={onClose} wide title={isNew ? t('destinations.addTitle', { stream: editing?.stream.name }) : t('destinations.editTitle')}>
       <form onSubmit={submit} className="flex flex-col gap-5">
         {isNew && (
-          <div role="radiogroup" aria-label={t('destinations.platform')} className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-            {platformsList.map((p) => (
-              <button
-                key={p} type="button" role="radio" aria-checked={f.platform === p} onClick={() => pickPlatform(p)}
-                className={clsx('flex flex-col items-center gap-2 rounded-xl border p-3 text-xs transition-colors',
-                  f.platform === p ? 'border-accent bg-accent/[0.07] text-fg' : 'border-line text-fg-2 hover:border-line-strong')}
-              >
-                <PlatformChip platform={p} size={32} />
-                {p === 'rtmp' ? t('destinations.customRtmp') : p === 'srt' ? t('destinations.customSrt') : platformMeta[p].label}
-              </button>
+          <div role="radiogroup" aria-label={t('destinations.platform')} className="flex flex-col gap-3">
+            {platformGroups.map((g) => (
+              <div key={g.key} className="flex flex-col gap-2">
+                <span className="text-[11px] font-medium tracking-wide text-fg-3 uppercase">{t(`destinations.group.${g.key}`)}</span>
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+                  {g.platforms.map((p) => (
+                    <button
+                      key={p} type="button" role="radio" aria-checked={f.platform === p} onClick={() => pickPlatform(p)}
+                      className={clsx('flex flex-col items-center gap-2 rounded-xl border px-1.5 py-3 text-xs transition-colors',
+                        f.platform === p ? 'border-accent bg-accent/[0.07] text-fg' : 'border-line text-fg-2 hover:border-line-strong')}
+                    >
+                      <PlatformChip platform={p} size={30} />
+                      <span className="max-w-full truncate">{p === 'rtmp' ? t('destinations.customRtmp') : p === 'srt' ? t('destinations.customSrt') : platformMeta[p].label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         )}
 
         {f.platform === 'x' && <PaidNotice provider="x" className="mb-0" />}
 
-        {preset && (preset.keyPerBroadcast || f.platform === 'kick' || (f.platform === 'x' && !viaAccount)) && (
+        {f.platform === 'tiktok' && (
+          <p className="rounded-xl border border-warn/40 bg-warn/[0.06] px-4 py-3 text-xs leading-relaxed text-fg-2">
+            <span className="mb-1 block font-semibold text-warn">{t('destinations.tiktokAccessTitle')}</span>
+            {t('destinations.tiktokAccess')}
+          </p>
+        )}
+
+        {!viaAccount && i18n.exists(`destinations.about_${f.platform}`) && (
           <p className="rounded-xl border border-info/30 bg-info/[0.06] px-4 py-3 text-xs leading-relaxed text-fg-2">{t(`destinations.about_${f.platform}`)}</p>
         )}
 
@@ -220,7 +300,7 @@ function DestinationModal({ editing, onClose }: { editing: Editing; onClose: () 
                 options={[{ value: 'key', label: t('destinations.withKey') }, { value: 'account', label: t('destinations.withAccount') }]}
               />
             </div>
-            <p className="text-xs leading-relaxed text-fg-3">{viaAccount ? t(f.platform === 'x' ? 'destinations.withAccountHintX' : 'destinations.withAccountHint') : t('destinations.withKeyHint')}</p>
+            <p className="text-xs leading-relaxed text-fg-3">{viaAccount ? t(f.platform === 'x' ? 'destinations.withAccountHintX' : f.platform === 'linkedin' ? 'destinations.withAccountHintLinkedIn' : 'destinations.withAccountHint') : t('destinations.withKeyHint')}</p>
             {viaAccount && (options.length ? (
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label={t('destinations.account')}>
@@ -246,6 +326,8 @@ function DestinationModal({ editing, onClose }: { editing: Editing; onClose: () 
             ))}
           </div>
         )}
+
+        {!viaAccount && <KeyGuide platform={f.platform} />}
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label={t('common.name')}>

@@ -1,9 +1,12 @@
 /** Output platforms and how their publish URL is built. */
-export const platforms = ['youtube', 'facebook', 'twitch', 'instagram', 'kick', 'x', 'linkedin', 'rtmp', 'srt'] as const;
+export const platforms = [
+  'youtube', 'facebook', 'twitch', 'instagram', 'kick', 'x', 'linkedin',
+  'tiktok', 'vimeo', 'dailymotion', 'rumble', 'trovo', 'owncast', 'peertube', 'rtmp', 'srt',
+] as const;
 export type Platform = (typeof platforms)[number];
 
 /** Platforms a destination can reach through a connected (OAuth) account instead of a stream key. */
-export const accountPlatforms = ['youtube', 'facebook', 'twitch', 'x'] as const;
+export const accountPlatforms = ['youtube', 'facebook', 'twitch', 'x', 'linkedin'] as const;
 
 export interface PlatformPreset {
   /** Default ingest server; the operator can change it (e.g. YouTube backup ingest). Empty: the platform hands out a URL per broadcast. */
@@ -43,6 +46,9 @@ const base = {
  * Presets per platform, checked against the platforms' own guidance in November 2026:
  * Instagram Live Producer (720x1280 portrait, 30 fps, up to 6 Mbps, 44.1 kHz audio), Kick (1080p60, up to 8 Mbps, CBR, H.264 only),
  * X Media Studio Producer (720p30, up to 4 Mbps; 3 s keyframes; a source keeps its URL and key) and LinkedIn Live custom stream (1080p30, 3.5 to 6 Mbps).
+ * Added in v1.7.0: TikTok LIVE (stream key only for accounts TikTok grants it; 1080x1920 portrait, a new key per LIVE),
+ * Vimeo (RTMPS, up to 1080p60), Dailymotion (RTMP, the key carries an auth parameter), Rumble (CBR, 44.1 kHz, at most 8 Mbps),
+ * Trovo (RTMP, up to 1080p60), and self-hosted Owncast and PeerTube (RTMP on port 1935, PeerTube also RTMPS on 1936).
  */
 export const presets: Record<Platform, PlatformPreset> = {
   youtube: { ...base, server: 'rtmps://a.rtmps.youtube.com/live2', protocols: ['rtmp', 'rtmps'], recommendedKbps: 9000, maxKbps: 51000 },
@@ -61,6 +67,25 @@ export const presets: Record<Platform, PlatformPreset> = {
   linkedin: {
     ...base, server: '', protocols: ['rtmp', 'rtmps'], serverRequired: true, serverExample: 'rtmps://…/live',
     recommendedKbps: 5000, maxKbps: 6000, maxFps: 30, defaultMode: 'transcode', keyPerBroadcast: true,
+  },
+  tiktok: {
+    ...base, server: '', protocols: ['rtmp', 'rtmps'], serverRequired: true, serverExample: 'rtmp://push-rtmp-l11-va01.tiktokcdn.com/game/',
+    recommendedKbps: 4500, maxKbps: 6000, maxFps: 30, orientation: 'portrait', defaultMode: 'transcode', audioSampleRate: 44100, keyPerBroadcast: true,
+  },
+  vimeo: { ...base, server: 'rtmps://rtmp-global.cloud.vimeo.com:443/live', protocols: ['rtmp', 'rtmps'], recommendedKbps: 6000, maxKbps: 20000 },
+  dailymotion: { ...base, server: 'rtmp://publish.dailymotion.com/publish-dm', protocols: ['rtmp'], recommendedKbps: 4500, maxKbps: 6000 },
+  rumble: {
+    ...base, server: 'rtmp://rtmp.rumble.com/live', protocols: ['rtmp', 'rtmps'], recommendedKbps: 6000, maxKbps: 8000,
+    defaultMode: 'transcode', audioSampleRate: 44100,
+  },
+  trovo: { ...base, server: 'rtmp://livepush.trovo.live/live/', protocols: ['rtmp'], recommendedKbps: 6000, maxKbps: 9000 },
+  owncast: {
+    ...base, server: '', protocols: ['rtmp'], serverRequired: true, serverExample: 'rtmp://owncast.example.com:1935/live',
+    recommendedKbps: 4000, maxKbps: 20000,
+  },
+  peertube: {
+    ...base, server: '', protocols: ['rtmp', 'rtmps'], serverRequired: true, serverExample: 'rtmp://peertube.example.com:1935/live',
+    recommendedKbps: 4000, maxKbps: 20000,
   },
   rtmp: { ...base, server: '', protocols: ['rtmp', 'rtmps'], keyRequired: false, serverRequired: true, serverExample: 'rtmp://host/app', recommendedKbps: 6000, maxKbps: 20000 },
   srt: { ...base, server: '', protocols: ['srt'], keyRequired: false, serverRequired: true, serverExample: 'srt://host:port', recommendedKbps: 6000, maxKbps: 20000 },

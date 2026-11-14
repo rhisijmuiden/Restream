@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { clsx } from 'clsx';
-import { BookOpen, Check, CheckCircle2, ExternalLink, HelpCircle, KeyRound, Plus, Trash2, TriangleAlert } from 'lucide-react';
+import { BookOpen, Building2, Check, CheckCircle2, ExternalLink, HelpCircle, KeyRound, Plus, Trash2, TriangleAlert } from 'lucide-react';
 import { api, type Account, type AccountsResponse, type OAuthApps, type OAuthProvider } from '../lib/api';
 import { useMe } from '../lib/auth';
 import { Badge, Button, Card, CopyButton, ErrorText, Field, Input, Modal, PageHeader } from '../components/ui';
@@ -11,7 +11,10 @@ import { PlatformChip } from '../components/media';
 import { PaidNotice } from '../components/PaidNotice';
 import { platformMeta } from '../lib/streams';
 
-const providers: OAuthProvider[] = ['youtube', 'facebook', 'twitch', 'x'];
+const providers: OAuthProvider[] = ['youtube', 'facebook', 'twitch', 'x', 'linkedin'];
+
+/** LinkedIn: go live as the person who signs in, or on the company pages they administer (connected separately). */
+type Target = 'member' | 'organization';
 
 /** Deep links for the steps of the setup guides (the texts are in the translations). */
 const links: Record<string, string> = {
@@ -27,6 +30,9 @@ const links: Record<string, string> = {
   twitchApps: 'https://dev.twitch.tv/console/apps',
   xConsole: 'https://console.x.com',
   xProducer: 'https://studio.x.com/producer',
+  linkedinCreate: 'https://www.linkedin.com/developers/apps/new',
+  linkedinApps: 'https://www.linkedin.com/developers/apps',
+  linkedinLiveDocs: 'https://learn.microsoft.com/en-us/linkedin/consumer/integrations/live-video',
 };
 
 type CopyKind = 'redirectUri' | 'origin' | 'domain' | 'scopes';
@@ -60,12 +66,13 @@ function useOAuthPopup(onDone: (query: string) => void) {
     return () => { bc?.close(); window.removeEventListener('storage', onStorage); };
   }, []);
 
-  const start = useCallback((p: OAuthProvider) => {
+  const start = useCallback((p: OAuthProvider, target: Target = 'member') => {
     const w = 520, h = 720;
     const left = Math.max(0, window.screenX + (window.outerWidth - w) / 2);
     const top = Math.max(0, window.screenY + (window.outerHeight - h) / 2);
-    const popup = window.open(`/api/accounts/oauth/${p}/start?popup=1`, POPUP, `popup=yes,width=${w},height=${h},left=${left},top=${top}`);
-    if (!popup) { window.location.href = `/api/accounts/oauth/${p}/start`; return; }
+    const extra = target === 'organization' ? '&target=organization' : '';
+    const popup = window.open(`/api/accounts/oauth/${p}/start?popup=1${extra}`, POPUP, `popup=yes,width=${w},height=${h},left=${left},top=${top}`);
+    if (!popup) { window.location.href = `/api/accounts/oauth/${p}/start?${extra.slice(1)}`; return; }
     win.current = popup;
     setWaiting(p);
   }, []);
@@ -150,7 +157,7 @@ export function Accounts() {
         </section>
       )}
 
-      <div className="grid gap-6 md:grid-cols-2 2xl:grid-cols-4">
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
         {providers.map((p) => {
           const list = q.data?.accounts.filter((a) => a.provider === p) ?? [];
           const configured = !!q.data?.apps[p].configured;
@@ -166,7 +173,14 @@ export function Accounts() {
               {canOperate && (
                 <div className="mb-4 flex flex-col gap-2">
                   {ready ? (
-                    <ConnectButton provider={p} onClick={() => oauth.start(p)} />
+                    <>
+                      <ConnectButton provider={p} onClick={() => oauth.start(p)} />
+                      {p === 'linkedin' && (
+                        <Button variant="secondary" className="w-full" onClick={() => oauth.start(p, 'organization')}>
+                          <Building2 size={16} /> {t('accounts.connectPage')}
+                        </Button>
+                      )}
+                    </>
                   ) : isAdmin ? (
                     <Button variant="primary" className="w-full" onClick={() => setGuide(p)} disabled={!publicUrlSet}>
                       <BookOpen size={16} /> {t('accounts.setUp', { platform: platformMeta[p].label })}
@@ -224,7 +238,7 @@ export function Accounts() {
             <h2 className="font-display text-xl font-semibold">{t('accounts.appsTitle')}</h2>
             <p className="max-w-3xl text-sm leading-relaxed text-fg-2">{t('accounts.appsText')}</p>
           </div>
-          <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {providers.map((p) => {
               const ok = !!(apps.data![p].clientId && apps.data![p].clientSecretSet);
               return (
@@ -305,7 +319,7 @@ function HowStep({ n, done, title, who, children }: { n: number; done: boolean; 
   );
 }
 
-const consentColor: Record<OAuthProvider, string> = { youtube: '#1A73E8', facebook: '#1877F2', twitch: '#9146FF', x: '#0F1419' };
+const consentColor: Record<OAuthProvider, string> = { youtube: '#1A73E8', facebook: '#1877F2', twitch: '#9146FF', x: '#0F1419', linkedin: '#0A66C2' };
 
 /** What the person sees in the pop-up, step by step, with an example of the permission screen. */
 function PopupExplainer({ provider }: { provider: OAuthProvider }) {

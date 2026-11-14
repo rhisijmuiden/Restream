@@ -7,7 +7,7 @@ import { HttpError, requireAuth } from '../lib/guards.js';
 import { decrypt, encrypt } from '../lib/crypto.js';
 import { audit } from '../lib/audit.js';
 import { getSettings, oauthProviders, setSettings, type OAuthProvider } from '../lib/settings.js';
-import { appConfigured, authorizeUrl, exchangeCode, PlatformError, redirectUri, scopes } from '../platforms/api.js';
+import { appConfigured, authorizeUrl, exchangeCode, linkedinScopes, PlatformError, redirectUri, scopes, type LinkedInTarget } from '../platforms/api.js';
 
 /** Permissions Restream asks for now that the account did not grant (it was connected by an older version). */
 function missingScopes(p: OAuthProvider, granted: string): string[] {
@@ -20,7 +20,7 @@ const FLOW_COOKIE = 'restream_oauth';
 const providerParam = z.object({ provider: z.enum(oauthProviders) });
 
 /** popup: started from the console in a pop-up window, which reports back to the console and closes itself. */
-interface Flow { p: OAuthProvider; state: string; verifier: string; user: string; session: string; t: number; popup?: boolean }
+interface Flow { p: OAuthProvider; state: string; verifier: string; user: string; session: string; t: number; popup?: boolean; target?: LinkedInTarget }
 
 /** Where the platform's redirect ends: the small page that closes the pop-up, or the Accounts page. */
 function finish(popup: boolean | undefined, query: string) {
@@ -61,7 +61,7 @@ export async function accountRoutes(app: FastifyInstance, { sql }: { sql: Sql })
       clientSecretSet: !!s.platforms[p].clientSecretEnc,
       redirectUri: s.publicUrl ? redirectUri(s, p) : '',
       // Shown in the setup guide, so the administrator adds exactly what Restream asks for.
-      scopes: scopes[p].split(/[\s,]+/),
+      scopes: (p === 'linkedin' ? `${linkedinScopes.member} ${linkedinScopes.organization}` : scopes[p]).split(/[\s,]+/),
     }]));
   });
 
@@ -86,19 +86,21 @@ export async function accountRoutes(app: FastifyInstance, { sql }: { sql: Sql })
   app.get('/api/accounts/oauth/:provider/start', operator, async (req, reply) => {
     const { provider } = providerParam.parse(req.params);
     const popup = (req.query as Record<string, string>).popup === '1';
+    // LinkedIn: a company page is connected with its own permissions (LinkedIn does not combine them with a member's).
+    const target: LinkedInTarget = provider === 'linkedin' && (req.query as Record<string, string>).target === 'organization' ? 'organization' : 'member';
     const s = await getSettings(sql);
     if (!s.publicUrl) return reply.redirect(finish(popup, 'error=public_url_missing'));
     if (!appConfigured(s, provider)) return reply.redirect(finish(popup, 'error=app_not_configured'));
     const verifier = randomBytes(32).toString('base64url');
     const challenge = createHash('sha256').update(verifier).digest('base64url');
     const state = randomBytes(16).toString('base64url');
-    const flow: Flow = { p: provider, state, verifier, user: req.user!.id, session: req.session!.id, t: Date.now(), ...(popup ? { popup } : {}) };
+    const flow: Flow = { p: provider, state, verifier, user: req.user!.id, session: req.session!.id, t: Date.now(), ...(popup ? { popup } : {}), ...(provider === 'linkedin' ? { target } : {}) };
     // The session cookie is SameSite=Strict and is not sent when the platform redirects back, so the flow cookie
     // (Lax, encrypted, ten minutes) carries who started it; the callback checks that this session is still valid.
     reply.setCookie(FLOW_COOKIE, encrypt(JSON.stringify(flow)), {
       path: '/api/accounts/oauth', httpOnly: true, secure: config.cookieSecure, sameSite: 'lax', maxAge: 600,
     });
-    return reply.redirect(authorizeUrl(s, provider, state, challenge));
+    return reply.redirect(authorizeUrl(s, provider, state, challenge, target));
   });
 
   app.get('/api/accounts/oauth/:provider/callback', async (req, reply) => {
@@ -120,7 +122,7 @@ export async function accountRoutes(app: FastifyInstance, { sql }: { sql: Sql })
 
     const s = await getSettings(sql);
     try {
-      const ids = await exchangeCode(s, provider, q.code, flow.verifier);
+      const ids = await exchangeCode(s, provider, q.code, flow.verifier, flow.target);
       for (const i of ids) {
         await sql`
           INSERT INTO platform_accounts (provider, external_id, name, handle, image_url, access_token_enc, refresh_token_enc, expires_at, scopes, created_by)
@@ -136,6 +138,7 @@ export async function accountRoutes(app: FastifyInstance, { sql }: { sql: Sql })
     } catch (err) {
       req.log.warn({ err, provider }, 'connecting account failed');
       const msg = err instanceof PlatformError ? err.message : 'oauth_failed';
+      if (provider === 'linkedin' && ['no_channel', 'no_pages'].includes(msg)) return fail(msg === 'no_pages' ? 'no_linkedin_pages' : 'oauth_failed');
       return fail(['no_channel', 'no_pages'].includes(msg) ? msg : 'oauth_failed');
     }
   });

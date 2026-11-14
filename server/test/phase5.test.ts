@@ -146,7 +146,7 @@ describe('phase 5 API', () => {
     expect(ok.statusCode, ok.body).toBe(200);
     expect((await op.post(`/api/streams/${streamId}/destinations`, { name: 'Kick', platform: 'kick', serverUrl: 'rtmps://x.global-contribute.live-video.net:443/app', streamKey: 'sk_us-west' })).statusCode).toBe(200);
     expect((await op.post(`/api/streams/${streamId}/destinations`, { name: 'X', platform: 'x', serverUrl: 'rtmps://va.pscp.tv:443/x', streamKey: 'xkey' })).statusCode).toBe(200);
-    expect((await op.post(`/api/streams/${streamId}/destinations`, { name: 'LI', platform: 'linkedin', serverUrl: 'rtmps://li.example.net:443/live', streamKey: 'likey', auth: 'account', accountId: '00000000-0000-0000-0000-000000000000' })).json().error).toBe('account_not_supported');
+    expect((await op.post(`/api/streams/${streamId}/destinations`, { name: 'Kick', platform: 'kick', serverUrl: 'rtmps://li.example.net:443/live', streamKey: 'likey', auth: 'account', accountId: '00000000-0000-0000-0000-000000000000' })).json().error).toBe('account_not_supported');
     const d = (await op.get('/api/streams')).json().streams[0].destinations;
     expect(d.map((x: { platform: string }) => x.platform)).toEqual(['instagram', 'kick', 'x']);
     expect(d[0]).toMatchObject({ orientation: 'portrait', maxHeight: 720, fps: 30 });

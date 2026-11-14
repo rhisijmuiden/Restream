@@ -42,6 +42,13 @@
   --rs-kick: #53FC18;
   --rs-x: #E8ECF6;
   --rs-linkedin: #70B5F9;
+  --rs-tiktok: #FF4F7B;
+  --rs-vimeo: #3CC7F5;
+  --rs-dailymotion: #7AA7FF;
+  --rs-rumble: #8FD14F;
+  --rs-trovo: #2FE38A;
+  --rs-owncast: #9C95FF;
+  --rs-peertube: #FF8A3D;
 
   /* Type */
   --rs-font-display: 'Space Grotesk Variable', 'Space Grotesk', system-ui, sans-serif;
@@ -90,4 +97,11 @@
   --rs-kick: #2B8A0A;
   --rs-x: #0B1020;
   --rs-linkedin: #0A66C2;
+  --rs-tiktok: #D3184A;
+  --rs-vimeo: #0A7FA8;
+  --rs-dailymotion: #2357D6;
+  --rs-rumble: #3F7A16;
+  --rs-trovo: #0B7F45;
+  --rs-owncast: #5B4FD9;
+  --rs-peertube: #B84E05;
 }

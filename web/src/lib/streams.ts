@@ -24,6 +24,13 @@ export const platformMeta: Record<Platform, { short: string; color: string; labe
   kick: { short: 'KICK', color: 'var(--rs-kick)', label: 'Kick' },
   x: { short: 'X', color: 'var(--rs-x)', label: 'X' },
   linkedin: { short: 'IN', color: 'var(--rs-linkedin)', label: 'LinkedIn' },
+  tiktok: { short: 'TT', color: 'var(--rs-tiktok)', label: 'TikTok' },
+  vimeo: { short: 'VI', color: 'var(--rs-vimeo)', label: 'Vimeo' },
+  dailymotion: { short: 'DM', color: 'var(--rs-dailymotion)', label: 'Dailymotion' },
+  rumble: { short: 'RU', color: 'var(--rs-rumble)', label: 'Rumble' },
+  trovo: { short: 'TR', color: 'var(--rs-trovo)', label: 'Trovo' },
+  owncast: { short: 'OC', color: 'var(--rs-owncast)', label: 'Owncast' },
+  peertube: { short: 'PT', color: 'var(--rs-peertube)', label: 'PeerTube' },
   rtmp: { short: 'RTMP', color: 'var(--rs-accent)', label: 'RTMP' },
   srt: { short: 'SRT', color: 'var(--rs-info)', label: 'SRT' },
 };

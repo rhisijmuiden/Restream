@@ -180,7 +180,9 @@
     "previewHls": "HLS-preview · paar seconden vertraging",
     "previewHlsHint": "Een WebRTC-preview zonder vertraging kan niet voor deze stream, meestal omdat de encoder B-frames stuurt. Zet B-frames in OBS op 0 voor een vrijwel directe preview.",
     "xPublishing": "Beeld wordt verstuurd; X publiceert de uitzending binnen enkele seconden…",
-    "xRefused": "X heeft de uitzending nog niet gepubliceerd: {{error}}"
+    "xRefused": "X heeft de uitzending nog niet gepubliceerd: {{error}}",
+    "linkedinPublishing": "Beeld wordt verstuurd; LinkedIn publiceert de post zodra het binnenkomt…",
+    "linkedinRefused": "LinkedIn heeft de post nog niet gepubliceerd: {{error}}"
   },
   "soon": {
     "title": "Komt in fase {{phase}}",
@@ -389,7 +391,10 @@
     "invalid_api_key": "De API-sleutel klopt niet, is verlopen of ingetrokken.",
     "not_allowed_with_api_key": "Deze actie kan niet met een API-sleutel.",
     "x_not_eligible": "X weigert live te gaan met dit account. X staat dat alleen toe voor betaalde accounts (X Premium) die niet beschermd zijn.",
-    "thumbnail_too_large": "De thumbnail is groter dan 2 MB, het maximum dat YouTube accepteert."
+    "thumbnail_too_large": "De thumbnail is groter dan 2 MB, het maximum dat YouTube accepteert.",
+    "linkedin_not_eligible": "LinkedIn weigerde live te gaan. De app heeft de door LinkedIn goedgekeurde Live Events API nodig, en het profiel of de pagina moet LinkedIn Live mogen gebruiken.",
+    "linkedin_no_video": "LinkedIn heeft nog geen bruikbaar beeld ontvangen. Controleer dat de feed H.264 is van maximaal 1080p30 (Transcoderen doet dat) en dat uitgaande poort 2935 open staat.",
+    "no_linkedin_pages": "Dit LinkedIn-account beheert geen bedrijfspagina's. Koppel in plaats daarvan het profiel, of vraag een paginabeheerder om te koppelen."
   },
   "time": {
     "seconds": "{{n}}s",
@@ -536,7 +541,7 @@
     "about_instagram": "Instagram: werkt met een professioneel account (zakelijk of creator). In Instagram Live Producer krijg je per uitzending een nieuwe server-URL en streamkey; plak die hier vóór je live gaat. Instagram toont staande video (9:16, 720p, 30 fps), en dat stuurt deze preset ook.",
     "about_kick": "Kick: kopieer de stream-URL en streamkey uit Kick › Instellingen › Stream. Kick accepteert H.264 tot 1080p60 en 8 Mbps.",
     "about_x": "X: maak in Media Studio › Producer een bron aan en kopieer de RTMPS-URL en streamkey; de bron houdt die vast, dus dit doe je één keer. Start de uitzending in Producer zodra Restream beeld stuurt. X accepteert 720p30 tot 4 Mbps; keyframes elke 3 seconden worden voor je ingesteld. Makkelijker: koppel het X-account onder Accounts, dan doet Restream dit allemaal.",
-    "about_linkedin": "LinkedIn: live streamen vraagt goedkeuring van LinkedIn. Maak een live evenement met \"Custom stream (RTMP)\" en kopieer de stream-URL en key (ongeveer een uur voor de start beschikbaar). LinkedIn accepteert tot 1080p30 en 6 Mbps.",
+    "about_linkedin": "LinkedIn: live streamen vraagt goedkeuring van LinkedIn. Maak een live evenement met \"Custom stream (RTMP)\" en kopieer de stream-URL en key (ongeveer een uur voor de start beschikbaar). LinkedIn accepteert tot 1080p30 en 6 Mbps. Makkelijker: koppel LinkedIn onder Accounts, dan maakt Restream de live-video zelf aan.",
     "serverFromPlatform": "Kopieer de server- of stream-URL van {{platform}}.",
     "igKeyHint": "Instagram Live Producer → Streamsleutel. Die verandert bij elke uitzending.",
     "kickKeyHint": "Kick → Instellingen → Stream → Streamsleutel.",
@@ -549,7 +554,114 @@
     "landscapeHint": "Het beeld houdt de vorm van je ingest.",
     "portraitHint": "Restream snijdt het middelste 9:16-deel uit het beeld, voor platforms die staande video tonen, zoals Instagram. Houd het belangrijkste in het midden van het shot.",
     "transcodeAdvised": "{{platform}} accepteert maximaal {{height}}p op {{fps}} fps. Doorgeven werkt alleen als je encoder dat al stuurt; kies anders Transcoderen.",
-    "withAccountHintX": "Restream maakt één keer een bron aan op het X-account. Bij Go live publiceert het de uitzending met de titel van de stream zodra X het beeld ontvangt (X kondigt hem aan in een post), en bij Stop beëindigt het hem. Events worden niet op X aangekondigd."
+    "withAccountHintX": "Restream maakt één keer een bron aan op het X-account. Bij Go live publiceert het de uitzending met de titel van de stream zodra X het beeld ontvangt (X kondigt hem aan in een post), en bij Stop beëindigt het hem. Events worden niet op X aangekondigd.",
+    "group": {
+      "social": "Sociale media",
+      "gaming": "Streaming en gaming",
+      "video": "Videoplatforms",
+      "own": "Eigen servers"
+    },
+    "keyGuideTitle": "Waar vind ik de server-URL en streamkey bij {{platform}}?",
+    "keyGuideOpen": "{{platform}} openen",
+    "keyGuideDocs": "Documentatie van {{platform}}",
+    "keyGuide": {
+      "youtube": [
+        "Open YouTube Studio en klik op Maken › Live gaan.",
+        "Kies Stream (niet Webcam). YouTube toont de stream-URL en streamkey onder Streaminstellingen.",
+        "Kopieer de streamkey en plak hem hier. De server is al ingevuld (RTMPS)."
+      ],
+      "facebook": [
+        "Open Facebook Live Producer en kies waar je post: je profiel, een pagina of een groep.",
+        "Kopieer onder Streamingsoftware de streamkey (kies een vaste key als je vaak streamt).",
+        "Plak hem hier. Facebook accepteert alleen RTMPS; de server is al ingevuld."
+      ],
+      "twitch": [
+        "Open het Twitch-dashboard: Instellingen › Stream.",
+        "Klik bij Primaire streamsleutel op Kopiëren.",
+        "Plak hem hier. De server is al ingevuld."
+      ],
+      "instagram": [
+        "Instagram vraagt een professioneel account (Zakelijk of Creator). Klik op instagram.com op Maken › Live video.",
+        "Geef de uitzending een titel en publiek en kopieer de Stream-URL en Streamkey.",
+        "Plak beide hier en ga binnen een paar minuten live; Instagram geeft voor elke uitzending een nieuwe URL en key."
+      ],
+      "kick": [
+        "Open Kick › Instellingen › Stream (Creator Dashboard).",
+        "Kopieer de Stream-URL (begint met rtmps://) en de Streamkey.",
+        "Plak beide hier. Kick accepteert H.264 tot 1080p60 en 8 Mbps."
+      ],
+      "x": [
+        "Open Media Studio › Producer op studio.x.com en maak een bron aan (Sources › Create source).",
+        "Kopieer de RTMPS-URL en streamkey; de bron houdt ze vast.",
+        "Plak beide hier. Start de uitzending in Producer zodra Restream beeld stuurt, of koppel het X-account onder Accounts zodat Restream dat voor je doet."
+      ],
+      "linkedin": [
+        "Maak een LinkedIn-evenement met als vorm LinkedIn Live en als streamingtool Custom stream (RTMP).",
+        "Open op de evenementpagina Stream setup en kopieer de Stream-URL en Streamkey (zichtbaar vanaf ongeveer een uur voor de start).",
+        "Plak beide hier, of koppel LinkedIn onder Accounts zodat Restream de live-video zelf aanmaakt."
+      ],
+      "tiktok": [
+        "Open TikTok LIVE Producer (livecenter.tiktok.com/producer) met het account waarop je streamt.",
+        "Kies Streamingsoftware (streamkey). TikTok toont een Server-URL en een Streamkey. Zie je die optie niet? Dan heeft je account nog geen streamkey-toegang (zie hierboven).",
+        "Kopieer beide en plak ze hier vóór elke LIVE: TikTok geeft elke keer een nieuwe key."
+      ],
+      "vimeo": [
+        "Open Vimeo › Events en maak een evenement aan (of open een bestaand).",
+        "Kies Streamen met RTMP (streamingsoftware) en kopieer de Streamkey.",
+        "Plak hem hier; de RTMPS-server is al ingevuld. Een evenement houdt zijn key, dus dit doe je één keer per evenement."
+      ],
+      "dailymotion": [
+        "Open Dailymotion Studio › Livestreams en maak een livestream aan.",
+        "Kopieer onder Encoderinstellingen de Stream-URL en Streamkey. De key eindigt op ?auth=…; kopieer hem helemaal.",
+        "Plak de key hier; de server is al ingevuld."
+      ],
+      "rumble": [
+        "Open Rumble › Go Live (camera-icoon) en vul de gegevens in; of gebruik Account › Live streaming › Static stream key voor een key die niet verandert.",
+        "Klik op Get the streamer configuration en kopieer de Server-URL en Streamkey.",
+        "Plak beide hier. Rumble vraagt CBR, elke 2 seconden een keyframe en maximaal 8 Mbps; Transcoderen doet precies dat."
+      ],
+      "trovo": [
+        "Open Trovo Creator Studio › Stream.",
+        "Kopieer de Host-URL (server) en de Streamkey.",
+        "Plak de key hier; de standaardserver is al ingevuld. Toont Trovo een andere host-URL? Plak die dan ook."
+      ],
+      "owncast": [
+        "Open de beheerpagina van je Owncast-server: https://jouw-server/admin.",
+        "Kopieer onder Configuration › Server setup › Stream keys een streamkey (of maak er een aan voor Restream).",
+        "Server-URL: rtmp://jouw-server:1935/live. Plak de key hier. Owncast transcodeert zelf, dus Doorgeven is meestal het beste."
+      ],
+      "peertube": [
+        "Klik op je PeerTube-instantie op Publiceren › Live gaan (de instantie moet lives toestaan).",
+        "Kies een normale of permanente live en klik op Live gaan. PeerTube toont de RTMP-URL, de RTMPS-URL (als die aan staat) en een Live streamkey.",
+        "Plak URL en key hier. Een permanente live houdt zijn key, dus deze bestemming kun je blijven gebruiken."
+      ],
+      "rtmp": [
+        "Vraag de ontvangende server om het RTMP- of RTMPS-adres, bijvoorbeeld rtmp://host:1935/app.",
+        "Plak het adres zonder streamkey bij Server-URL, en de key (streamnaam) bij Streamkey.",
+        "Twijfel je wat waar hoort? Het laatste deel van een URL zoals in OBS is meestal de key."
+      ],
+      "srt": [
+        "De ontvangende server luistert naar SRT (Restream verbindt als caller). Vraag het adres: srt://host:poort.",
+        "Gebruikt hij een stream-ID of wachtwoordzin, vul die dan hieronder in; anders laat je ze leeg.",
+        "Vertraging: zet ?latency=… in microseconden achter de Server-URL, bijvoorbeeld srt://host:9000?latency=500000 voor 500 ms. Meer vertraging overleeft een slechtere verbinding."
+      ]
+    },
+    "ttKeyHint": "TikTok LIVE Producer → Streamingsoftware → Streamkey. Verandert bij elke LIVE.",
+    "vimeoKeyHint": "Vimeo-evenement → Streamen met RTMP → Streamkey.",
+    "dmKeyHint": "Dailymotion Studio → Livestream → Encoderinstellingen → Streamkey (met ?auth=…).",
+    "rumbleKeyHint": "Rumble → Go Live → Get the streamer configuration → Streamkey.",
+    "trovoKeyHint": "Trovo Creator Studio → Stream → Streamkey.",
+    "owncastKeyHint": "Owncast-beheer → Configuration → Server setup → Stream keys.",
+    "peertubeKeyHint": "PeerTube → Live gaan → Live streamkey.",
+    "tiktokAccessTitle": "Alleen voor accounts met streamkey-toegang",
+    "tiktokAccess": "TikTok geeft alleen een streamkey aan accounts die het daarvoor heeft goedgekeurd. Nu betekent dat meestal: 18 jaar of ouder, minstens 1.000 volgers, een account zonder overtredingen en een regio waar TikTok het aanbiedt; TikTok kan dit zonder aankondiging veranderen. Zonder die toegang toont TikTok geen streamkey en kun je alleen live vanuit de app of TikTok LIVE Studio; Restream kan dat niet omzeilen. De key verandert bij elke LIVE, dus plak vóór het live gaan de nieuwe. TikTok toont staand beeld (1080x1920), en dat stuurt deze instelling ook.",
+    "about_vimeo": "Vimeo: live streamen vraagt een Vimeo-abonnement met live-evenementen (Advanced of hoger). De RTMPS-server is al ingevuld; Vimeo accepteert tot 1080p60.",
+    "about_dailymotion": "Dailymotion: live streamen hoort bij Dailymotion for Business / Studio. Dailymotion accepteert alleen RTMP (geen RTMPS).",
+    "about_rumble": "Rumble: standaard krijg je voor elke uitzending een nieuwe key; een vaste streamkey (Account › Live streaming) blijft gelijk. Rumble is streng: constante bitrate, elke 2 seconden een keyframe en maximaal 8 Mbps, daarom transcodeert deze instelling.",
+    "about_trovo": "Trovo: accepteert H.264 tot 1080p60. De streamkey blijft gelijk tot je hem in Creator Studio vernieuwt.",
+    "about_owncast": "Owncast: je eigen livestreamserver. Restream stuurt RTMP naar poort 1935; Owncast maakt zelf de kwaliteiten voor kijkers, dus Doorgeven is genoeg.",
+    "about_peertube": "PeerTube: de beheerder van de instantie moet lives toestaan. Gebruik RTMPS (poort 1936) als de instantie dat aanbiedt. Een permanente live houdt zijn key tussen uitzendingen.",
+    "withAccountHintLinkedIn": "Bij Go live registreert Restream een nieuwe live-video op LinkedIn en publiceert het de post (met de titel en beschrijving van de stream) zodra LinkedIn het beeld ontvangt. Stop beëindigt hem; de video blijft in de post staan. LinkedIn staat maximaal 4 uur per uitzending toe. Events worden niet op LinkedIn aangekondigd."
   },
   "mail": {
     "title": "Mailserver",
@@ -794,7 +906,7 @@
   },
   "accounts": {
     "title": "Gekoppelde accounts",
-    "subtitle": "Koppel YouTube-kanalen, Facebook-pagina's, Twitch-kanalen en X-accounts één keer. Bestemmingen gaan dan live zonder streamkeys te kopiëren, en events worden op de platforms aangekondigd.",
+    "subtitle": "Koppel YouTube-kanalen, Facebook-pagina's, Twitch-kanalen, X-accounts en LinkedIn-profielen of -pagina's één keer. Bestemmingen gaan dan live zonder streamkeys te kopiëren, en events worden op de platforms aangekondigd.",
     "connected_one": "Account gekoppeld.",
     "connected_other": "{{count}} accounts gekoppeld.",
     "publicUrlMissing": "Stel eerst de publieke URL van deze server in; de platforms sturen je daar na het inloggen naartoe terug.",
@@ -812,13 +924,15 @@
       "youtube": "YouTube-kanalen",
       "facebook": "Facebook-pagina's",
       "twitch": "Twitch-kanalen",
-      "x": "X-accounts"
+      "x": "X-accounts",
+      "linkedin": "LinkedIn-profielen en -pagina's"
     },
     "what": {
       "youtube": "Maakt de live-uitzending aan bij Go live, plant events met een eigen kijklink en beëindigt de uitzending bij Stop.",
       "facebook": "Elke pagina die je beheert wordt toegevoegd. Gaat live op de pagina en plant events als aangekondigde live video's.",
       "twitch": "Haalt zelf de streamkey op en zet de titel van de stream. Events komen in het streamschema (Affiliates en Partners).",
-      "x": "Maakt één keer een streambron aan op het account, publiceert de uitzending bij Go live (met een aankondigingspost) en beëindigt hem bij Stop. Events worden niet op X aangekondigd."
+      "x": "Maakt één keer een streambron aan op het account, publiceert de uitzending bij Go live (met een aankondigingspost) en beëindigt hem bij Stop. Events worden niet op X aangekondigd.",
+      "linkedin": "Registreert bij Go live een live-video, publiceert de post zodra het beeld binnenkomt en beëindigt hem bij Stop. Koppel je eigen profiel, of de bedrijfspagina's die je beheert. Events worden niet op LinkedIn aangekondigd."
     },
     "appsTitle": "Platform-apps",
     "appsText": "Elk platform heeft een app nodig die je één keer registreert in de ontwikkelaarsconsole. De handleiding loopt alle stappen met je door en geeft elke waarde om te kopiëren; het secret wordt versleuteld opgeslagen.",
@@ -826,7 +940,8 @@
       "youtube": "Google Cloud OAuth-client",
       "facebook": "Meta-app",
       "twitch": "Twitch-app",
-      "x": "X-ontwikkelaarsapp"
+      "x": "X-ontwikkelaarsapp",
+      "linkedin": "LinkedIn-ontwikkelaarsapp"
     },
     "secretKeep": "Laat leeg om het opgeslagen secret te houden.",
     "reconnectForChat": "Koppel opnieuw om de reacties van deze pagina in de live chat te tonen.",
@@ -876,13 +991,19 @@
           "Log in bij X met het account waarop je live wilt gaan.",
           "X vraagt of de app je profiel mag zien en je live-uitzendingen mag beheren. Klik op Authorize app (App autoriseren).",
           "De pop-up sluit en het account verschijnt op deze pagina."
+        ],
+        "linkedin": [
+          "Log in bij LinkedIn met het profiel waarop je live wilt gaan. Voor een bedrijfspagina: log in als beheerder van die pagina.",
+          "LinkedIn vraagt of de app je profiel mag gebruiken en live-video's voor je (of je pagina's) mag maken. Klik op Toestaan.",
+          "De pop-up sluit en het profiel of de pagina's verschijnen op deze pagina."
         ]
       },
       "require": {
         "youtube": "Livestreamen moet aanstaan op het kanaal (YouTube Studio › Live gaan). De eerste keer kan het tot 24 uur duren voordat YouTube dat inschakelt.",
         "facebook": "Facebook staat live video via apps alleen toe op pagina's met minstens 100 volgers, beheerd door een account dat minstens 60 dagen oud is.",
         "twitch": "Events inplannen vraagt de status Affiliate of Partner; live gaan werkt voor elk kanaal.",
-        "x": "X laat alleen betaalde accounts (X Premium) die niet beschermd zijn live gaan vanuit streamingsoftware. Koppelen lukt ook zonder, maar live gaan wordt dan geweigerd."
+        "x": "X laat alleen betaalde accounts (X Premium) die niet beschermd zijn live gaan vanuit streamingsoftware. Koppelen lukt ook zonder, maar live gaan wordt dan geweigerd.",
+        "linkedin": "LinkedIn laat alleen goedgekeurde profielen en pagina's live gaan, en de app heeft de door LinkedIn goedgekeurde Live Events API nodig. Koppelen lukt ook zonder, maar live gaan wordt dan geweigerd en het dashboard zegt waarom."
       },
       "consent": {
         "youtube": {
@@ -923,6 +1044,16 @@
             "Gekoppeld blijven tot je de toegang intrekt"
           ],
           "button": "Authorize app"
+        },
+        "linkedin": {
+          "site": "linkedin.com",
+          "title": "{{app}} wil toegang tot je LinkedIn-account",
+          "items": [
+            "Je naam en foto gebruiken",
+            "Je live-video's aanmaken en beheren",
+            "De live-video op je profiel of pagina posten"
+          ],
+          "button": "Toestaan"
         }
       }
     },
@@ -935,7 +1066,8 @@
       "youtube": "Je registreert Restream als app in Google Cloud. Dat is gratis en duurt ongeveer 10 minuten. Daarna koppelt iedereen met operatorrechten kanalen via de bekende Google-pop-up.",
       "facebook": "Je registreert Restream als app bij Meta for Developers. Dat is gratis en duurt ongeveer 10 minuten. Daarna koppel je pagina's via de bekende Facebook-pop-up.",
       "twitch": "Je registreert Restream als applicatie in de Twitch-ontwikkelaarsconsole. Dat duurt ongeveer 5 minuten.",
-      "x": "Je registreert Restream als app in de X Developer Console. Dat duurt ongeveer 10 minuten. X rekent API-gebruik per aanroep af met vooraf gekocht tegoed; live gaan kost maar een handvol aanroepen per uitzending."
+      "x": "Je registreert Restream als app in de X Developer Console. Dat duurt ongeveer 10 minuten. X rekent API-gebruik per aanroep af met vooraf gekocht tegoed; live gaan kost maar een handvol aanroepen per uitzending.",
+      "linkedin": "Je registreert Restream als app in het LinkedIn Developer Portal en vraagt de Live Events API aan. LinkedIn beoordeelt die aanvraag; zolang die niet is goedgekeurd lukt koppelen wel, maar live gaan wordt geweigerd. Reken op een paar dagen voor de beoordeling."
     },
     "guide": {
       "youtube": [
@@ -1079,6 +1211,40 @@
           "text": "App › Keys and tokens › OAuth 2.0 Client ID en Client Secret.",
           "note": "X toont het client secret maar één keer. Kwijt? Genereer een nieuw secret en plak dat hier."
         }
+      ],
+      "linkedin": [
+        {
+          "title": "Maak de app aan",
+          "text": "Log in bij het LinkedIn Developer Portal en klik op Create app. LinkedIn vraagt een bedrijfspagina om de app aan te koppelen (elke pagina die je beheert) en een logo.",
+          "link": "linkedinCreate"
+        },
+        {
+          "title": "Voeg de producten toe",
+          "text": "App › Products: vraag Live Events (de LinkedIn Live Events API) aan en voeg Sign In with LinkedIn using OpenID Connect toe. Restream heeft beide nodig: het ene om live te gaan, het andere om te zien wie er koppelde.",
+          "link": "linkedinApps",
+          "note": "Live Events begint op de Development-tier (100 aanroepen per dag, ruim genoeg voor een paar uitzendingen). LinkedIn keurt het product goed; de status zie je op het tabblad Products."
+        },
+        {
+          "title": "Voeg de redirect-URL toe",
+          "text": "App › Auth › OAuth 2.0 settings › Authorized redirect URLs for your app: voeg precies deze URL toe:",
+          "copy": [
+            "redirectUri"
+          ],
+          "note": "Hij moet exact kloppen, met https en zonder slash aan het eind."
+        },
+        {
+          "title": "Rechten",
+          "text": "Restream vraagt deze rechten zelf in de pop-up; je hoeft ze niet toe te voegen. De eerste vier zijn voor je eigen profiel, de laatste drie voor bedrijfspagina's (LinkedIn vraagt die apart):",
+          "copy": [
+            "scopes"
+          ]
+        },
+        {
+          "title": "Kopieer Client-ID en Client Secret",
+          "text": "App › Auth › Application credentials: Client ID en Primary Client Secret.",
+          "link": "linkedinLiveDocs",
+          "note": "LinkedIn-toegang geldt 60 dagen. Vraag LinkedIn om refresh tokens voor de app aan te zetten; anders koppel je het account opnieuw zodra het dashboard daarom vraagt."
+        }
       ]
     },
     "copyLabel": {
@@ -1093,13 +1259,15 @@
       "youtube": "Client-ID",
       "facebook": "App-ID",
       "twitch": "Client-ID",
-      "x": "OAuth 2.0-client-ID"
+      "x": "OAuth 2.0-client-ID",
+      "linkedin": "Client-ID"
     },
     "clientSecretLabel": {
       "youtube": "Client secret",
       "facebook": "App secret",
       "twitch": "Client secret",
-      "x": "OAuth 2.0-client secret"
+      "x": "OAuth 2.0-client secret",
+      "linkedin": "Primary Client Secret"
     },
     "tryTitle": "Probeer het: koppel je eerste account",
     "tryText": "Klik op de knop. De pop-up van het platform opent; log in en geef toestemming. Werkt dat? Dan is de inrichting klaar.",
@@ -1110,7 +1278,8 @@
         "text": "X laat alleen betaalde accounts (X Premium of een geverifieerde organisatie) live gaan vanuit streamingsoftware. Zonder abonnement weigert X de uitzending en meldt het dashboard dat. Beschermde (privé) accounts kunnen ook niet live.",
         "link": "Over X Premium"
       }
-    }
+    },
+    "connectPage": "Bedrijfspagina koppelen"
   },
   "events": {
     "title": "Events",
