@@ -16,7 +16,9 @@ cleanup() {
 trap cleanup EXIT
 
 echo "Extracting $TARBALL"
+chmod 0755 "$DIR"
 tar --numeric-owner -xaf "$TARBALL" -C "$DIR"
+[[ "$(stat -c %a "$DIR")" == 755 ]] || { echo "the root of the template is not 0755"; exit 1; }
 test -f "$DIR/etc/restream/firstboot-pending"
 test ! -e "$DIR/etc/restream/restream.env"
 printf 'ADMIN_EMAIL=ci@restream.local\nLANGUAGE=en\n' > "$DIR/etc/restream/firstboot.conf"

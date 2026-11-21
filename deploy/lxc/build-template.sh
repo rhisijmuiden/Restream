@@ -35,6 +35,8 @@ VERSION=$(sed -n 's/^ *"version": *"\([^"]*\)".*/\1/p' "$SRC_DIR/package.json" |
 NAME="restream-${CHANNEL}-debian-13-amd64"
 ROOTFS=${ROOTFS:-$(mktemp -d /var/tmp/restream-rootfs.XXXXXX)}
 mkdir -p "$OUT_DIR"; OUT_DIR=$(cd "$OUT_DIR" && pwd)
+# mktemp makes the directory 0700; the root of the image must be 0755 or only root can use the system.
+chmod 0755 "$ROOTFS"
 
 log() { printf '\n\e[36m==>\e[0m \e[1m%s\e[0m\n' "$*"; }
 unmount_all() {
