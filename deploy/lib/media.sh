@@ -4,10 +4,23 @@
 
 MEDIAMTX_VERSION="v1.21.3"
 # Public ports: RTMP ingest, SRT ingest, WebRTC media (UDP, with TCP as fallback).
+# Defaults; the installer can store other ports in restream.env (RTMP_PORT, SRT_PORT, WEBRTC_PORT).
+MEDIA_RTMP_PORT=1935
+MEDIA_SRT_PORT=8890
+MEDIA_WEBRTC_PORT=8189
 MEDIA_PORTS=(1935/tcp 8890/udp 8189/udp 8189/tcp)
 # MediaMTX config lives in its own directory: /etc/restream holds secrets and is closed to the mediamtx user,
 # and MediaMTX needs to read the directory of its config file to watch it for changes.
 MEDIA_ETC_DIR="/etc/restream-media"
+
+# media_ports [env_file]: reads the public media ports from restream.env (defaults when not set).
+media_ports() {
+  local env=${1:-/etc/restream/restream.env} v
+  v=$(sed -n 's/^RTMP_PORT=\([0-9]\{1,5\}\)$/\1/p' "$env" 2>/dev/null | tail -1); MEDIA_RTMP_PORT=${v:-1935}
+  v=$(sed -n 's/^SRT_PORT=\([0-9]\{1,5\}\)$/\1/p' "$env" 2>/dev/null | tail -1); MEDIA_SRT_PORT=${v:-8890}
+  v=$(sed -n 's/^WEBRTC_PORT=\([0-9]\{1,5\}\)$/\1/p' "$env" 2>/dev/null | tail -1); MEDIA_WEBRTC_PORT=${v:-8189}
+  MEDIA_PORTS=("${MEDIA_RTMP_PORT}/tcp" "${MEDIA_SRT_PORT}/udp" "${MEDIA_WEBRTC_PORT}/udp" "${MEDIA_WEBRTC_PORT}/tcp")
+}
 
 media_log() { if declare -F log >/dev/null; then log "$@"; else echo "$@"; fi; }
 
@@ -55,13 +68,16 @@ ensure_media() {
   fi
 
   id mediamtx &>/dev/null || useradd --system --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin mediamtx
+  media_ports "$etc_dir/restream.env"
 
   # WebRTC viewers connect to the public host name (or IP) of this server.
   host=$(sed -n 's#^PUBLIC_URL=https\{0,1\}://\([^/:]*\).*#\1#p' "$etc_dir/restream.env" 2>/dev/null | head -1)
   [[ -n "$host" ]] || host=$(hostname -I 2>/dev/null | awk '{print $1}')
   install -d -m 0750 -o root -g mediamtx "$MEDIA_ETC_DIR"
   tmpcfg=$(mktemp)
-  sed "s#__PUBLIC_HOST__#${host}#g" "$app_dir/deploy/mediamtx/mediamtx.yml" > "$tmpcfg"
+  sed -e "s#__PUBLIC_HOST__#${host}#g" -e "s#__RTMP_PORT__#${MEDIA_RTMP_PORT}#g" \
+      -e "s#__SRT_PORT__#${MEDIA_SRT_PORT}#g" -e "s#__WEBRTC_PORT__#${MEDIA_WEBRTC_PORT}#g" \
+      "$app_dir/deploy/mediamtx/mediamtx.yml" > "$tmpcfg"
   if ! cmp -s "$tmpcfg" "$MEDIA_ETC_DIR/mediamtx.yml"; then
     install -m 0640 -o root -g mediamtx "$tmpcfg" "$MEDIA_ETC_DIR/mediamtx.yml"
     changed=1
@@ -85,6 +101,7 @@ ensure_media() {
 # open_firewall: adds the web and media ports to an active ufw or firewalld. Never enables a firewall by itself.
 open_firewall() {
   local p
+  media_ports
   if command -v ufw >/dev/null && ufw status 2>/dev/null | grep -q '^Status: active'; then
     for p in 80/tcp 443/tcp "${MEDIA_PORTS[@]}"; do ufw allow "$p" >/dev/null; done
     media_log "Firewall (ufw): opened 80/tcp, 443/tcp, ${MEDIA_PORTS[*]}"
@@ -102,6 +119,7 @@ open_firewall() {
 # enable_ufw: installs and enables ufw with SSH, web and media ports open (installer option --firewall).
 enable_ufw() {
   local ports p
+  media_ports
   command -v ufw >/dev/null || DEBIAN_FRONTEND=noninteractive apt-get install -y -qq ufw >/dev/null || return 1
   ports=$(sshd -T 2>/dev/null | awk '$1 == "port" {print $2}')
   for p in ${ports:-22}; do ufw allow "${p}/tcp" >/dev/null; done

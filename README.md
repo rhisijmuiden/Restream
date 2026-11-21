@@ -2,22 +2,33 @@
 
 Self-hosted stream multiplexer for Debian 13, installed with a single installer script on a bare server. Send one RTMP or SRT stream to the server, press **Go live**, and Restream distributes it to YouTube, Facebook, Twitch, Instagram, TikTok, Kick, X, LinkedIn, Vimeo, Dailymotion, Rumble, Trovo, Owncast, PeerTube and your own RTMP/SRT servers, each in its own bitrate and resolution.
 
-> Status: v1.7 is on the test channel. Phase 7 added TikTok, Vimeo, Dailymotion, Rumble, Trovo, Owncast and PeerTube as destinations and LinkedIn Live as a connected account (profile or company page). v1.3 (phases 0 to 5, the whole roadmap) is on the test channel. Phase 5 added Instagram, Kick, X and LinkedIn with presets per platform, a backup feed that takes over automatically plus a fallback image, and API keys and webhooks for other projects. Phase 4 added live viewer counts per platform, one combined YouTube/Facebook/Twitch chat and statistics per broadcast. Phase 3 added the embeddable player (optionally only on your own websites or with signed links), one-click recording with downloads, connected YouTube/Facebook/Twitch accounts via OAuth, and scheduled events that are announced on the platforms. v1.0 (phases 0 to 2) brought ingest, destinations, hotlinks, the installer, 2FA, mail, backups and updates. See [docs/ROADMAP.md](docs/ROADMAP.md) (Dutch) and [CHANGELOG.md](CHANGELOG.md).
+> Status: v1.8 is on the test channel. It adds a guided installer (English and Dutch) and a Proxmox LXC template. In v1.7, phase 7 added TikTok, Vimeo, Dailymotion, Rumble, Trovo, Owncast and PeerTube as destinations and LinkedIn Live as a connected account (profile or company page). v1.3 (phases 0 to 5, the whole roadmap) is on the test channel. Phase 5 added Instagram, Kick, X and LinkedIn with presets per platform, a backup feed that takes over automatically plus a fallback image, and API keys and webhooks for other projects. Phase 4 added live viewer counts per platform, one combined YouTube/Facebook/Twitch chat and statistics per broadcast. Phase 3 added the embeddable player (optionally only on your own websites or with signed links), one-click recording with downloads, connected YouTube/Facebook/Twitch accounts via OAuth, and scheduled events that are announced on the platforms. v1.0 (phases 0 to 2) brought ingest, destinations, hotlinks, the installer, 2FA, mail, backups and updates. See [docs/ROADMAP.md](docs/ROADMAP.md) (Dutch) and [CHANGELOG.md](CHANGELOG.md).
 
 ## Install
 
-On a fresh Debian 13 server (recommended: 4 vCPU, 8 GB RAM, 80 GB SSD, 100 Mbps or more), as root:
+Two ways, both with a guided setup. At the end you see only what you need: the address, the user name and the password. Full guide: [docs/INSTALL.md](docs/INSTALL.md) (Nederlands: [docs/INSTALL.nl.md](docs/INSTALL.nl.md)).
+
+**On a Debian 13 server** (recommended: 4 vCPU, 8 GB RAM, 80 GB SSD, 100 Mbps or more), as root:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rhisijmuiden/restream/main/deploy/install.sh | bash -s -- \
-  --domain restream.example.com --email you@example.com
+curl -fsSL https://raw.githubusercontent.com/rhisijmuiden/restream/main/deploy/install.sh | bash
 ```
 
-- Without `--domain` the server uses its IP address and a self-signed certificate.
-- `--firewall` installs and enables ufw with SSH, web and media ports open. Without it, an active ufw or firewalld only gets the ports added.
-- `--channel test` installs the test channel (`test` branch) instead of production (`main`). To try the test channel before anything is on `main`, fetch the script from the `test` branch as well.
-- At the end the installer prints the sign-in address and a temporary password. At first sign-in you choose your own password and set up two-factor authentication.
-- Running the installer again is safe; it keeps the database, secrets and users.
+The wizard (English or Dutch) asks for the domain (or none: the IP address with a self-signed certificate), Let's Encrypt or self-signed, the administrator, the channel (production or test), the media ports and the firewall. All answers can also be given as options, with `-y` to ask nothing: see `install.sh --help`. Running it again (`restream-setup`) is safe; it keeps the database, secrets and users.
+
+**On Proxmox VE, as an LXC container**: in the Proxmox GUI open your storage › **CT Templates** › **Download from URL** and paste
+
+```
+https://github.com/rhisijmuiden/restream/releases/download/lxc-production/restream-production-debian-13-amd64.tar.zst
+```
+
+(or `lxc-test/restream-test-debian-13-amd64.tar.zst` for the test channel). Create an unprivileged container from it with nesting on; it sets itself up on its first start, and logging in as root on its console shows the address, user name and password. Or let the helper do everything on the Proxmox host:
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/rhisijmuiden/restream/main/deploy/proxmox/restream-ct.sh)"
+```
+
+At first sign-in you choose your own password and set up two-factor authentication.
 
 Maintenance on the server:
 
@@ -26,6 +37,7 @@ Maintenance on the server:
 | `restream-cli reset-password --email <e>` | New temporary password for a user |
 | `restream-cli reset-2fa --email <e>` | User sets up 2FA again at next sign-in |
 | `restream-update [--channel production\|test]` | Update from the shell (same as the Updates page) |
+| `restream-setup` | Run the setup wizard again: domain, HTTPS, channel, ports, firewall |
 | `restream-cli backup [--full]` | Make a backup now (incremental when a chain exists) |
 | `restream-cli backups` | List the backups on the remote location |
 | `restream-cli restore --id <id> --yes` | Restore a backup (replaces database and recordings) |
@@ -40,6 +52,8 @@ Maintenance on the server:
 | 1935 TCP | RTMP ingest |
 | 8890 UDP | SRT ingest |
 | 8189 UDP and TCP | WebRTC media for viewers and the console preview |
+
+The media ports are defaults: the installer can set others (`--rtmp-port`, `--srt-port`, `--webrtc-port`, or the wizard); the console then shows them in the ingest addresses.
 
 ## Streaming
 
@@ -102,7 +116,7 @@ npm run build
 
 Create a first user with `node server/dist/cli.js create-admin --email you@example.com` after a build.
 
-The media engine is off in development. To try streaming locally, run MediaMTX with `deploy/mediamtx/mediamtx.yml` (replace `__PUBLIC_HOST__` with `127.0.0.1`), install FFmpeg, and start the server with `MEDIA_ENABLED=true`.
+The media engine is off in development. To try streaming locally, run MediaMTX with `deploy/mediamtx/mediamtx.yml` (replace `__PUBLIC_HOST__` with `127.0.0.1`, and `__RTMP_PORT__`, `__SRT_PORT__`, `__WEBRTC_PORT__` with 1935, 8890 and 8189), install FFmpeg, and start the server with `MEDIA_ENABLED=true`.
 
 ## Standard for every release
 

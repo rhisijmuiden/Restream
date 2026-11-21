@@ -1,0 +1,74 @@
+name: LXC template
+
+# Builds the Proxmox CT template (Debian 13 + Restream, no secrets) and boots it once to check the first start.
+# On main and test it is published as a release asset, so Proxmox can fetch it with "Download from URL":
+#   https://github.com/rhisijmuiden/restream/releases/download/lxc-production/restream-production-debian-13-amd64.tar.zst
+#   https://github.com/rhisijmuiden/restream/releases/download/lxc-test/restream-test-debian-13-amd64.tar.zst
+
+on:
+  push:
+    branches: [main, test]
+  pull_request:
+    paths:
+      - 'deploy/**'
+      - '.github/workflows/lxc-template.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: lxc-template-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  template:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Channel
+        id: ch
+        run: |
+          base="${GITHUB_BASE_REF:-${GITHUB_REF_NAME}}"
+          if [[ "$base" == "main" ]]; then echo "channel=production" >> "$GITHUB_OUTPUT"; else echo "channel=test" >> "$GITHUB_OUTPUT"; fi
+          echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Tools
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq debootstrap debian-archive-keyring zstd systemd-container
+      - name: Build template
+        run: sudo deploy/lxc/build-template.sh --channel "${{ steps.ch.outputs.channel }}" --out dist
+      - name: Boot test (first start in systemd-nspawn)
+        run: sudo deploy/lxc/test-template.sh "dist/restream-${{ steps.ch.outputs.channel }}-debian-13-amd64.tar.zst"
+      - name: Keep the template of this pull request for a few days
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: restream-${{ steps.ch.outputs.channel }}-ct-template
+          path: dist/
+          retention-days: 5
+          compression-level: 0
+      - name: Publish release asset
+        if: github.event_name != 'pull_request' && (github.ref_name == 'main' || github.ref_name == 'test')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHANNEL: ${{ steps.ch.outputs.channel }}
+          VERSION: ${{ steps.ch.outputs.version }}
+        run: |
+          tag="lxc-${CHANNEL}"
+          notes="Proxmox CT template for Restream ${VERSION} (${CHANNEL} channel), built from ${GITHUB_SHA:0:7}.
+
+          In Proxmox: <storage> > CT Templates > Download from URL, and paste:
+          https://github.com/${GITHUB_REPOSITORY}/releases/download/${tag}/restream-${CHANNEL}-debian-13-amd64.tar.zst
+
+          Create the container unprivileged with nesting on. On its first start it sets itself up; log in as root on the console to see the address, user name and password. See docs/INSTALL.md."
+          git tag -f "$tag" "$GITHUB_SHA"
+          git push -f origin "refs/tags/$tag"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release edit "$tag" --title "CT template ${VERSION} (${CHANNEL})" --notes "$notes"
+          else
+            extra=(); [[ "$CHANNEL" == test ]] && extra=(--prerelease)
+            gh release create "$tag" --title "CT template ${VERSION} (${CHANNEL})" --notes "$notes" "${extra[@]}"
+          fi
+          gh release upload "$tag" dist/*.tar.zst dist/*.sha256 --clobber

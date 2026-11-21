@@ -37,7 +37,7 @@ jobs:
       - run: npm run build
       - run: npm test
       - name: Check installer scripts
-        run: shellcheck -S warning deploy/*.sh deploy/lib/*.sh
+        run: shellcheck -S warning deploy/*.sh deploy/lib/*.sh deploy/lxc/*.sh deploy/proxmox/*.sh
       - name: Check translations are complete
         run: |
           node -e '

@@ -1,0 +1,18 @@
+[Unit]
+Description=Restream first start setup (container template)
+Documentation=https://github.com/rhisijmuiden/restream/blob/main/docs/INSTALL.md
+# Only on a prepared image that has not been set up yet (see deploy/install.sh --build-image).
+ConditionPathExists=/etc/restream/firstboot-pending
+Wants=network-online.target
+After=network-online.target postgresql.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/bash /opt/restream/deploy/install.sh --firstboot
+StandardOutput=append:/var/log/restream-firstboot.log
+StandardError=append:/var/log/restream-firstboot.log
+TimeoutStartSec=30min
+
+[Install]
+WantedBy=multi-user.target
