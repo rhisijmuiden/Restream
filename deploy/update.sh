@@ -125,5 +125,12 @@ healthy || rollback "the new version did not start"
 # Refresh the updater units shipped with the new version.
 install -m 0644 "$APP_DIR"/deploy/systemd/restream*.service "$APP_DIR"/deploy/systemd/restream-updater.path /etc/systemd/system/ && systemctl daemon-reload
 
+# Login message and the setup wizard command (added in 1.8.0) for installations made before.
+[[ -f "$APP_DIR/deploy/welcome.sh" ]] && install -m 0644 "$APP_DIR/deploy/welcome.sh" /etc/profile.d/zz-restream-welcome.sh
+if [[ ! -e /usr/local/sbin/restream-setup && -f "$APP_DIR/deploy/install.sh" ]]; then
+  printf '#!/bin/sh\n# Run the Restream setup wizard again (domain, HTTPS, channel, ports, firewall). Keeps data and users.\nexec /bin/bash /opt/restream/deploy/install.sh "$@"\n' > /usr/local/sbin/restream-setup
+  chmod 0755 /usr/local/sbin/restream-setup
+fi
+
 log "Done: now on ${TO:0:7} ($CHANNEL)."
 status success "done" ""

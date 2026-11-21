@@ -1,6 +1,6 @@
 # Managed by the Restream installer and updater: changes to this file are overwritten.
 # MediaMTX receives the RTMP/SRT ingest and serves HLS/WebRTC to Restream's playback proxy.
-# Public: RTMP 1935/tcp, SRT 8890/udp, WebRTC media 8189/udp+tcp. Everything else listens on 127.0.0.1.
+# Public: RTMP 1935/tcp, SRT 8890/udp, WebRTC media 8189/udp+tcp (defaults; the installer fills in the ports). Everything else listens on 127.0.0.1.
 
 logLevel: info
 logDestinations: [stdout]
@@ -27,7 +27,7 @@ rtspAddress: 127.0.0.1:8554
 rtspsAddress: 127.0.0.1:8322
 
 rtmp: yes
-rtmpAddress: :1935
+rtmpAddress: :__RTMP_PORT__
 rtmpsAddress: 127.0.0.1:1936
 
 hls: yes
@@ -40,13 +40,13 @@ hlsPartDuration: 200ms
 
 webrtc: yes
 webrtcAddress: 127.0.0.1:8889
-webrtcLocalUDPAddress: :8189
-webrtcLocalTCPAddress: :8189
+webrtcLocalUDPAddress: :__WEBRTC_PORT__
+webrtcLocalTCPAddress: :__WEBRTC_PORT__
 webrtcIPsFromInterfaces: yes
 webrtcAdditionalHosts: [__PUBLIC_HOST__]
 
 srt: yes
-srtAddress: :8890
+srtAddress: :__SRT_PORT__
 
 moq: no
 

@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.8.0 · Guided installer and a Proxmox LXC template
+
+- **Guided installer** for a Debian 13 server (`install.sh`, in English or Dutch): domain or IP address (with a DNS check that explains Cloudflare's grey cloud), Let's Encrypt or self-signed, administrator email and name, production or test channel, standard or own media ports, firewall, and a summary to confirm. Every answer is also an option (`--tls`, `--admin-name`, `--rtmp-port`, `--srt-port`, `--webrtc-port`, `--lang`); `-y` asks nothing. Without whiptail it falls back to plain questions.
+- **At the end only the address, the user name and the password** are shown. They are saved in `/root/restream-credentials.txt` (root only) and shown at every root login until that file is deleted; the address is also shown on the console before login.
+- **Proxmox LXC template**: a Debian 13 CT template with everything installed and built but no secrets, published per channel as a release asset, so Proxmox can fetch it with *CT Templates › Download from URL*. On its first start each container creates its own database password, app key, administrator and certificate (`restream-firstboot.service`). Built and boot-tested in GitHub Actions (systemd-nspawn) on every push to `main` and `test`.
+- **Proxmox helper** (`deploy/proxmox/restream-ct.sh`): a wizard on the Proxmox host that downloads the template (checksum checked), creates an unprivileged container with nesting, waits for the first start and shows the address, user name and password.
+- `restream-setup` runs the wizard again later (domain, HTTPS, channel, ports); data and users are kept. Configurable media ports are stored in `restream.env` and used by MediaMTX, the firewall and the ingest addresses in the console.
+- Docs: [docs/INSTALL.md](docs/INSTALL.md) and [docs/INSTALL.nl.md](docs/INSTALL.nl.md).
+
 ## 1.7.0 · More destinations: TikTok, Vimeo, Dailymotion, Rumble, Trovo, Owncast, PeerTube, and LinkedIn Live as a connected account
 
 - **New destinations with a stream key**, each with its own preset (server, bitrate, resolution, frame rate, keyframe interval, audio):
