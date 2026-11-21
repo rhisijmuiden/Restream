@@ -95,7 +95,8 @@ rm -rf "$ROOTFS"/var/lib/apt/lists/* "$ROOTFS"/root/.npm "$ROOTFS"/root/.cache "
 rm -f "$ROOTFS/usr/sbin/policy-rc.d" "$ROOTFS"/etc/ssh/ssh_host_*
 : > "$ROOTFS/etc/resolv.conf"
 : > "$ROOTFS/etc/machine-id"; rm -f "$ROOTFS/var/lib/dbus/machine-id"
-find "$ROOTFS/var/log" -type f -exec truncate -s 0 {} +
+# -c opens without O_CREAT: fs.protected_regular blocks creating opens in sticky group-writable dirs (var/log/postgresql).
+find "$ROOTFS/var/log" -type f -exec truncate -c -s 0 {} + || true
 install -d -m 0755 "$ROOTFS/etc/issue.d"
 printf 'Restream %s: being set up on this first start. Log in as root to see the address, user name and password.\n\n' "$VERSION" \
   > "$ROOTFS/etc/issue.d/restream.issue"
